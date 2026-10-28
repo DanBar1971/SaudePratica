@@ -7,6 +7,7 @@ on:
       - styles.css
       - script.js
       - assets/**
+      - info_saude/**
       - .nojekyll
       - robots.txt
       - sitemap.xml
@@ -52,6 +53,12 @@ jobs:
           mkdir -p public/assets
           cp index.html styles.css script.js .nojekyll robots.txt sitemap.xml public/
           cp assets/saude_icon.png assets/saude_splash.png assets/saude_background.png public/assets/
+          test -s info_saude/informacoes.json
+          jq -e '.schema_version==1 and (.items|length>0)' info_saude/informacoes.json
+          test -s info_saude/imagens/info_001.svg
+          cp -a info_saude public/info_saude
+          test -s public/info_saude/informacoes.json
+          test -s public/info_saude/imagens/info_001.svg
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
       - name: Preparar ficheiros do website

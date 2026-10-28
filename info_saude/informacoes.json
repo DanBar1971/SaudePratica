@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "version": "2026-10-28.1",
+  "version": "2026-10-28.2",
   "base_url": "https://danbar1971.github.io/SaudePratica/info_saude/",
   "display": {
     "default_frequency_days": 3,
-    "first_display_min_hours": 24,
+    "first_display_min_hours": 0,
     "max_per_session": 1,
     "only_when_app_active": true,
     "never_over_alarms": true,

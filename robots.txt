@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://danbar1971.github.io/SaudePratica/sitemap.xml

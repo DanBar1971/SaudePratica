@@ -1,0 +1,63 @@
+name: Publicar website SaúdePrática
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - styles.css
+      - script.js
+      - assets/**
+      - .nojekyll
+      - robots.txt
+      - sitemap.xml
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: saudepratica-github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Obter o website
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validar ficheiros e identidade visual
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s index.html && test -s styles.css && test -s script.js
+          for image in saude_icon saude_splash saude_background; do
+            file "assets/$image.png" | grep -F 'PNG image data'
+            test "$(stat -c%s "assets/$image.png")" -gt 1000
+          done
+          grep -F 'github.com/DanBar1971/AndroidAppDev/releases/latest/download/SaudePratica.apk' index.html
+          grep -F 'https://danbar1971.github.io/SaudePratica/' index.html
+          if grep -iEn 'private.?key|keystore|\.jks|password|token=' index.html script.js styles.css; then
+            echo "::error::Possível segredo exposto no website"
+            exit 1
+          fi
+          mkdir -p public/assets
+          cp index.html styles.css script.js .nojekyll robots.txt sitemap.xml public/
+          cp assets/saude_icon.png assets/saude_splash.png assets/saude_background.png public/assets/
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Preparar ficheiros do website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Publicar website
+        id: deployment
+        uses: actions/deploy-pages@v4

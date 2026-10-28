@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071b24">
+  <meta name="description" content="SaúdePrática: a aplicação Android para organizar medicação, tomas, consultas, documentos, nutrição e cuidados familiares num só lugar.">
+  <link rel="canonical" href="https://danbar1971.github.io/SaudePratica/">
+  <meta property="og:url" content="https://danbar1971.github.io/SaudePratica/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="SaúdePrática | Cuida do que importa">
+  <meta property="og:description" content="Medicação, saúde e cuidados familiares organizados numa única aplicação Android.">
+  <meta property="og:image" content="https://danbar1971.github.io/SaudePratica/assets/saude_splash.png">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" type="image/png" href="./assets/saude_icon.png">
+  <link rel="apple-touch-icon" href="./assets/saude_icon.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>SaúdePrática — Cuida do que importa</title>
+</head>
+<body>
+  <a class="skip" href="#conteudo">Saltar para o conteúdo</a>
+  <div class="site-bg" aria-hidden="true"></div>
+  <header class="site-header" id="inicio">
+    <nav class="container nav" aria-label="Navegação principal">
+      <a href="#inicio" class="brand" aria-label="SaúdePrática, início">
+        <img src="./assets/saude_icon.png" width="42" height="42" alt="" loading="eager">
+        <span>Saúde<span class="brand-accent">Prática</span></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-menu" aria-label="Abrir menu"><span></span><span></span><span></span></button>
+      <div class="nav-links" id="main-menu">
+        <a href="#funcionalidades">Funcionalidades</a>
+        <a href="#experiencia">Explorar a app</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#perguntas">Perguntas</a>
+        <a class="nav-download" href="#download">Obter a app <span aria-hidden="true">↗</span></a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero container" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse-dot"></span> Aplicação Android · Saúde e bem-estar</div>
+        <h1 id="hero-title">Tudo o que importa à tua saúde. <span>Num só lugar.</span></h1>
+        <p class="hero-lead">Organiza a medicação, acompanha as tomas, guarda documentos e gere as consultas. Para ti e para quem cuidas, com uma experiência simples, clara e em português.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://github.com/DanBar1971/AndroidAppDev/releases/latest/download/SaudePratica.apk" data-download> <span aria-hidden="true">↓</span> Descarregar para Android</a>
+          <a class="btn btn-outline" href="#experiencia">Conhecer a aplicação <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="hero-meta"><span><span class="check">✓</span> Desenvolvida para Android</span><span><span class="check">✓</span> Vários perfis</span><span><span class="check">✓</span> Código no GitHub</span></div>
+        <div class="release-line"><span class="mini-glow"></span> Versão mais recente: <strong data-release>v1.9.100</strong> <span class="release-sep">·</span> <a href="https://github.com/DanBar1971/AndroidAppDev/releases/latest" data-release-link>Notas de versão ↗</a></div>
+      </div>
+      <div class="hero-visual" aria-label="Ilustração do alarme de medicação da SaúdePrática">
+        <div class="ambient-ring ambient-one"></div><div class="ambient-ring ambient-two"></div>
+        <div class="float-card float-card-left"><div class="float-icon">📅</div><div><strong>Agenda</strong><span>Consultas e exames</span></div></div>
+        <div class="float-card float-card-right"><div class="float-icon">📄</div><div><strong>Documentos</strong><span>Tudo organizado</span></div></div>
+        <div class="phone-shell hero-phone">
+          <div class="phone-speaker"></div>
+          <div class="phone-screen">
+            <div class="phone-wallpaper"></div>
+            <div class="phone-status"><span>08:00</span><span>● ●  ▰</span></div>
+            <div class="phone-product"><span class="appmark">✳</span> Saúde<span>Prática</span></div>
+            <div class="alarm-screen">
+              <div class="alarm-icon"><span aria-hidden="true">🔔</span></div>
+              <div class="alarm-kicker">HORA DA MEDICAÇÃO</div>
+              <div class="alarm-clock">08:00</div>
+              <h2>Está na hora de cuidar de ti.</h2>
+              <p>2 medicamentos agendados</p>
+              <div class="drug-list"><div><span class="drug-dot"></span><span>Medicamento A</span><b>1 comprimido</b></div><div><span class="drug-dot blue"></span><span>Medicamento B</span><b>1 comprimido</b></div></div>
+              <div class="alarm-actions"><span>ADIAR 10M</span><span>TOMEI ✓</span></div>
+            </div>
+          </div>
+          <div class="phone-homebar"></div>
+        </div>
+        <div class="visual-caption">Exemplo ilustrativo. Os medicamentos apresentados são fictícios.</div>
+      </div>
+    </section>
+
+    <div class="trust-band">
+      <div class="container trust-inner"><div><span>💊</span> Medicação e tomas</div><div><span>📁</span> Documentos digitais</div><div><span>👨‍👩‍👧</span> Perfis familiares</div><div><span>❤️</span> Atividade e bem-estar</div></div>
+    </div>
+
+    <section class="section container" id="funcionalidades" aria-labelledby="features-title">
+      <div class="section-head"><div><div class="eyebrow eyebrow-small">FUNCIONALIDADES</div><h2 id="features-title">Mais organização.<br><span>Menos preocupações.</span></h2></div><p>Uma aplicação feita para acompanhar o dia a dia da saúde, com os módulos essenciais sempre à mão.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card feature-card-wide"><div class="feature-icon pink">💊</div><span class="feature-label">01 · MEDICAÇÃO</span><h3>A tua medicação, sob controlo.</h3><p>Organiza medicamentos, horários, doses e tomas. Alarmes com opções para confirmar ou adiar 10 minutos e histórico separado por medicamento.</p><div class="visual-pill"><span>08:00</span><span>Medicamento A</span><strong>✓ Confirmar toma</strong></div></article>
+        <article class="feature-card"><div class="feature-icon mint">📆</div><span class="feature-label">02 · AGENDA</span><h3>Consultas e exames.</h3><p>Reúne os agendamentos e os lembretes num único calendário.</p><div class="feature-bottom"><span class="tiny-calendar">28 <small>OUT</small></span><span class="mini-line">Próxima consulta</span></div></article>
+        <article class="feature-card"><div class="feature-icon blue">📁</div><span class="feature-label">03 · DOCUMENTOS</span><h3>Os documentos sempre contigo.</h3><p>Guarda e consulta PDFs, relatórios e imagens associados ao perfil correto.</p><div class="file-chips"><span>PDF</span><span>IMG</span><span>RELATÓRIOS</span></div></article>
+        <article class="feature-card"><div class="feature-icon amber">🥗</div><span class="feature-label">04 · NUTRIÇÃO</span><h3>Conhece melhor o que comes.</h3><p>Regista refeições com fotografia, revê os alimentos e estima os valores nutricionais. Análise Gemini opcional ou introdução manual.</p><div class="macro-bars"><i></i><i></i><i></i></div></article>
+        <article class="feature-card"><div class="feature-icon purple">👨‍👩‍👧</div><span class="feature-label">05 · FAMÍLIA</span><h3>Cuida de quem está perto.</h3><p>Vários perfis de saúde, funcionalidades para cuidadores e sincronização familiar entre dispositivos compatíveis.</p><div class="avatar-stack"><span>EU</span><span>MÃE</span><span>PAI</span></div></article>
+        <article class="feature-card"><div class="feature-icon green">❤️</div><span class="feature-label">06 · BEM-ESTAR</span><h3>O dia a dia também conta.</h3><p>Regista hidratação, atividade e medições, com integração Health Connect quando disponível.</p><div class="water-progress"><span>Hidratação</span><strong>▰▰▰▰▱▱</strong></div></article>
+        <article class="feature-card"><div class="feature-icon orange">🏡</div><span class="feature-label">07 · APOIO</span><h3>Lares e cuidados.</h3><p>Centraliza a informação útil para acompanhar familiares em lares ou outras respostas de apoio.</p><div class="small-highlight">Cuidar é também organizar.</div></article>
+        <article class="feature-card"><div class="feature-icon gray">🔐</div><span class="feature-label">08 · PROTEÇÃO</span><h3>Os teus dados são importantes.</h3><p>Acesso protegido na aplicação, organização por perfis e opções de cópia de segurança.</p><div class="small-highlight">A informação clínica não aparece neste site.</div></article>
+      </div>
+    </section>
+
+    <section class="explore-wrap" id="experiencia" aria-labelledby="explore-title">
+      <div class="container explore-inner">
+        <div class="explore-text"><div class="eyebrow eyebrow-small">POR DENTRO DA SAÚDEPRÁTICA</div><h2 id="explore-title">Uma experiência pensada para ser <em>simples.</em></h2><p>Explora quatro exemplos visuais dos ecrãs da aplicação. As ilustrações usam dados fictícios e representam a organização dos módulos.</p>
+          <div class="screen-tabs" role="tablist" aria-label="Exemplos de ecrãs">
+            <button type="button" role="tab" id="tab-alarm" aria-selected="true" aria-controls="panel-alarm" data-panel="alarm"><span>🔔</span> Alarme</button>
+            <button type="button" role="tab" id="tab-intakes" aria-selected="false" aria-controls="panel-intakes" data-panel="intakes" tabindex="-1"><span>💊</span> Tomas</button>
+            <button type="button" role="tab" id="tab-nutrition" aria-selected="false" aria-controls="panel-nutrition" data-panel="nutrition" tabindex="-1"><span>🍎</span> Nutrição</button>
+            <button type="button" role="tab" id="tab-docs" aria-selected="false" aria-controls="panel-docs" data-panel="docs" tabindex="-1"><span>📄</span> Documentos</button>
+          </div>
+          <div class="explore-description" id="screen-description" aria-live="polite">Quando chega a hora, o alarme apresenta a medicação e as ações disponíveis. A apresentação em ecrã inteiro depende das permissões e das regras do Android.</div>
+        </div>
+        <div class="demo-phone-wrap"><div class="demo-glow"></div><div class="phone-shell demo-phone"><div class="phone-speaker"></div><div class="phone-screen demo-phone-screen"><div class="phone-wallpaper"></div><div class="phone-status"><span>09:41</span><span>◕ ▰</span></div>
+          <div id="panel-alarm" class="demo-panel is-visible" role="tabpanel" aria-labelledby="tab-alarm"><div class="demo-title">🔔 Alarme de medicação</div><div class="demo-center"><div class="demo-bell">🔔</div><div class="demo-time">09:00</div><h3>Hora da medicação</h3><p>Medicamento A · 1 comprimido</p></div><div class="demo-action-row"><span>ADIAR 10M</span><span>TOMEI ✓</span></div></div>
+          <div id="panel-intakes" class="demo-panel" role="tabpanel" aria-labelledby="tab-intakes" hidden><div class="demo-title">💊 Tomas</div><p class="demo-subtitle">Histórico e acompanhamento</p><div class="demo-pill success">✓ 2 tomas confirmadas</div><div class="demo-entry"><div class="demo-entry-icon">✓</div><div><strong>Medicamento A</strong><span>Confirmada · 09:00</span></div></div><div class="demo-entry"><div class="demo-entry-icon">✓</div><div><strong>Medicamento B</strong><span>Confirmada · 09:00</span></div></div><div class="demo-pill muted">Registos por medicamento</div></div>
+          <div id="panel-nutrition" class="demo-panel" role="tabpanel" aria-labelledby="tab-nutrition" hidden><div class="demo-title">🥗 Nutrição</div><p class="demo-subtitle">Diário de refeições</p><div class="demo-food"><span>🥦</span><span>🍅</span><span>🍚</span></div><div class="demo-entry"><div class="demo-entry-icon orange-b">✦</div><div><strong>Refeição registada</strong><span>Fotografia + alimentos</span></div></div><div class="demo-nutrients"><span>Proteínas</span><b>●●●○○</b></div><div class="demo-nutrients"><span>Hidratos</span><b>●●●●○</b></div><div class="demo-nutrients"><span>Gorduras</span><b>●●○○○</b></div><div class="demo-note">Valores apenas ilustrativos</div></div>
+          <div id="panel-docs" class="demo-panel" role="tabpanel" aria-labelledby="tab-docs" hidden><div class="demo-title">📁 Documentos digitais</div><p class="demo-subtitle">Tudo associado ao perfil certo</p><div class="demo-entry"><div class="demo-file red">PDF</div><div><strong>Relatório clínico</strong><span>Documento digital</span></div></div><div class="demo-entry"><div class="demo-file cyan">IMG</div><div><strong>Guia de tratamento</strong><span>Imagem guardada</span></div></div><div class="demo-entry"><div class="demo-file red">PDF</div><div><strong>Resultado de exame</strong><span>Consulta posterior</span></div></div></div>
+        </div><div class="phone-homebar"></div></div><div class="demo-footnote">Ilustrações demonstrativas · Não são capturas reais de utilizadores</div></div>
+      </div>
+    </section>
+
+    <section class="section container steps-section" id="como-funciona" aria-labelledby="steps-title"><div class="centered-heading"><div class="eyebrow eyebrow-small">COMEÇAR É SIMPLES</div><h2 id="steps-title">A tua saúde, <span>ao teu ritmo.</span></h2><p>Três passos para teres tudo mais organizado.</p></div>
+      <div class="steps"><div class="step"><div class="step-number">01</div><div class="step-icon">📲</div><h3>Descarrega a aplicação</h3><p>Obtém a versão mais recente diretamente do GitHub Releases.</p></div><div class="step-connector" aria-hidden="true">·······</div><div class="step"><div class="step-number">02</div><div class="step-icon">👤</div><h3>Cria o teu perfil</h3><p>Organiza a informação pessoal e adiciona outros perfis, se precisares.</p></div><div class="step-connector" aria-hidden="true">·······</div><div class="step"><div class="step-number">03</div><div class="step-icon">✨</div><h3>Personaliza o teu dia</h3><p>Regista a medicação, consultas, documentos e os teus hábitos.</p></div></div>
+    </section>
+
+    <section class="download-section" id="download" aria-labelledby="download-title"><div class="container download-content"><div class="download-left"><div class="eyebrow eyebrow-small light">COMEÇA A CUIDAR MELHOR</div><h2 id="download-title">O teu próximo passo começa aqui.</h2><p>Descarrega a SaúdePrática para Android, diretamente da Release oficial do projeto.</p><div class="download-actions"><a class="btn btn-dark" href="https://github.com/DanBar1971/AndroidAppDev/releases/latest/download/SaudePratica.apk" data-download><span aria-hidden="true">↓</span> Descarregar APK <span data-release>v1.9.100</span></a><a class="btn btn-light-outline" href="https://github.com/DanBar1971/AndroidAppDev" target="_blank" rel="noopener noreferrer">Ver código-fonte ↗</a></div><small>Para atualizar, instala por cima da versão anterior. Faz primeiro uma cópia de segurança dos teus dados e não desinstales a aplicação.</small></div><div class="download-art" aria-hidden="true"><img src="./assets/saude_icon.png" alt=""><div class="download-art-ring"></div><div class="download-art-ring ring2"></div></div></div></section>
+
+    <section class="section container faq-section" id="perguntas" aria-labelledby="faq-title"><div class="section-head"><div><div class="eyebrow eyebrow-small">DÚVIDAS FREQUENTES</div><h2 id="faq-title">Perguntas <span>e respostas.</span></h2></div><p>Informações importantes sobre a instalação, os alertas e as funcionalidades da SaúdePrática.</p></div>
+      <div class="faq-list"><details><summary>É necessário desinstalar a versão anterior?</summary><p>Não. Para preservar os dados, instala a nova APK por cima da versão anterior. A aplicação utiliza o mesmo identificador e certificado de assinatura. Faz uma cópia de segurança antes de atualizar.</p></details>
+      <details><summary>O alarme aparece sempre em ecrã inteiro?</summary><p>A app utiliza notificações de alta prioridade e o mecanismo de alarme em ecrã inteiro do Android. No Android 14+ e no Xiaomi/HyperOS, o sistema pode apresentar apenas uma notificação destacada quando o telemóvel está desbloqueado. É importante autorizar os alarmes exatos, as notificações em ecrã inteiro e a execução em segundo plano, quando disponível.</p></details>
+      <details><summary>Preciso de uma chave Gemini para a Nutrição?</summary><p>A análise de fotografias por Gemini é opcional e necessita de uma chave API e de quota disponível no projeto Google. O registo manual continua disponível, mesmo que a análise por IA falhe. Os erros 429 e 503 podem depender da quota ou da disponibilidade do serviço Google.</p></details>
+      <details><summary>Posso gerir a saúde de vários familiares?</summary><p>Sim. A aplicação permite organizar informações em perfis separados, com funcionalidades para cuidadores e opções de sincronização familiar.</p></details>
+      <details><summary>Este site recebe os meus dados de saúde?</summary><p>Não. Esta é apenas uma página pública de apresentação e download. Não contém formulários de dados clínicos nem permite ver os registos guardados na aplicação.</p></details>
+      <details><summary>Onde encontro as versões anteriores e o código?</summary><p>No <a href="https://github.com/DanBar1971/AndroidAppDev/releases" target="_blank" rel="noopener noreferrer">histórico de Releases</a> e no <a href="https://github.com/DanBar1971/AndroidAppDev" target="_blank" rel="noopener noreferrer">repositório GitHub</a>. O nome técnico MediAgenda permanece no código por compatibilidade com as versões anteriores.</p></details></div>
+    </section>
+    <section class="container care-note" aria-label="Nota de utilização"><span aria-hidden="true">ⓘ</span><p><strong>Uma ferramenta de organização, não um substituto de cuidados médicos.</strong> Os lembretes, estimativas de nutrição e outros dados da aplicação não substituem as indicações de profissionais de saúde.</p></section>
+  </main>
+  <footer class="footer"><div class="container footer-inner"><a href="#inicio" class="brand footer-brand"><img src="./assets/saude_icon.png" width="38" height="38" alt=""><span>Saúde<span class="brand-accent">Prática</span></span></a><p>Mais organização para cuidar do que importa.</p><div class="footer-links"><a href="#funcionalidades">Funcionalidades</a><a href="https://github.com/DanBar1971/AndroidAppDev/releases" target="_blank" rel="noopener noreferrer">Releases</a><a href="https://github.com/DanBar1971/AndroidAppDev" target="_blank" rel="noopener noreferrer">GitHub</a></div><small>© <span id="year">2026</span> SaúdePrática · Projeto Android independente</small></div></footer>
+  <script src="./script.js" defer></script>
+</body>
+</html>

@@ -118,12 +118,41 @@
       <div class="steps"><div class="step"><div class="step-number">01</div><div class="step-icon">📲</div><h3>Descarrega a aplicação</h3><p>Obtém a versão mais recente diretamente do GitHub Releases.</p></div><div class="step-connector" aria-hidden="true">·······</div><div class="step"><div class="step-number">02</div><div class="step-icon">👤</div><h3>Cria o teu perfil</h3><p>Organiza a informação pessoal e adiciona outros perfis, se precisares.</p></div><div class="step-connector" aria-hidden="true">·······</div><div class="step"><div class="step-number">03</div><div class="step-icon">✨</div><h3>Personaliza o teu dia</h3><p>Regista a medicação, consultas, documentos e os teus hábitos.</p></div></div>
     </section>
 
-    <section class="download-section" id="download" aria-labelledby="download-title"><div class="container download-content"><div class="download-left"><div class="eyebrow eyebrow-small light">COMEÇA A CUIDAR MELHOR</div><h2 id="download-title">O teu próximo passo começa aqui.</h2><p>Descarrega a SaúdePrática para Android, diretamente da Release oficial do projeto.</p><div class="download-actions"><a class="btn btn-dark" href="https://github.com/DanBar1971/AndroidAppDev/releases/latest/download/SaudePratica.apk" data-download><span aria-hidden="true">↓</span> Descarregar APK <span data-release>v1.9.100</span></a></div><small>Para atualizar, instala por cima da versão anterior. Faz primeiro uma cópia de segurança dos teus dados e não desinstales a aplicação.</small></div><div class="download-art" aria-hidden="true"><img src="./assets/saude_icon.png" alt=""><div class="download-art-ring"></div><div class="download-art-ring ring2"></div></div></div></section>
+    <section class="download-section" id="download" aria-labelledby="download-title"><div class="container download-content"><div class="download-left"><div class="eyebrow eyebrow-small light">COMEÇA A CUIDAR MELHOR</div><h2 id="download-title">O teu próximo passo começa aqui.</h2><p>Descarrega a SaúdePrática para Android, diretamente da Release oficial do projeto.</p><div class="download-actions"><a class="btn btn-dark" href="https://github.com/DanBar1971/AndroidAppDev/releases/latest/download/SaudePratica.apk" data-download><span aria-hidden="true">↓</span> Descarregar APK <span data-release>v1.9.100</span></a></div>
+        <details class="install-guide">
+          <summary>Como instalar a APK no Android ou Xiaomi?</summary>
+          <div class="install-guide-body">
+            <ol>
+              <li>Descarrega a APK pelo botão acima, diretamente do GitHub Releases oficial.</li>
+              <li>Abre o ficheiro <strong>SaudePratica.apk</strong> em <strong>Downloads</strong>, no navegador ou na app Ficheiros.</li>
+              <li>Se o Android impedir a instalação, toca em <strong>Definições</strong> no aviso. Em alternativa, pesquisa por <strong>Instalar apps desconhecidas</strong> nas Definições do telemóvel.</li>
+              <li>No Xiaomi/HyperOS, o caminho pode ser <strong>Definições → Definições adicionais → Privacidade → Acesso especial a apps → Instalar apps desconhecidas</strong>. Noutros modelos surge em <strong>Proteção da privacidade → Permissões especiais</strong>.</li>
+              <li>Escolhe a aplicação que abriu a APK (por exemplo, <strong>Chrome</strong> ou <strong>Ficheiros</strong>) e ativa <strong>Permitir desta fonte</strong>. Volta ao ficheiro e toca em <strong>Instalar</strong>.</li>
+              <li>Depois da instalação, podes voltar a desativar <strong>Permitir desta fonte</strong>.</li>
+            </ol>
+            <p><strong>Importante:</strong> atualiza por cima da SaúdePrática existente, sem a desinstalar, para conservar os dados. Faz primeiro um backup. Autoriza apenas fontes em que confias; se o Android mostrar outro bloqueio de segurança, lê o aviso e não desatives a proteção geral do telemóvel.</p>
+          </div>
+        </details>
+        <small>Para atualizar, instala por cima da versão anterior. Faz primeiro uma cópia de segurança dos teus dados e não desinstales a aplicação.</small></div><div class="download-art" aria-hidden="true"><img src="./assets/saude_icon.png" alt=""><div class="download-art-ring"></div><div class="download-art-ring ring2"></div></div></div></section>
 
     <section class="section container faq-section" id="perguntas" aria-labelledby="faq-title"><div class="section-head"><div><div class="eyebrow eyebrow-small">DÚVIDAS FREQUENTES</div><h2 id="faq-title">Perguntas <span>e respostas.</span></h2></div><p>Informações importantes sobre a instalação, os alertas e as funcionalidades da SaúdePrática.</p></div>
       <div class="faq-list"><details><summary>É necessário desinstalar a versão anterior?</summary><p>Não. Para preservar os dados, instala a nova APK por cima da versão anterior. A aplicação utiliza o mesmo identificador e certificado de assinatura. Faz uma cópia de segurança antes de atualizar.</p></details>
       <details><summary>O alarme aparece sempre em ecrã inteiro?</summary><p>A app utiliza notificações de alta prioridade e o mecanismo de alarme em ecrã inteiro do Android. No Android 14+ e no Xiaomi/HyperOS, o sistema pode apresentar apenas uma notificação destacada quando o telemóvel está desbloqueado. É importante autorizar os alarmes exatos, as notificações em ecrã inteiro e a execução em segundo plano, quando disponível.</p></details>
       
+      <details><summary>Preciso de uma chave Gemini para a Nutrição?</summary>
+        <div class="faq-answer">
+          <p><strong>Sim, apenas para analisar fotografias com IA.</strong> A Nutrição também permite introduzir os alimentos manualmente sem utilizar o Gemini.</p>
+          <ol>
+            <li>Abre o <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer">Google AI Studio — API Keys</a> e inicia sessão com a tua conta Google.</li>
+            <li>Se já tens uma chave válida, podes utilizá-la. Caso contrário, escolhe <strong>Create API key</strong>.</li>
+            <li>Seleciona ou cria um projeto Google Cloud e copia a chave para um local privado.</li>
+            <li>Na SaúdePrática, abre <strong>Config/Opções → Gemini · API Key e teste</strong>, introduz a chave e testa a ligação.</li>
+            <li>Para verificar a quota disponível e os modelos autorizados, abre o <a href="https://aistudio.google.com/rate-limit" target="_blank" rel="noopener noreferrer">Google AI Studio — Rate Limits</a>.</li>
+          </ol>
+          <p><strong>Se aparecer o erro 429</strong>, a quota ou limite do projeto pode ter sido atingido. Criar outra chave no mesmo projeto não aumenta a quota. <strong>O erro 503</strong> costuma indicar indisponibilidade temporária do serviço. Nestes casos podes continuar a registar a refeição manualmente.</p>
+          <p class="faq-security"><strong>Segurança:</strong> nunca partilhes a API key nem a coloques num website público ou num repositório GitHub.</p>
+        </div>
+      </details>
       <details><summary>Posso gerir a saúde de vários familiares?</summary><p>Sim. A aplicação permite organizar informações em perfis separados, com funcionalidades para cuidadores e opções de sincronização familiar.</p></details>
       <details><summary>Este site recebe os meus dados de saúde?</summary><p>Não. Esta é apenas uma página pública de apresentação e download. Não contém formulários de dados clínicos nem permite ver os registos guardados na aplicação.</p></details>
       </div>

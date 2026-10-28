@@ -55,10 +55,10 @@ jobs:
           cp assets/saude_icon.png assets/saude_splash.png assets/saude_background.png public/assets/
           test -s info_saude/informacoes.json
           jq -e '.schema_version==1 and (.items|length>0)' info_saude/informacoes.json
-          test -s info_saude/imagens/info_001.svg
+          test -s info_saude/imagens/info_001.png
           cp -a info_saude public/info_saude
           test -s public/info_saude/informacoes.json
-          test -s public/info_saude/imagens/info_001.svg
+          test -s public/info_saude/imagens/info_001.png
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
       - name: Preparar ficheiros do website

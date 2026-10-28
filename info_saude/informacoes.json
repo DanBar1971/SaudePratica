@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "2026-10-28.4",
+  "version": "2026-10-28.5",
   "base_url": "https://danbar1971.github.io/SaudePratica/info_saude/",
   "display": {
     "default_frequency_days": 3,
@@ -98,6 +98,36 @@
           0.884,
           0.941,
           0.95
+        ]
+      }
+    },
+    {
+      "id": "info_004",
+      "enabled": true,
+      "category": "medicacao",
+      "title": "Verifique a validade dos medicamentos",
+      "image": "imagens/info_004.webp",
+      "image_aspect_ratio": "9:16",
+      "action_label": "Saber mais",
+      "action_url": "https://www.infarmed.pt/documents/15786/1228470/11_Medicamentos_em_Casa.pdf/aa215ea6-3113-442b-b800-4034cfc1804b?version=1.1",
+      "close_label": "OK",
+      "priority": 22,
+      "published_at": "2026-10-28",
+      "minimum_days_between_shows": 30,
+      "allow_repeat": true,
+      "embedded_actions": true,
+      "embedded_action_regions": {
+        "action": [
+          0.039,
+          0.903,
+          0.616,
+          0.977
+        ],
+        "close": [
+          0.639,
+          0.903,
+          0.961,
+          0.977
         ]
       }
     }

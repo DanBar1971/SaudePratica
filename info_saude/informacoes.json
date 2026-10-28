@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "version": "2026-10-28.1",
+  "base_url": "https://danbar1971.github.io/SaudePratica/info_saude/",
+  "display": {
+    "default_frequency_days": 3,
+    "first_display_min_hours": 24,
+    "max_per_session": 1,
+    "only_when_app_active": true,
+    "never_over_alarms": true,
+    "history_enabled": true
+  },
+  "items": [
+    {
+      "id": "info_001",
+      "enabled": true,
+      "category": "apoio",
+      "title": "Gosta desta App? Apoie o autor com um cafezinho!",
+      "image": "imagens/info_001.svg",
+      "image_aspect_ratio": "9:16",
+      "action_label": "☕ Oferecer um cafezinho",
+      "action_url": "https://buymeacoffee.com/danielbarr7",
+      "close_label": "OK",
+      "priority": 10,
+      "published_at": "2026-10-28",
+      "minimum_days_between_shows": 30,
+      "allow_repeat": true
+    }
+  ]
+}

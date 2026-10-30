@@ -51,4 +51,39 @@
       document.querySelectorAll('[data-download]').forEach(el=>el.href=apk.browser_download_url);
     }
   }).catch(()=>{/* Static, permanent latest-release links still work offline or under API limits. */});
+
+  // Windows tem releases próprias (windows-vX.Y.Z-preview). Nunca usar o
+  // endpoint releases/latest do Android para obter instaladores Windows.
+  // A página consulta o GitHub sempre que abre, sem precisar republicar HTML.
+  fetch('https://api.github.com/repos/'+REPO+'/releases?per_page=60',{
+    headers:{'Accept':'application/vnd.github+json'}
+  })
+  .then(r=>{if(!r.ok)throw Error('Windows release unavailable');return r.json();})
+  .then(releases=>{
+    if(!Array.isArray(releases))return;
+    const candidates=releases.filter(release=>{
+      if(release.draft || typeof release.tag_name!=='string' ||
+         !/^windows-v\d+\.\d+\.\d+(?:-preview)?$/.test(release.tag_name))return false;
+      return Array.isArray(release.assets) && release.assets.some(asset=>asset.name==='SaudePratica-Setup.exe');
+    });
+    candidates.sort((a,b)=>Date.parse(b.published_at||0)-Date.parse(a.published_at||0));
+    const item=candidates[0];
+    if(!item)return;
+    const asset=item.assets.find(a=>a.name==='SaudePratica-Setup.exe');
+    const safeRoot='https://github.com/'+REPO+'/releases/';
+    const safeAsset='https://github.com/'+REPO+'/releases/download/'+encodeURIComponent(item.tag_name)+'/';
+    if(typeof item.html_url!=='string' || !item.html_url.startsWith(safeRoot) ||
+       typeof asset.browser_download_url!=='string' ||
+       !asset.browser_download_url.startsWith(safeAsset))return;
+    const version=item.tag_name.replace('windows-v','');
+    document.querySelectorAll('[data-windows-release]').forEach(el=>el.textContent=version);
+    document.querySelectorAll('[data-windows-link]').forEach(el=>el.href=item.html_url);
+    document.querySelectorAll('[data-windows-download]').forEach(el=>{
+      el.href=asset.browser_download_url;
+      el.textContent='Descarregar instalador Windows';
+    });
+    document.querySelectorAll('[data-windows-status]').forEach(el=>{
+      el.textContent=item.prerelease?'Versão experimental':'Disponível';
+    });
+  }).catch(()=>{/* Ligação de segurança permanente à lista de releases. */});
 })();

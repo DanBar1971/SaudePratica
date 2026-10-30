@@ -19,7 +19,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+env:
+  WINDOWS_APP_VERSION: "0.1.0"
 
 jobs:
   windows-preview:
@@ -43,9 +46,49 @@ jobs:
           pyinstaller --noconfirm --clean --onefile --windowed --name SaudePraticaDesktop --paths . --add-data "assets;assets" windows/desktop.py
           if (!(Test-Path "dist/SaudePraticaDesktop.exe")) { throw "EXE ausente" }
           Get-FileHash "dist/SaudePraticaDesktop.exe" -Algorithm SHA256
+      - name: Preparar ícone oficial para instalador
+        shell: pwsh
+        run: |
+          python -c 'from PIL import Image; Image.open("assets/saude_icon.png").save("dist/saude_icon.ico",format="ICO",sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])'
+          if (!(Test-Path "dist/saude_icon.ico")) { throw "Ícone original em falta" }
+      - name: Instalar Inno Setup 6 no runner Windows
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --yes --no-progress
+          }
+          if (!(Test-Path $iscc)) { throw "Inno Setup 6 indisponível" }
+      - name: Compilar instalador EXE com instalação e desinstalação
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=$env:WINDOWS_APP_VERSION" "windows\installer\SaudePratica.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Falhou a compilação do instalador" }
+          $setup = "dist/installer/SaudePratica-Setup.exe"
+          if (!(Test-Path $setup)) { throw "Instalador em falta" }
+          if ((Get-Item $setup).Length -lt 5000000) { throw "Instalador incompleto" }
+          Get-FileHash $setup -Algorithm SHA256
       - uses: actions/upload-artifact@v4
         with:
-          name: SaudePratica-Windows-EXPERIMENTAL-unsigned
-          path: dist/SaudePraticaDesktop.exe
-          retention-days: 14
+          name: SaudePratica-Windows-INSTALADOR-EXPERIMENTAL
+          path: dist/installer/SaudePratica-Setup.exe
+          retention-days: 30
           if-no-files-found: error
+      - name: Publicar instalador em release permanente (sem afetar última APK Android)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "windows-v$env:WINDOWS_APP_VERSION-preview"
+          $repo = "$env:GITHUB_REPOSITORY"
+          gh release view $tag --repo $repo *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output "A release $tag já existe. Não substituo instaladores publicados sem aumentar a versão."
+          } else {
+            gh release create $tag "dist/installer/SaudePratica-Setup.exe" --repo $repo --target main --title "SaúdePrática Desktop $env:WINDOWS_APP_VERSION - Windows experimental" --notes-file windows/RELEASE_NOTES_PREVIEW.md --prerelease --latest=false
+            if ($LASTEXITCODE -ne 0) { throw "Falhou a publicação do instalador no GitHub Releases" }
+          }
+          $hasAsset = gh release view $tag --repo $repo --json assets --jq '[.assets[].name] | any(. == "SaudePratica-Setup.exe")'
+          if ($LASTEXITCODE -ne 0 -or "$hasAsset".Trim() -ne "true") { throw "A release não contém o instalador" }

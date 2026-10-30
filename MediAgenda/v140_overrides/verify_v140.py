@@ -7,7 +7,7 @@ app=Path("build-src/MediAgenda_Android_v1/app")
 src=app/"src/main/java/com/mediagenda/app"
 main=(src/"MainActivity.kt").read_text()
 glucose=(src/"DiabetesActivity.kt").read_text()
-links=(src/"ImportantShortcutsActivity.kt").read_text()
+links=(src/"ImportantShortcutsV2Activity.kt").read_text()
 smart=(src/"SmartHelpActivity.kt").read_text()
 help=(src/"SupportHelpActivity.kt").read_text()
 gradle=(app/"build.gradle.kts").read_text()
@@ -19,10 +19,10 @@ assert "DashboardModule(" in main and '"Diabetes"' in main
 assert '"SNS 24", "Aplicação oficial de saúde"' not in main
 assert '"IPO Lisboa", "Abrir aplicação IPO Lisboa"' not in main
 assert "DiabetesActivity.EXTRA_PROFILE_ID,activeProfileId" in main
-assert "ImportantShortcutsActivity::class.java" in main
+assert "ImportantShortcutsV2Activity::class.java" in main
 assert "https://danbar1971.github.io/SaudePratica/" in main
 assert "DiabetesActivity" in manifest.read_text()
-assert "ImportantShortcutsActivity" in manifest.read_text()
+assert "ImportantShortcutsV2Activity" in manifest.read_text()
 ET.parse(manifest)
 assert "QUERY_ALL_PACKAGES" not in manifest.read_text()
 for pkg in ("pt.minsaude.spms.ces","com.seamlink.gatewaybox.ipolisboa"):

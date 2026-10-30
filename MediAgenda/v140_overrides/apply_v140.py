@@ -64,8 +64,45 @@ s=s.replace(option_anchor,'''        box.addView(infoCard("🔗", "Atalhos Impor
         })
 '''+option_anchor,1)
 
-# The old global "About" content is preserved; this adds explicit link/share
-# actions without changing its version metadata.
+# Move the existing Senior Mode entry INTO Aspect and Language without
+# creating a second setting or changing the original preference.
+senior='''        box.addView(infoCard("🧓", "Acessibilidade · Modo Sénior",
+            if(seniorMode) "Ativo · letras e botões maiores no ecrã inicial" else "Ativar uma utilização mais simples e legível") {
+            showOptionsGroup("acessibilidade")
+        })
+'''
+assert s.count(senior)==1,("senior entry",s.count(senior))
+s=s.replace(senior,"",1)
+theme='        box.addView(infoCard("◐", "Aspeto da aplicação",'
+assert s.count(theme)==1,("theme entry",s.count(theme))
+s=s.replace(theme,senior+theme,1)
+
+# Reuse the sole existing Atalhos location, now opening the Apps/Web manager.
+# Legacy data is imported by that manager the first time it opens.
+legacy='''        box.addView(infoCard("🔗", "Atalhos Importantes",
+            "Adicionar, editar e apagar links web · ADSE, CGA, IRS e APATI") {
+            startActivity(Intent(this,ImportantShortcutsActivity::class.java)
+                .putExtra(ImportantShortcutsActivity.EXTRA_MANAGE,true))
+        })'''
+assert s.count(legacy)==1,("legacy options card",s.count(legacy))
+s=s.replace(legacy,'''        box.addView(infoCard("🔗", "Atalhos Importantes",
+            "Aplicações instaladas e websites · organizar atalhos") {
+            startActivity(Intent(this,ImportantShortcutsV2Activity::class.java))
+        })''',1)
+# Home also opens the new manager; old activity remains available for
+# rollback and its original preferences are not overwritten.
+s=s.replace('Intent(this,ImportantShortcutsActivity::class.java)',
+            'Intent(this,ImportantShortcutsV2Activity::class.java)')
+# Do not display a second shortcuts entry in Help/Information.
+extra='''        box.addView(infoCard("🔗", "Atalhos Importantes · Apps e Web",
+            "Escolher aplicações instaladas ou endereços web") {
+            startActivity(Intent(this,ImportantShortcutsV2Activity::class.java))
+        })
+'''
+assert s.count(extra)==1,("duplicate shortcuts menu",s.count(extra))
+s=s.replace(extra,"",1)
+
+# The existing About information and all other options are preserved.
 main.write_text(s,encoding="utf-8")
 
 # Android 11+ app visibility: query launcher apps without QUERY_ALL_PACKAGES.

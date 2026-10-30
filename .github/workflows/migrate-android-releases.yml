@@ -1,99 +1,38 @@
-name: SaúdePrática — Arquivar releases Android originais
+name: "SaúdePrática - Migrar 43 releases Android"
 on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/migrate-android-releases.yml'
+      - ".github/workflows/migrate-android-releases.yml"
   workflow_dispatch:
 permissions:
   contents: write
-concurrency:
-  group: saudepratica-archive-legacy-releases
-  cancel-in-progress: false
 jobs:
   archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       max-parallel: 5
       matrix:
         start: [76, 81, 86, 91, 96, 101, 106, 111, 116]
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
     env:
       GH_TOKEN: ${{ github.token }
-      SOURCE_REPO: DanBar1971/AndroidAppDev
-      DEST_REPO: DanBar1971/SaudePratica
-      START: ${{ matrix.start }
     steps:
-      - name: Copiar e validar ficheiros das releases de origem
-        shell: bash
-        run: |
-          set -euo pipefail
-          END=$((START+4))
-          if [ "$END" -gt 118 ]; then END=118; fi
-          for N in $(seq "$START" "$END"); do
-            TAG="v1.9.$N"
-            echo "::group::Migrar $TAG"
-            META="$RUNNER_TEMP/$TAG-source.json"
-            NOTES="$RUNNER_TEMP/$TAG-notes.md"
-            DIR="$RUNNER_TEMP/assets-$TAG"
-            mkdir -p "$DIR"
-            gh api "repos/$SOURCE_REPO/releases/tags/$TAG" > "$META"
-            gh release download "$TAG" --repo "$SOURCE_REPO" --dir "$DIR"
-            python3 - "$META" "$DIR" "$NOTES" <<'PY'
-          import hashlib,json,os,sys
-          source=json.load(open(sys.argv[1],encoding='utf8'))
-          directory=sys.argv[2]
-          for a in source['assets']:
-              p=os.path.join(directory,a['name'])
-              assert os.path.isfile(p),(source['tag_name'],a['name'],'missing')
-              assert os.path.getsize(p)==a['size'],(a['name'],'size mismatch')
-              digest=a.get('digest','')
-              if digest and digest.startswith('sha256:'):
-                  h=hashlib.sha256()
-                  with open(p,'rb') as f:
-                      for chunk in iter(lambda:f.read(1024*1024),b''):h.update(chunk)
-                  assert 'sha256:'+h.hexdigest()==digest,(a['name'],'SHA mismatch')
-          with open(sys.argv[3],'w',encoding='utf8') as f:
-              f.write('# SaúdePrática '+source['tag_name']+' — arquivo\n\n')
-              f.write('Release original: '+source['html_url']+'\n\n')
-              f.write('Data original: '+str(source.get('published_at'))+'\n\n')
-              f.write('Commit/ref original: '+str(source.get('target_commitish'))+'\n\n')
-              f.write('Ficheiros e APK assinada copiados sem recompilação.\n\n---\n\n')
-              f.write(source.get('body') or '')
-          print('Verificados:',source['tag_name'],len(source['assets']),'ficheiros')
-          PY
-            if ! gh release view "$TAG" --repo "$DEST_REPO" >/dev/null 2>&1; then
-              gh release create "$TAG" "$DIR"/* --repo "$DEST_REPO" \
-                --title "SaúdePrática $TAG — Android" --target main \
-                --notes-file "$NOTES" --latest=false
-            fi
-            gh api "repos/$DEST_REPO/releases/tags/$TAG" > "$RUNNER_TEMP/$TAG-target.json"
-            python3 - "$META" "$RUNNER_TEMP/$TAG-target.json" <<'PY'
-          import json,sys
-          before=json.load(open(sys.argv[1],encoding='utf8'))
-          after=json.load(open(sys.argv[2],encoding='utf8'))
-          old={a['name']:a['size'] for a in before['assets']}
-          new={a['name']:a['size'] for a in after['assets']}
-          assert old==new,(before['tag_name'],'anexos diferentes',old,new)
-          print('Cópia validada:',before['tag_name'])
-          PY
-            rm -rf "$DIR"
-            echo "::endgroup::"
-          done
+      - uses: actions/checkout@v4
+      - name: Copy and verify original signed releases
+        run: python3 .github/scripts/archive_legacy_releases.py ${{ matrix.start }
   finalize:
     needs: archive
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }
     steps:
-      - name: Confirmar 43 releases e definir última versão
-        shell: bash
+      - name: Verify all 43 versions and set latest
         run: |
           set -euo pipefail
-          COUNT=$(gh api 'repos/DanBar1971/SaudePratica/releases?per_page=100' \
-            --jq '[.[] | select(.draft == false and (.tag_name | startswith("v1.9.")))] | length')
+          COUNT=$(gh api 'repos/DanBar1971/SaudePratica/releases?per_page=100' --jq '[.[] | select(.draft == false and (.tag_name | startswith("v1.9.")))] | length')
           test "$COUNT" -ge 43
           gh release edit v1.9.118 --repo DanBar1971/SaudePratica --latest
           test "$(gh api repos/DanBar1971/SaudePratica/releases/latest --jq .tag_name)" = v1.9.118
-          echo "::notice::As 43 releases originais foram arquivadas. Última: v1.9.118"
+          echo "Archived and verified 43 releases (v1.9.76–v1.9.118)"

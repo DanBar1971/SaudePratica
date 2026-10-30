@@ -55,6 +55,7 @@ def _converted(item,kind,profile_id):
     record["android_source_id"]=source_id
     record["android_source_hash"]=digest
     record["android_origin"]="android-json-experimental"
+    record["android_original"]=item   # exact source record survives normalisation
     if kind=="medications":
         record["name"]=name
         record["dose"]=_text(item.get("dose") or item.get("dosage") or item.get("strength"),90)
@@ -64,7 +65,7 @@ def _converted(item,kind,profile_id):
         record["time"]=time
         if not isinstance(record.get("notes"),str): record["notes"]=""
         # No Windows alarm is scheduled by this import.
-        record["no_alarm"]=True
+        record["no_alarm"]=bool(item.get("no_alarm",item.get("noAlarm",False)))
     else:
         record["title"]=name
         record["date"]=_text(item.get("date") or item.get("day") or item.get("appointmentDate"),40)
@@ -92,7 +93,8 @@ def plan_json(blob:bytes,kind:str,profile:dict)->ImportPlan:
     if not isinstance(target,list):raise AndroidImportError("O destino contém dados inválidos.")
     hashes={str(x.get("android_source_hash","")) for x in target if isinstance(x,dict)}
     ids={str(x.get("id","")) for x in target if isinstance(x,dict)}
-    sources={str(x.get("android_source_id","")) for x in target if isinstance(x,dict) and x.get("android_source_id")}
+    sources={str(x.get("android_source_id","")):str(x.get("android_source_hash",""))
+             for x in target if isinstance(x,dict) and x.get("android_source_id")}
     names=[]
     pending=[]
     repeated=0
@@ -107,6 +109,8 @@ def plan_json(blob:bytes,kind:str,profile:dict)->ImportPlan:
         if key in seen:raise AndroidImportError("O JSON tem registos duplicados. Corrige o ficheiro primeiro.")
         seen.add(key)
         names.append(record["name"] if kind=="medications" else record["title"])
+        if source and source in sources and sources[source]!=h:
+            raise AndroidImportError("Conflito: um registo Android existente foi alterado. Nada foi importado.")
         if h in hashes or record["id"] in ids or (source and source in sources):
             repeated+=1
             continue

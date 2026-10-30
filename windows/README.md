@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.5.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.5.0-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.0-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.5.0-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.0-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.5.0-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.6.0-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -80,3 +80,7 @@ O splash `assets/saude_splash.png` agora aparece inteiro, sem qualquer recorte o
 Cartões em grelha com foto da embalagem quando existe, nome, dose, horário e estado. A fotografia pode ser anexada na ficha de edição, ficando guardada na conta Windows com DPAPI e incluída no backup encriptado. Sem imagem, é mostrado apenas um símbolo de medicação, não uma embalagem inventada. Pesquisa e filtros são locais. O tema claro usa uma paleta explícita e é validado pelos testes.
 
 Todos os módulos Android são apresentados na grelha, mas os que ainda não têm implementação Windows mostram **Em breve**.
+
+## Novo fundo e perfis (v0.6)
+
+A arte 16:9 aprovada é incorporada no pacote de instalação sem pedidos à internet. A grelha dos módulos é desenhada num canvas com ícones a cores e fundo próprio, evitando os blocos da 0.5. Nos outros módulos, o mesmo fundo aparece atrás dos formulários. O seletor de perfil na barra superior mostra fotografias reais (se existirem) em miniaturas redondas e permite trocar de perfil ou abrir a ficha. Não cria pessoas, fotos ou dados clínicos fictícios em produção.

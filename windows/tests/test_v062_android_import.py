@@ -104,7 +104,7 @@ class AndroidJsonImportTests(unittest.TestCase):
         self.assertIn('VERSION = "0.6.2"',desktop)
         self.assertIn("def _android_import_page(self):",desktop)
         self.assertIn('elif self.page=="agenda": self._agenda()',desktop)
-        self.assertIn('fg_color="transparent",\\n                           corner_radius=0)',desktop)
+        self.assertIn('right=ctk.CTkFrame(container,fg_color="transparent"',desktop)
         self.assertNotIn("self.create_window(w-27,self._module_top-24,window=self.search_field",dashboard)
         self.assertNotIn("self.search_field=tk.Entry(",dashboard)
 

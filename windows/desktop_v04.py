@@ -442,7 +442,7 @@ class Desktop(ctk.CTk):
         self.profile_caregiver=ctk.BooleanVar(value=bool(fields.get("caregiver",False)))
         ctk.CTkSwitch(scroll,text=self.t("caregiver_field"),
             variable=self.profile_caregiver,progress_color=TEAL,
-            button_color=TEAL,fg_color=self.p["panel2"]).grid(
+            button_color=TEAL,fg_color=self.p["panel2"],text_color=self.p["text"]).grid(
                 row=11,column=0,columnspan=2,sticky="w",padx=10,pady=12)
         self._label(scroll,self.t("notes"),12,True,color=self.p["muted"]).grid(
             row=12,column=0,columnspan=2,sticky="w",padx=9)
@@ -624,12 +624,15 @@ class Desktop(ctk.CTk):
 
     def _med_form(self,frame,med):
         fields=med or {}
+        self.med_photo_draft=fields.get("photo_b64","")
         head=ctk.CTkFrame(frame,fg_color="transparent")
-        head.pack(fill="x",padx=22,pady=(18,7))
+        head.pack(fill="x",padx=15,pady=(8,4))
         self._label(head,self.t("edit_medication") if med else self.t("new_medication"),
-                    21,True).pack(side="left")
+                    18,True).pack(side="left")
+        self._button(head,"‹  "+self.t("cancel"),self._back_to_med_gallery,
+                     width=105,height=30).pack(side="right")
         body=ctk.CTkScrollableFrame(frame,fg_color="transparent")
-        body.pack(fill="both",expand=True,padx=15,pady=5)
+        body.pack(fill="both",expand=True,padx=10,pady=4)
         body.grid_columnconfigure(0,weight=1)
         body.grid_columnconfigure(1,weight=1)
         self.med_widgets={}
@@ -651,34 +654,73 @@ class Desktop(ctk.CTk):
             ("dose_pattern",self.take_var,TAKES,3,0)
         ]:
             box=ctk.CTkFrame(body,fg_color="transparent")
-            box.grid(row=row,column=col,sticky="ew",padx=7,pady=7)
+            box.grid(row=row,column=col,sticky="ew",padx=5,pady=4)
             self._label(box,self.t(title),12,True,color=self.p["muted"]).pack(anchor="w",pady=(0,6))
             ctk.CTkOptionMenu(box,values=list(choices),variable=var,width=180,
-                height=40,fg_color=self.p["field"],button_color=BLUE,
-                dropdown_fg_color=self.p["panel2"],text_color=self.p["text"]).pack(fill="x")
+                height=33,fg_color=self.p["field"],button_color=BLUE,
+                dropdown_fg_color=self.p["panel2"],text_color=self.p["text"],
+                dropdown_text_color=self.p["text"]).pack(fill="x")
         self.no_alarm_var=ctk.BooleanVar(value=fields.get("no_alarm",False))
         self.suspended_var=ctk.BooleanVar(value=fields.get("suspended",False))
         toggles=ctk.CTkFrame(body,fg_color="transparent")
-        toggles.grid(row=5,column=0,columnspan=2,sticky="w",padx=8,pady=(16,10))
+        toggles.grid(row=5,column=0,columnspan=2,sticky="w",padx=7,pady=(8,5))
         for k,var in [("no_alarm",self.no_alarm_var),("suspended",self.suspended_var)]:
             ctk.CTkSwitch(toggles,text=self.t(k),variable=var,
                 progress_color=TEAL,button_color=TEAL,
-                fg_color=self.p["panel2"]).pack(side="left",padx=(0,25))
+                fg_color=self.p["panel2"],text_color=self.p["text"]).pack(side="left",padx=(0,20))
         self._label(body,self.t("notes"),12,True,color=self.p["muted"]).grid(
             row=6,column=0,columnspan=2,sticky="w",padx=8)
-        self.med_notes=ctk.CTkTextbox(body,height=83,corner_radius=12,
-            fg_color=self.p["field"],border_width=1,border_color=self.p["line"])
+        self.med_notes=ctk.CTkTextbox(body,height=58,corner_radius=9,
+            fg_color=self.p["field"],border_width=1,border_color=self.p["line"],
+            text_color=self.p["text"])
         self.med_notes.grid(row=7,column=0,columnspan=2,sticky="ew",padx=8,pady=(5,16))
         self.med_notes.insert("1.0",fields.get("notes",""))
-        # Groups visible but explicitly marked as not implemented. Never fake persistence.
-        for i,key in enumerate(("prescription","repetitions","leaflet","photos","more_info")):
-            p=ctk.CTkFrame(body,fg_color=self.p["panel2"],corner_radius=12)
-            p.grid(row=8+i,column=0,columnspan=2,sticky="ew",padx=8,pady=4)
-            self._label(p,self.t(key)+"  ·  "+self.t("coming"),12,
-                        color=self.p["muted"]).pack(anchor="w",padx=15,pady=12)
+        photo_row=ctk.CTkFrame(body,fg_color=self.p["panel2"],corner_radius=10)
+        photo_row.grid(row=8,column=0,columnspan=2,sticky="ew",padx=6,pady=5)
+        self.med_photo_widget=ctk.CTkLabel(photo_row,text="Sem fotografia",
+            text_color=self.p["muted"],width=80,height=62)
+        self.med_photo_widget.pack(side="left",padx=9,pady=6)
+        self._update_med_preview()
+        self._button(photo_row,"📷  Anexar foto da embalagem",
+            self._choose_med_photo,width=207,height=31).pack(side="left",padx=8)
+        self._button(photo_row,"Remover foto",self._remove_med_photo,
+            width=100,height=31).pack(side="left",padx=4)
+        # Future fields are labelled, not falsely presented as implemented.
+        for i,key in enumerate(("prescription","repetitions","leaflet","more_info")):
+            p=ctk.CTkFrame(body,fg_color=self.p["panel2"],corner_radius=9)
+            p.grid(row=9+i,column=0,columnspan=2,sticky="ew",padx=6,pady=3)
+            self._label(p,self.t(key)+"  ·  "+self.t("coming"),11,
+                        color=self.p["muted"]).pack(anchor="w",padx=11,pady=7)
         footer=ctk.CTkFrame(frame,fg_color="transparent")
-        footer.pack(fill="x",padx=22,pady=15)
-        self._button(footer,self.t("save"),self._save_med,True,width=165).pack(side="right")
+        footer.pack(fill="x",padx=16,pady=7)
+        self._button(footer,self.t("save"),self._save_med,True,width=135,height=33).pack(side="right")
+        self._button(footer,self.t("cancel"),self._back_to_med_gallery,
+                     width=120,height=33).pack(side="right",padx=7)
+
+    def _update_med_preview(self):
+        image=self._authentic_thumb(self.med_photo_draft,85,62)
+        self.med_photo_widget.configure(image=image,text="" if image else "Sem fotografia")
+
+    def _remove_med_photo(self):
+        self.med_photo_draft=""
+        self._update_med_preview()
+
+    def _choose_med_photo(self):
+        path=filedialog.askopenfilename(parent=self,filetypes=[
+            ("Imagens","*.jpg *.jpeg *.png *.webp"),("Todos os ficheiros","*.*")])
+        if not path:return
+        try:
+            with Image.open(path) as image:
+                image=ImageOps.exif_transpose(image).convert("RGB")
+                image.thumbnail((750,750),Image.Resampling.LANCZOS)
+                data=BytesIO()
+                image.save(data,format="JPEG",quality=81,optimize=True)
+                if data.tell()>450000:
+                    raise ValueError("A fotografia é demasiado grande.")
+                self.med_photo_draft=base64.b64encode(data.getvalue()).decode("ascii")
+            self._update_med_preview()
+        except Exception as exc:
+            messagebox.showerror("SaúdePrática",str(exc),parent=self)
 
     def _save_med(self):
         fields={key:entry.get() for key,entry in self.med_widgets.items()}
@@ -689,11 +731,11 @@ class Desktop(ctk.CTk):
             "no_alarm":self.no_alarm_var.get() or self.take_var.get()=="SOS",
             "suspended":self.suspended_var.get(),
             "notes":self.med_notes.get("1.0","end-1c"),
+            "photo_b64":self.med_photo_draft,
         })
         try:
-            m=self.store.save_medication(self.active_id,fields,self.editing_med)
-            self.editing_med=m["id"]
-            self._render()
+            self.store.save_medication(self.active_id,fields,self.editing_med)
+            self._back_to_med_gallery()
         except (LocalStoreError,ValueError,KeyError) as exc:
             messagebox.showerror(self.t("med_save_error"),str(exc),parent=self)
 
@@ -709,11 +751,13 @@ class Desktop(ctk.CTk):
         self.theme_values=values
         menu=ctk.CTkOptionMenu(inner,values=list(values),width=230,
              fg_color=self.p["panel2"],button_color=BLUE,
+             text_color=self.p["text"],dropdown_text_color=self.p["text"],
              dropdown_fg_color=self.p["panel"],command=self._change_theme)
         menu.set(next((title for title,v in values.items() if v==self.theme),next(iter(values))))
         menu.grid(row=0,column=1,padx=30,pady=10)
         lang_menu=ctk.CTkOptionMenu(inner,values=list(LANG_NAMES.values()),
             width=230,fg_color=self.p["panel2"],button_color=BLUE,
+            text_color=self.p["text"],dropdown_text_color=self.p["text"],
             dropdown_fg_color=self.p["panel"],command=self._change_language)
         lang_menu.set(LANG_NAMES[self.lang])
         lang_menu.grid(row=1,column=1,padx=30,pady=10)

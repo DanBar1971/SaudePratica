@@ -17,16 +17,16 @@ jobs:
       matrix:
         start: [76, 81, 86, 91, 96, 101, 106, 111, 116]
     env:
-      GH_TOKEN: ${{ github.token }
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - name: Copy and verify original signed releases
-        run: python3 .github/scripts/archive_legacy_releases.py ${{ matrix.start }
+        run: python3 .github/scripts/archive_legacy_releases.py ${{ matrix.start }}
   finalize:
     needs: archive
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ github.token }
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Verify all 43 versions and set latest
         run: |

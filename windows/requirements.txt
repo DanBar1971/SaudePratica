@@ -1,0 +1,4 @@
+Pillow>=11,<13
+pywin32>=308
+cryptography>=44,<50
+pyinstaller>=6.12,<7

@@ -39,7 +39,8 @@ class AndroidJsonImportTests(unittest.TestCase):
         self.assertEqual(m["time"],"07:00")
         self.assertEqual(m["times"],["07:00","19:00"])
         self.assertEqual(m["images"],["blister.jpg"])
-        self.assertTrue(m["no_alarm"])
+        self.assertFalse(m["no_alarm"])  # preserve Android original, Windows never schedules alarms
+        self.assertEqual(m["android_original"]["times"],["07:00","19:00"])
         self.assertEqual(self.store.saves,1)
         second=plan_json(b,"medications",self.store.profile)
         self.assertEqual(len(second.new),0)
@@ -71,6 +72,14 @@ class AndroidJsonImportTests(unittest.TestCase):
         b=self.payload("medications",[{"id":"x","name":"A"},{"id":"x","name":"B"}])
         with self.assertRaises(AndroidImportError):
             plan_json(b,"medications",self.store.profile)
+
+    def test_changed_existing_medication_has_conflict_not_silent_overwrite(self):
+        old=self.payload("medications",[{"id":"x","name":"Comprimido teste","dose":"10"}])
+        changed=self.payload("medications",[{"id":"x","name":"Comprimido teste","dose":"20"}])
+        apply_plan(self.store,plan_json(old,"medications",self.store.profile))
+        with self.assertRaises(AndroidImportError):
+            plan_json(changed,"medications",self.store.profile)
+        self.assertEqual(len(self.store.profile["medications"]),1)
 
     def test_stale_plan_cannot_overwrite(self):
         b=self.payload("medications",[{"id":"x","name":"A"}])

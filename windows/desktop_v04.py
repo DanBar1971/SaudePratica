@@ -25,6 +25,7 @@ from shared.python.saude_backup import BackupError
 from windows.ui_v04_i18n import translate
 from windows.ui_catalog_v05 import MODULE_CARDS, normalized, filter_cards
 from windows.dashboard_v06 import Dashboard
+from windows.wallpaper_shell_v06 import WallpaperShell
 from windows.visual_v06 import circular_photo, wallpaper_image
 
 ctk.set_default_color_theme("blue")
@@ -198,11 +199,15 @@ class Desktop(ctk.CTk):
             font=ctk.CTkFont(size=12,weight="bold"),text_color=self.p["text"])
         self.profile_select.pack(side="right")
 
-        body=ctk.CTkFrame(self,fg_color="transparent")
         catalog=self.page in ("home","more")
-        body.pack(fill="both",expand=True,padx=0 if catalog else 18,
-                  pady=0 if catalog else (13,4))
-        self.body=body
+        if catalog:
+            body=ctk.CTkFrame(self,fg_color="transparent")
+            body.pack(fill="both",expand=True)
+            self.body=body
+        else:
+            shell=WallpaperShell(self,light=self.p["bg"]=="#edf4f7")
+            self.body=shell.content
+            self.wallpaper_shell=shell
         if self.page=="home": self._home()
         elif self.page=="profiles": self._profiles()
         elif self.page=="medication": self._medication()
@@ -338,7 +343,8 @@ class Desktop(ctk.CTk):
         for profile in self.store.profiles():
             row=ctk.CTkFrame(listing,fg_color=self.p["panel2"],corner_radius=11)
             row.pack(fill="x",pady=4)
-            pic=self._authentic_thumb(profile.get("photo_b64",""),49,49)
+            raw_avatar=circular_photo(profile.get("photo_b64",""),49)
+            pic=ctk.CTkImage(raw_avatar,raw_avatar,size=(49,49)) if raw_avatar else None
             if pic:
                 photo=ctk.CTkLabel(row,image=pic,text="",width=50,height=53)
             else:

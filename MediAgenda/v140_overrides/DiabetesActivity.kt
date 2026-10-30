@@ -97,10 +97,11 @@ class DiabetesActivity : AppCompatActivity() {
             throw IllegalStateException("Falha ao concluir gravação")
         }
     }
-    private fun persist(){
-        try{save();render()}catch(e:Exception){
+    private fun persist():Boolean{
+        return try{save();render();true}catch(e:Exception){
             AlertDialog.Builder(this).setTitle("Erro de gravação")
                 .setMessage(e.localizedMessage).setPositiveButton("OK",null).show()
+            false
         }
     }
     private fun render(){
@@ -215,7 +216,7 @@ class DiabetesActivity : AppCompatActivity() {
                     .put("time",whenMs).put("source","manual")
                     .put("context",context.selectedItem.toString())
                     .put("note",notes.text.toString().take(500)))
-                persist();dialog.dismiss()
+                if(persist())dialog.dismiss()
             }
         }
         dialog.show()

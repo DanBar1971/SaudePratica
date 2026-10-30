@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import font as tkfont
 from PIL import ImageTk
 from windows.ui_catalog_v05 import MODULE_CARDS, normalized
-from windows.visual_v06 import wallpaper_image, icon_image
+from windows.visual_v07 import wallpaper_image, icon_image
 
 def _rounded(c, x1, y1, x2, y2, radius, **kw):
     r=min(radius,(x2-x1)/2,(y2-y1)/2)
@@ -130,24 +130,24 @@ class Dashboard(tk.Canvas):
             x=margin+col*(cw+gutter)
             y=self._module_top+row*(ch+11)
             tag=f"module_{i}"
-            base="#18303d" if not self.is_light else "#f5fafc"
-            edge="#276777" if not self.is_light else "#91c4cc"
+            base="#142934" if not self.is_light else "#f5fafc"
+            edge="#244b58" if not self.is_light else "#c6dce3"
             _rounded(self,x,y,x+cw,y+ch,13,fill=base,outline=edge,
                      width=1,tags=("cards",tag))
-            ico=ImageTk.PhotoImage(icon_image(icon,i,46),master=self)
+            ico=ImageTk.PhotoImage(icon_image(icon,i,64),master=self)
             self._icon_cache.append(ico)
-            self.create_image(x+15,y+23,image=ico,anchor="nw",
+            self.create_image(x+11,y+12,image=ico,anchor="nw",
                               tags=("cards",tag))
             name=self.app.t(key) if key in ("medication","agenda","documents",
                 "water","nutrition","profiles","residences","shortcuts",
                 "info","backup","sync","options") else title
             foreground=self.app.p["text"]
             muted=self.app.p["muted"]
-            self.create_text(x+73,y+20,text=name,fill=foreground,
+            self.create_text(x+91,y+20,text=name,fill=foreground,
                          anchor="nw",font=("Segoe UI",12,"bold"),tags=("cards",tag))
-            self.create_text(x+73,y+48,text=description,fill=muted,
+            self.create_text(x+91,y+48,text=description,fill=muted,
                          anchor="nw",font=("Segoe UI",10),tags=("cards",tag),
-                         width=max(70,cw-100))
+                         width=max(70,cw-114))
             self.create_oval(x+cw-33,y+ch-34,x+cw-12,y+ch-13,
                              fill="#1e4b5b" if not self.is_light else "#d6e9eb",
                              outline="",tags=("cards",tag))
@@ -172,7 +172,7 @@ class Dashboard(tk.Canvas):
         if not items:return
         try:
             self.itemconfigure(items[0],fill=(
-                "#214251" if on else "#18303d") if not self.is_light else (
+                "#1b3947" if on else "#142934") if not self.is_light else (
                 "#e6f5f5" if on else "#f5fafc"))
         except tk.TclError:pass
         self.configure(cursor="hand2" if on else "")

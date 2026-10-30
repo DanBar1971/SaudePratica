@@ -1,20 +1,14 @@
-# SaúdePrática Desktop 0.6.0 — ambiente gráfico aprovado (experimental)
+# SaúdePrática Desktop 0.6.1 — iconografia Android e fundo corrigido
 
-## Novidades da interface
-- Fundo em ecrã inteiro em formato 16:9 a partir da imagem abstrata azul-petróleo aprovada, com o mesmo tema nos módulos, perfis, medicação e opções.
-- **Corrigido o banner defeituoso «Olá»**: texto desenhado diretamente sobre o fundo, sem rectângulos indesejados nem imagem esticada por uma etiqueta.
-- Menu principal em grelha compacta de 25 módulos, com ícones efetivamente coloridos renderizados como imagens (não emojis brancos do Windows/Tkinter).
-- Cartões clicáveis com destaque quando o rato passa e pesquisa de módulos.
-- Seletor de perfis renovado na barra superior, com fotografias reais circulares e menu que permite escolher o perfil ativo, visualizar o cuidador e abrir a gestão de perfis.
-- Fotografias dos perfis também circulares na lista de perfis. Não são inventadas fotografias nem enviados dados clínicos.
-- Mantidas as cores e botões compactos; temas claro e escuro preservados.
-- Medicação continua em cartões com fotos reais e edição integrada no ecrã.
+## Correções de qualidade visual
+- **Ícones dos módulos muito maiores (64 px), sem qualquer quadrado, fundo artificial ou moldura à volta.** Utiliza os mesmos símbolos emoji presentes nos cartões Android, renderizados com a fonte colorida Segoe UI Emoji do Windows.
+- **Fundo recomposto em formato 16:9 a partir de `assets/saude_background.png` original de alta resolução**. Os motivos geométricos são mantidos na proporção correta e o centro fica sóbrio. Já não amplia a miniatura WebP fortemente comprimida da 0.6.0.
+- Retiradas molduras duplicadas do painel de Perfis e de secções da ficha de Medicação; cartões mais limpos.
+- A seleção do perfil, fotografias autênticas, medicação em cartões, temas e todos os módulos mantêm-se.
 
-## Segurança e limitações
-- Instalar por cima da 0.5.0, sem desinstalar. Dados locais e backups .spbackup mantêm a encriptação DPAPI/AES e a compatibilidade de armazenamento.
-- **A app Windows ainda não sincroniza com Android e não substitui alarmes no Android.**
-- Módulos em desenvolvimento continuam marcados como tal. É uma versão visual experimental.
+## Segurança e testes
+- Sem alterações aos dados DPAPI, cópias `.spbackup`, alarmes ou versão Android.
+- Executa testes da resolução efetiva do fundo, transparência dos ícones, integridade da interface, arranque do código e do EXE empacotado antes da publicação.
+- A sincronização entre Android e Windows e os módulos marcados «Em breve» continuam pendentes.
 
-## Testes e instalador
-- Verificações automáticas ao arranque da aplicação Python e do EXE PyInstaller Windows, com ecrãs e temas.
-- Instalador Inno Setup Windows 10/11 (64 bits), release própria que não altera a APK Android.
+Instala por cima da versão 0.6.0 **sem desinstalar**.

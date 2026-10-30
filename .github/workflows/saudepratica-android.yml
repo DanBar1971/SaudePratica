@@ -193,9 +193,13 @@ jobs:
         run: python3 MediAgenda/v139_overrides/apply_v139.py
       - name: Verify v1.9.119 updater and release feed
         run: python3 MediAgenda/v139_overrides/verify_v139.py
+      - name: Apply v1.9.120 diabetes, shortcuts and help
+        run: python3 MediAgenda/v140_overrides/apply_v140.py
+      - name: Verify v1.9.120 module and clinical-safety invariants
+        run: python3 MediAgenda/v140_overrides/verify_v140.py
       - name: Require original app artwork (background, icon and splash)
         run: python3 MediAgenda/tools/verify_graphics.py
-      - name: Compile Android 1.9.119
+      - name: Compile Android 1.9.120
         working-directory: build-src/MediAgenda_Android_v1
         run: gradle --no-daemon assembleRelease
       - name: Check branded graphics exist inside compiled APK
@@ -234,7 +238,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: SaudePratica-v1.9.119-FULL-SOURCE
+          name: SaudePratica-v1.9.120-FULL-SOURCE
           path: build-src/MediAgenda_Android_v1/
           retention-days: 7
       - name: Export Android signing tools (no certificates or passwords)
@@ -252,7 +256,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
-          name: SaudePratica-v1.9.119-UNSIGNED
+          name: SaudePratica-v1.9.120-UNSIGNED
           path: build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 7
       - name: Confirmar se a chave de assinatura original está configurada

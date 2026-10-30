@@ -1,19 +1,19 @@
-# SaúdePrática Desktop 0.2.0 — Windows experimental
+# SaúdePrática Desktop 0.3.0 — Windows experimental
 
-## Melhorias de interface
-- Ecrã inicial redesenhado, com identidade oficial, ícone, contadores e informações úteis.
-- Nova ficha de medicação dentro da janela principal, sem sequência de caixas popup para cada campo.
-- Editar medicação já registada ou criar nova, com campos acessíveis e scroll, e rodapé com Guardar/Cancelar.
-- Nome, dose, via de administração, tipo de injeção, tipo de toma, hora, indicação, sem alarme, suspensão e notas.
-- Criar perfil diretamente no ecrã Perfis, sem janela popup.
-- Mantém todos os dados locais criados na 0.1.0: localização e formato de armazenamento Windows inalterados.
-- Compatibilidade com o backup experimental .spbackup da versão anterior e preservação de campos já guardados.
+## Identidade visual corrigida
+- **Ícone oficial SaúdePrática** incorporado no executável, ícone dos atalhos, Menu Iniciar e desinstalador. Deixa de aparecer o logótipo genérico do Python.
+- **Splash de arranque** com a imagem de abertura oficial fornecida, mostrado durante a inicialização.
+- Aplicação empacotada em **modo pasta (onedir)** no instalador. Isto evita a extração temporária completa feita em cada arranque do antigo executável onefile.
+- Botões arredondados, seletores escuros, painel inicial com fundo e ícone oficiais, melhor hierarquia e espaçamento.
+- Mantém a ficha de medicação num único ecrã, sem janelas sequenciais para preencher.
+- Instalação e desinstalação em português, ícones personalizados e opção de atalho no Ambiente de Trabalho.
 
-## Instalação
-Instalador português para Windows 10 e 11 (x64). Instala por cima da versão experimental anterior, com atalho e desinstalador, sem apagar dados locais.
+## Instalação e preservação de dados
+Instala a 0.3.0 **por cima da 0.2.0**, sem desinstalar. O diretório de dados Windows e o formato DPAPI **não foram alterados**; os perfis e medicamentos da experiência anterior continuam no mesmo local.
 
-## Limitações e segurança
-A versão **ainda é experimental e não tem assinatura digital Windows**. Pode surgir um aviso de editor desconhecido; confirmar sempre a origem oficial antes de executar.
-Não sincroniza com Android, não importa backups Android, não substitui alarmes do telemóvel, nem fornece gestão clínica completa. Testar com dados fictícios.
-O backup .spbackup é encriptado (AES-256-GCM) e protegido por palavra-passe; Android/iOS ainda não o conseguem restaurar.
-Nenhum dado clínico real deve ser enviado para o GitHub.
+Se o Windows ainda mostrar o ícone antigo num atalho afixado à barra de tarefas, remove a afixação antiga e volta a afixar o novo atalho do menu Iniciar. O Windows pode manter uma cache de ícones.
+
+## Limitações
+A versão continua **experimental e sem assinatura digital de editor Windows**. Ainda não há sincronização bidirecional Android ↔ Windows nem restauro de backups Android. O Windows não substitui os alarmes de medicação do Android. Testa com dados fictícios.
+
+O backup experimental .spbackup continua protegido por palavra-passe e compatível com as versões Windows anteriores. Não expor dados clínicos nem passwords no GitHub.

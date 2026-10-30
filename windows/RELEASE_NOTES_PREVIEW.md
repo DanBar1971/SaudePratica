@@ -1,19 +1,27 @@
-# SaúdePrática Desktop 0.3.0 — Windows experimental
+# SaúdePrática Desktop 0.4.0 — Fase 1 (experimental)
 
-## Identidade visual corrigida
-- **Ícone oficial SaúdePrática** incorporado no executável, ícone dos atalhos, Menu Iniciar e desinstalador. Deixa de aparecer o logótipo genérico do Python.
-- **Splash de arranque** com a imagem de abertura oficial fornecida, mostrado durante a inicialização.
-- Aplicação empacotada em **modo pasta (onedir)** no instalador. Isto evita a extração temporária completa feita em cada arranque do antigo executável onefile.
-- Botões arredondados, seletores escuros, painel inicial com fundo e ícone oficiais, melhor hierarquia e espaçamento.
-- Mantém a ficha de medicação num único ecrã, sem janelas sequenciais para preencher.
-- Instalação e desinstalação em português, ícones personalizados e opção de atalho no Ambiente de Trabalho.
+## Interface redesenhada
+- Navegação horizontal moderna em vez do antigo menu lateral.
+- Ecrã inicial com cartões dos módulos, fundo e ícone oficiais.
+- Botões e campos coerentes nos modos claro e escuro.
+- Seletor permanente do perfil ativo no cabeçalho, guardado entre sessões.
 
-## Instalação e preservação de dados
-Instala a 0.3.0 **por cima da 0.2.0**, sem desinstalar. O diretório de dados Windows e o formato DPAPI **não foram alterados**; os perfis e medicamentos da experiência anterior continuam no mesmo local.
+## Perfis e medicação
+- Ficha do perfil em ecrã principal: nome, nascimento, telemóvel, email, NISS, unidade de saúde, morada, localidade, código postal, contactos SOS, cuidador, notas e fotografia.
+- Criar/editar perfis sem perder a medicação ou outras informações preexistentes.
+- Editar medicação dentro da janela, mantendo nome, dose, via, tipo de injeção/toma, hora, indicação, notas, suspensão e ausência de alarme.
+- Dados locais existentes de 0.1 a 0.3 mantêm-se no mesmo ficheiro DPAPI.
 
-Se o Windows ainda mostrar o ícone antigo num atalho afixado à barra de tarefas, remove a afixação antiga e volta a afixar o novo atalho do menu Iniciar. O Windows pode manter uma cache de ícones.
+## Opções e backup
+- Tema escuro, claro ou automático conforme o Windows.
+- Idiomas: PT, EN, FR, DE, ES (interface base); a tradução clínica continuará a evoluir.
+- Backups .spbackup protegidos por palavra-passe incluem todos os campos do perfil, inclusive fotografia, sem alterar a encriptação anterior.
+- Restauro continua conservador e apenas adiciona perfis com IDs novos.
 
-## Limitações
-A versão continua **experimental e sem assinatura digital de editor Windows**. Ainda não há sincronização bidirecional Android ↔ Windows nem restauro de backups Android. O Windows não substitui os alarmes de medicação do Android. Testa com dados fictícios.
+## O que falta
+- A aplicação **ainda não é funcionalmente equivalente à Android**: Agenda, Documentos, Nutrição, Hidratação, Lares, integração e outras áreas são apresentados como módulos futuros.
+- Ainda não sincroniza Android ↔ Windows. Não importa backups atuais Android.
+- Não substitui os alarmes do telemóvel.
+- Instalador Windows ainda não tem assinatura digital de editor.
 
-O backup experimental .spbackup continua protegido por palavra-passe e compatível com as versões Windows anteriores. Não expor dados clínicos nem passwords no GitHub.
+**Instala por cima da 0.3.0, sem desinstalar.** Testar com dados fictícios.

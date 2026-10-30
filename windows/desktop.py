@@ -20,13 +20,13 @@ sys.path.insert(0, str(ROOT))
 from windows.secure_store import SecureStore, LocalStoreError
 from shared.python.saude_backup import BackupError
 
-DARK = "#071b23"
-DARKER = "#04151d"
-CARD = "#143441"
+DARK = "#071d25"
+DARKER = "#041720"
+CARD = "#143742"
 TEAL = "#24d5c5"
 WHITE = "#f4fbfc"
 MUTED = "#a6c1c8"
-BUTTON = "#164c57"
+BUTTON = "#13505c"
 
 
 class Desktop(tk.Tk):
@@ -34,7 +34,7 @@ class Desktop(tk.Tk):
         super().__init__()
         self.title("SaúdePrática Desktop · 0.2.0 experimental")
         self.geometry("1280x720")
-        self.minsize(940, 620)
+        self.minsize(1040, 640)
         self.configure(bg=DARK)
         self.store = None
         self.selected_profile = None
@@ -161,17 +161,48 @@ class Desktop(tk.Tk):
         self._label(card,text,13,MUTED).pack(fill="x",pady=(12,6))
 
     def _home(self, body):
-        card=self._card(body);card.pack(fill="x",pady=(15,12))
-        self._label(card,"SaúdePrática · Tudo num só lugar",22,TEAL,True).pack(fill="x")
-        self._label(card,"A mesma identidade da aplicação Android, adaptada a uma janela Windows redimensionável.",
-                    13,WHITE).pack(fill="x",pady=(12,10))
+        """Dashboard legível num PC, com iconografia oficial."""
+        hero=tk.Frame(body,bg=CARD,highlightthickness=1,
+                      highlightbackground="#27626a",padx=26,pady=24)
+        hero.pack(fill="x",pady=(12,16))
+        text=tk.Frame(hero,bg=CARD)
+        text.pack(side="left",fill="both",expand=True)
+        self._label(text,"SAÚDEPRÁTICA DESKTOP",12,TEAL,True).pack(anchor="w")
+        self._label(text,"Tudo num só lugar.",26,WHITE,True).pack(
+            anchor="w",pady=(13,8))
+        self._label(text,"Os teus perfis, medicação e documentos, organizados "
+                         "num ambiente pensado para Windows.",
+                    13,MUTED).pack(anchor="w",pady=(0,18))
+        self._button(text,"Gerir medicação",
+                     lambda:self.show("Medicação")).pack(anchor="w")
+        logo=ImageTk.PhotoImage(self._icon.resize((170,170),
+                                                    Image.Resampling.LANCZOS))
+        logo_widget=tk.Label(hero,image=logo,bg=CARD,bd=0)
+        logo_widget.image=logo
+        logo_widget.pack(side="right",padx=(15,0))
+
         profiles=self.store.profiles() if self.store else []
         n=sum(len(p.get("medications",[])) for p in profiles)
-        self._label(card,f"Perfis: {len(profiles)}    ·    Medicamentos registados: {n}",15,WHITE,True).pack(fill="x",pady=6)
-        self._button(card,"Gerir perfis",lambda:self.show("Perfis")).pack(anchor="w",pady=10)
-        warning=self._card(body);warning.pack(fill="x",pady=12)
-        self._label(warning,"Versão experimental · não substituir alarmes Android",14,TEAL,True).pack(fill="x")
-        self._label(warning,"O Windows ainda não sincroniza com o telemóvel e não emite os alarmes de medicação. Os dados locais ficam protegidos na conta Windows.",12,MUTED).pack(fill="x",pady=8)
+        counts=tk.Frame(body,bg=DARK)
+        counts.pack(fill="x",pady=(0,15))
+        for label,value in (("Perfis registados",len(profiles)),
+                            ("Medicamentos",n),
+                            ("Cópias de segurança"," .spbackup")):
+            card=tk.Frame(counts,bg="#103540",highlightthickness=1,
+                          highlightbackground="#27626a",padx=20,pady=16)
+            card.pack(side="left",fill="both",expand=True,padx=(0,12))
+            self._label(card,str(value),21,TEAL,True).pack(anchor="w")
+            self._label(card,label,11,MUTED).pack(anchor="w",pady=(6,0))
+
+        warning=self._card(body)
+        warning.pack(fill="x")
+        self._label(warning,"Versão experimental · os alarmes continuam no Android",
+                    13,TEAL,True).pack(anchor="w")
+        self._label(warning,
+            "Os dados desta versão ficam protegidos nesta conta Windows. "
+            "A sincronização Android ↔ Windows está em desenvolvimento; "
+            "não uses esta versão como única fonte de dados clínicos.",
+            12,MUTED).pack(anchor="w",pady=(8,0))
 
     def _profiles(self, body):
         if not self.store:

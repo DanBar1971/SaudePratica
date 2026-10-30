@@ -60,7 +60,7 @@ jobs:
                 echo 'CAN_SIGN_ORIGINAL=false' >> "$GITHUB_ENV"
                 echo '::notice::A compilação continua; assinatura original ainda não configurada neste repositório.'
               fi
-'''
+          '''
           s=s.replace(marker,readiness+marker,1)
           cond="github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
           assert s.count("if: "+cond)==3,s.count("if: "+cond)

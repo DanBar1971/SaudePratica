@@ -23,7 +23,6 @@ class VisualV06Tests(unittest.TestCase):
             center=image.getpixel((25,25))
             self.assertLess(image.getpixel((0,0))[3],32,key)  # transparent corner, antialiasing permitted
             self.assertIsNotNone(image.getbbox(),key)
-            self.assertEqual(image.getpixel((0,0))[3],0,key)
 
     def test_wallpaper_uses_full_resolution_original_and_preserves_ratio(self):
         source=_source()

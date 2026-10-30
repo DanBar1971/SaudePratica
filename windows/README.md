@@ -5,7 +5,7 @@
 - Interface escura/turquesa, inspirada na aplicação Android; usa os ficheiros
   oficiais disponíveis na raiz do repositório: assets/saude_background.png
   e assets/saude_icon.png (o splash está reservado para a futura abertura).
-- Criação/seleção de perfis e registo local básico de medicamentos e doses.
+- Criação/seleção de perfis e edição de medicação num único formulário sem caixas sucessivas, incluindo via de administração, horas, tipo de toma, notas e suspensão.
 - **Dados locais encriptados com Windows DPAPI, por utilizador Windows**.
 - Backup com palavra-passe em ficheiro .spbackup (AES-256-GCM), importação
   validada e restauro conservador apenas de perfis novos.
@@ -25,7 +25,7 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.1.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.1.0-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.2.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.2.0-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
 https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.1.0-preview

@@ -617,14 +617,63 @@ class Desktop(ctk.CTk):
             messagebox.showerror(self.t("restore"),str(exc),parent=self)
 
 
-def main():
-    app=Desktop()
+def _close_boot_splash():
     try:
         import pyi_splash
         pyi_splash.close()
-    except ImportError:
+    except Exception:
         pass
-    app.mainloop()
+
+
+def main():
+    """Never hide startup failures behind the persistent splash.
+
+    CI tests both unbundled source and the actual packaged EXE through a
+    synthetic, short-lived GUI launch; health details are never uploaded.
+    """
+    import traceback
+    app = None
+    smoke_report = os.environ.get("SAUDEPRATICA_SMOKE_REPORT", "")
+    try:
+        app = Desktop()
+        # Process and render the initial UI before marking the startup as good.
+        app.update_idletasks()
+        app.update()
+        _close_boot_splash()
+        if smoke_report:
+            Path(smoke_report).write_text("GUI_READY\n", encoding="utf-8")
+            app.destroy()
+            return
+        app.mainloop()
+    except Exception:
+        failure = traceback.format_exc()
+        _close_boot_splash()
+        if smoke_report:
+            Path(smoke_report).write_text("GUI_ERROR\n" + failure, encoding="utf-8")
+            if app:
+                try: app.destroy()
+                except Exception: pass
+            raise
+        # Keep diagnostics private on this Windows account; no personal or
+        # clinical data are included in the exception report.
+        try:
+            root = Path(os.getenv("LOCALAPPDATA", str(Path.home())))
+            log = root / "SaudePraticaDesktop" / "startup_error.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            log.write_text(failure, encoding="utf-8")
+            message = ("A SaúdePrática não conseguiu iniciar.\n"
+                       "A janela de abertura foi fechada.\n"
+                       "Podes enviar apenas o ficheiro de diagnóstico:\n\n"
+                       + str(log))
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, message,
+                "SaúdePrática — erro de arranque", 0x10)
+        except Exception:
+            pass
+        if app:
+            try: app.destroy()
+            except Exception: pass
+        raise
 
 
 if __name__=="__main__":

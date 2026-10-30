@@ -1,16 +1,6 @@
-name: SaúdePrática Android Build
+name: SaúdePrática Android Base — histórico (manual)
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - "MediAgenda/**"
-      - ".github/workflows/mediagenda-build.yml"
-  pull_request:
-    branches: [master]
-    paths:
-      - "MediAgenda/**"
-      - ".github/workflows/mediagenda-build.yml"
   workflow_dispatch:
 
 permissions:

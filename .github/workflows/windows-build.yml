@@ -54,7 +54,7 @@ jobs:
       - name: Instalar Inno Setup 6 no runner Windows
         shell: pwsh
         run: |
-          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\\ISCC.exe"
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
           if (!(Test-Path $iscc)) {
             choco install innosetup --yes --no-progress
           }
@@ -62,8 +62,8 @@ jobs:
       - name: Compilar instalador EXE com instalação e desinstalação
         shell: pwsh
         run: |
-          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\\ISCC.exe"
-          & $iscc "/DMyAppVersion=$env:WINDOWS_APP_VERSION" "windows\\installer\\SaudePratica.iss"
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=$env:WINDOWS_APP_VERSION" "windows\installer\SaudePratica.iss"
           if ($LASTEXITCODE -ne 0) { throw "Falhou a compilação do instalador" }
           $setup = "dist/installer/SaudePratica-Setup.exe"
           if (!(Test-Path $setup)) { throw "Instalador em falta" }
@@ -90,5 +90,5 @@ jobs:
             gh release create $tag "dist/installer/SaudePratica-Setup.exe" --repo $repo --target main --title "SaúdePrática Desktop $env:WINDOWS_APP_VERSION - Windows experimental" --notes-file windows/RELEASE_NOTES_PREVIEW.md --prerelease --latest=false
             if ($LASTEXITCODE -ne 0) { throw "Falhou a publicação do instalador no GitHub Releases" }
           }
-          gh release view $tag --repo $repo --json assets --jq '[.assets[].name] | any(. == "SaudePratica-Setup.exe")' | Select-String -Pattern '^true | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "A release não contém o instalador" }
+          $hasAsset = gh release view $tag --repo $repo --json assets --jq '[.assets[].name] | any(. == "SaudePratica-Setup.exe")'
+          if ($LASTEXITCODE -ne 0 -or "$hasAsset".Trim() -ne "true") { throw "A release não contém o instalador" }

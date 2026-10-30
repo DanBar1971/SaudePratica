@@ -23,8 +23,14 @@
 
 ## Instalar no Windows 10/11 x64
 
-Descarregar o instalador oficial da release Windows no GitHub: 
-https://github.com/DanBar1971/SaudePratica/releases
+**Descarregar diretamente o instalador Windows:**
+
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.1.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.1.0-preview/SaudePratica-Setup.exe)
+
+**Consultar a release Windows específica:**
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.1.0-preview
+
+Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
 Abrir `SaudePratica-Setup.exe`. O assistente permite instalar sem conta de administrador,
 cria atalho no menu Iniciar, oferece atalho no Ambiente de Trabalho e inclui

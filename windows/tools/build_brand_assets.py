@@ -29,19 +29,22 @@ base=Image.alpha_composite(base,veil)
 draw=ImageDraw.Draw(base)
 draw.rounded_rectangle((48,62,W-48,H-62),radius=36,
                        fill=(5,32,40,220),outline=(18,204,192,135),width=2)
-brand=icon.resize((228,228),Image.Resampling.LANCZOS)
-base.alpha_composite(brand,(74,136))
-fonts=Path("C:/Windows/Fonts")
-def font(name,size):
-    p=fonts/name
-    return ImageFont.truetype(str(p),size) if p.is_file() else ImageFont.load_default()
-bold=font("segoeuib.ttf",56)
+# Show the genuine official opening image rather than inventing another logo.
+# A focused crop keeps the central logo, wordmark and tagline readable.
+sw,sh=splash.size
+focus=splash.crop((0,int(sh*0.28),sw,int(sh*0.72)))
+focus=ImageOps.contain(focus,(420,370),method=Image.Resampling.LANCZOS)
+left=46+(420-focus.width)//2
+top=64+(370-focus.height)//2
+base.paste(focus,(left,top))
+draw.line((490,115,490,385),fill=(45,210,198,135),width=2)
 regular=font("segoeui.ttf",23)
-small=font("segoeui.ttf",17)
-draw.text((333,179),"SaúdePrática",font=bold,fill="#f5ffff")
-draw.text((336,250),"tudo num só lugar",font=regular,fill="#55ded4")
-draw.rounded_rectangle((337,312,708,358),radius=22,fill=(28,126,128,120))
-draw.text((360,324),"A iniciar a aplicação...",font=small,fill="#f0fafa")
+bold=font("segoeuib.ttf",38)
+small=font("segoeui.ttf",19)
+draw.text((527,155),"SaúdePrática",font=bold,fill="#f5ffff")
+draw.text((529,223),"Desktop · Windows",font=regular,fill="#5be6dc")
+draw.rounded_rectangle((527,294,830,346),radius=18,fill=(28,126,128,120))
+draw.text((549,309),"A iniciar a aplicação...",font=small,fill="#f0fafa")
 path=DIST/"saude_splash_windows.png"
 base.convert("RGB").save(path,optimize=True)
 

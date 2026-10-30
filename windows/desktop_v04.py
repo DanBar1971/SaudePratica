@@ -23,9 +23,10 @@ sys.path.insert(0, str(ROOT))
 from windows.secure_store import SecureStore, LocalStoreError
 from shared.python.saude_backup import BackupError
 from windows.ui_v04_i18n import translate
+from windows.ui_catalog_v05 import MODULE_CARDS, normalized, filter_cards
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -68,8 +69,8 @@ class Desktop(ctk.CTk):
         ctk.set_appearance_mode(self.theme)
         super().__init__()
         self.title("SaúdePrática Desktop · " + VERSION)
-        self.geometry("1350x810")
-        self.minsize(1060, 690)
+        self.geometry("1370x790")
+        self.minsize(1050, 650)
         self.active_id = pref.get("active_profile")
         if not self.store.get_profile(self.active_id):
             self.active_id = self.store.profiles()[0]["id"] if self.store.profiles() else None
@@ -79,6 +80,11 @@ class Desktop(ctk.CTk):
         self.profile_widgets = {}
         self.med_widgets = {}
         self.photo_draft = ""
+        self.med_photo_draft = ""
+        self.med_gallery_query = ""
+        self.catalog_query = ""
+        self.med_gallery_state = "all"
+        self.gallery_mode = "catalog"
         self._assets()
         self._render()
 
@@ -105,20 +111,26 @@ class Desktop(ctk.CTk):
         self._hero_image = ctk.CTkImage(image,image,size=(1200,265))
 
     def _palette(self):
+        # Every widget consumes explicit theme colours. No white default
+        # foregrounds are allowed in the light appearance mode.
         if ctk.get_appearance_mode().lower()=="light":
-            return dict(bg="#eff6f8",panel="#ffffff",panel2="#e6f1f4",
-                        text="#132d35",muted="#46626b",line="#c7e0e3",
-                        field="#f7fbfc",banner="#062630")
-        return dict(bg="#051a23",panel="#102e39",panel2="#153c47",
-                    text="#f0fafa",muted="#acc9d0",line="#27555e",
-                    field="#0b2630",banner="#062630")
+            return dict(bg="#edf4f7",panel="#ffffff",panel2="#e2edf1",
+                        text="#172b36",muted="#52616e",line="#c4d7df",
+                        field="#f8fbfd",banner="#062630",
+                        hover="#c5e3e6",thumb="#d9e8ed",
+                        chip="#d3eee9",chip_text="#124a49")
+        return dict(bg="#07151e",panel="#16232e",panel2="#203240",
+                    text="#f1f7fa",muted="#b6c4cd",line="#334554",
+                    field="#101d27",banner="#062630",
+                    hover="#285163",thumb="#263c4a",
+                    chip="#1c5659",chip_text="#a8fff0")
 
-    def _button(self,parent,label,command,accent=False,width=150,height=40):
+    def _button(self,parent,label,command,accent=False,width=124,height=32):
         p=self.p
         return ctk.CTkButton(parent,text=label,command=command,width=width,height=height,
-            corner_radius=13,font=ctk.CTkFont(family="Segoe UI",size=13,weight="bold"),
+            corner_radius=10,font=ctk.CTkFont(family="Segoe UI",size=12,weight="bold"),
             fg_color=TEAL if accent else p["panel2"],
-            hover_color=TEAL_HOVER if accent else BLUE,
+            hover_color=TEAL_HOVER if accent else p["hover"],
             text_color="#05252c" if accent else p["text"])
 
     def _label(self,parent,text,size=13,bold=False,color=None,anchor="w",wrap=None):
@@ -128,10 +140,16 @@ class Desktop(ctk.CTk):
                              weight="bold" if bold else "normal"),
             wraplength=wrap or 0)
 
-    def _card(self,parent,rounding=19,**kw):
+    def _card(self,parent,rounding=14,**kw):
         return ctk.CTkFrame(parent,fg_color=self.p["panel"],
             corner_radius=rounding,border_width=1,
             border_color=self.p["line"],**kw)
+
+    def _chip(self,parent,text,color=None):
+        return ctk.CTkLabel(parent,text="  "+text+"  ",
+            font=ctk.CTkFont(size=10,weight="bold"),
+            text_color=color or self.p["chip_text"],
+            fg_color=self.p["chip"],corner_radius=8,height=23)
 
     def _clear(self):
         for child in self.winfo_children():
@@ -141,26 +159,26 @@ class Desktop(ctk.CTk):
         self.p=self._palette()
         self.configure(fg_color=self.p["bg"])
         self._clear()
-        header=ctk.CTkFrame(self,height=88,fg_color=self.p["panel"],
+        header=ctk.CTkFrame(self,height=65,fg_color=self.p["panel"],
                             corner_radius=0)
         header.pack(fill="x")
         header.pack_propagate(False)
 
         brand=ctk.CTkFrame(header,fg_color="transparent")
         brand.pack(side="left",padx=(24,16),fill="y")
-        ctk.CTkLabel(brand,image=self.logo,text="").pack(side="left",padx=(0,9),pady=16)
-        self._label(brand,"SaúdePrática",20,True,color=TEAL).pack(side="left",pady=22)
+        ctk.CTkLabel(brand,image=self.logo,text="").pack(side="left",padx=(0,8),pady=5)
+        self._label(brand,"SaúdePrática",17,True,color=TEAL).pack(side="left",pady=13)
         nav=ctk.CTkFrame(header,fg_color="transparent")
         nav.pack(side="left",padx=(8,8),fill="y")
         for key,glyph,title in TABS:
             target=key
             active=self.page==target or (target=="more" and self.page not in ("home","profiles","medication","agenda"))
             label=glyph+"  "+self.t(title)
-            b=self._button(nav,label,lambda k=key:self.navigate(k),accent=active,width=110,height=42)
-            b.pack(side="left",padx=3,pady=23)
+            b=self._button(nav,label,lambda k=key:self.navigate(k),accent=active,width=96,height=34)
+            b.pack(side="left",padx=3,pady=15)
 
         right=ctk.CTkFrame(header,fg_color="transparent")
-        right.pack(side="right",padx=(4,23),pady=20)
+        right.pack(side="right",padx=(4,16),pady=13)
         self._label(right,self.t("active_profile"),11,color=self.p["muted"]).pack(side="left",padx=(0,9))
         entries=self.store.profiles()
         self.profile_choices={}
@@ -174,7 +192,7 @@ class Desktop(ctk.CTk):
         selected=next((label for label,pid in self.profile_choices.items()
                        if pid==self.active_id),next(iter(self.profile_choices)))
         self.profile_select=ctk.CTkOptionMenu(right,values=list(self.profile_choices),
-            command=self._select_profile,width=165,height=39,corner_radius=12,
+            command=self._select_profile,width=155,height=34,corner_radius=10,
             fg_color=self.p["panel2"],button_color=BLUE,button_hover_color=TEAL_HOVER,
             text_color=self.p["text"],dropdown_fg_color=self.p["panel"],
             dropdown_text_color=self.p["text"])
@@ -182,7 +200,7 @@ class Desktop(ctk.CTk):
         self.profile_select.pack(side="left")
 
         body=ctk.CTkFrame(self,fg_color="transparent")
-        body.pack(fill="both",expand=True,padx=26,pady=(20,6))
+        body.pack(fill="both",expand=True,padx=18,pady=(13,4))
         self.body=body
         if self.page=="home": self._home()
         elif self.page=="profiles": self._profiles()
@@ -192,15 +210,15 @@ class Desktop(ctk.CTk):
         elif self.page=="more": self._modules(full=True)
         else: self._pending(self.page)
 
-        footer=ctk.CTkFrame(self,height=38,fg_color=self.p["panel"],corner_radius=0)
+        footer=ctk.CTkFrame(self,height=28,fg_color=self.p["panel"],corner_radius=0)
         footer.pack(fill="x",side="bottom")
-        self._label(footer,self.t("status_experimental"),11,color=self.p["muted"]).pack(side="left",padx=26,pady=8)
-        self._label(footer,self.t("not_alarm"),11,color=self.p["muted"]).pack(side="right",padx=26,pady=8)
+        self._label(footer,"Windows 0.5 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
+        self._label(footer,self.t("not_alarm"),10,color=self.p["muted"]).pack(side="right",padx=18,pady=5)
 
     def _heading(self,title,subtitle=None):
-        self._label(self.body,title,28,True).pack(anchor="w",pady=(0,4))
+        self._label(self.body,title,23,True).pack(anchor="w",pady=(0,2))
         if subtitle:
-            self._label(self.body,subtitle,13,color=self.p["muted"]).pack(anchor="w",pady=(0,15))
+            self._label(self.body,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(0,10))
 
     def navigate(self,page):
         self.page=page
@@ -315,11 +333,11 @@ class Desktop(ctk.CTk):
 
     def _text_field(self,parent,label,initial="",row=0,col=0,columns=2):
         box=ctk.CTkFrame(parent,fg_color="transparent")
-        box.grid(row=row,column=col,columnspan=columns,sticky="ew",padx=7,pady=7)
-        self._label(box,self.t(label),12,True,color=self.p["muted"]).pack(anchor="w",pady=(0,6))
-        entry=ctk.CTkEntry(box,height=40,corner_radius=11,
+        box.grid(row=row,column=col,columnspan=columns,sticky="ew",padx=5,pady=4)
+        self._label(box,self.t(label),11,True,color=self.p["muted"]).pack(anchor="w",pady=(0,3))
+        entry=ctk.CTkEntry(box,height=33,corner_radius=8,
             border_color=self.p["line"],fg_color=self.p["field"],
-            text_color=self.p["text"],font=ctk.CTkFont(size=13))
+            text_color=self.p["text"],font=ctk.CTkFont(size=12))
         entry.insert(0,str(initial or ""))
         entry.pack(fill="x")
         return entry

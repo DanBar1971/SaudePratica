@@ -1,0 +1,469 @@
+name: SaúdePrática Android Build
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "MediAgenda/**"
+      - ".github/workflows/mediagenda-build.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "MediAgenda/**"
+      - ".github/workflows/mediagenda-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check signing secret availability
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SAUDEPRATICA_KEYSTORE_B64 }}
+          SIGNING_PASSWORD: ${{ secrets.SAUDEPRATICA_KEYSTORE_PASSWORD }}
+          SIGNING_ALIAS: ${{ secrets.SAUDEPRATICA_KEY_ALIAS }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_B64" ] && [ -n "$SIGNING_PASSWORD" ] && [ -n "$SIGNING_ALIAS" ]; then
+            echo "HAS_SIGNING_KEY=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_SIGNING_KEY=false" >> "$GITHUB_ENV"
+          fi
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Reconstruct MediAgenda base
+        run: |
+          mkdir -p build-src
+          cat MediAgenda/source/v11_*.b64 > build-src/MediAgenda-v1.1.zip.b64
+          base64 -d build-src/MediAgenda-v1.1.zip.b64 > build-src/MediAgenda-v1.1.zip
+          echo "e4aad8173353eb61e1f776a58c2a18d0cb6fdd9197f3c8f0c8856e9575357253  build-src/MediAgenda-v1.1.zip" | sha256sum -c -
+          unzip -q build-src/MediAgenda-v1.1.zip -d build-src
+
+      - name: Apply v1.2 source
+        run: |
+          ROOT="build-src/MediAgenda_Android_v1"
+          cp MediAgenda/v12_overrides/PrescriptionOcrParser.kt "$ROOT/app/src/main/java/com/mediagenda/app/ocr/PrescriptionOcrParser.kt"
+          cp MediAgenda/v12_overrides/AppointmentOcrParser.kt "$ROOT/app/src/main/java/com/mediagenda/app/ocr/AppointmentOcrParser.kt"
+          python3 MediAgenda/v12_overrides/apply_v12.py
+
+      - name: Apply v1.3 medication box recognition
+        run: |
+          ROOT="build-src/MediAgenda_Android_v1"
+          cp MediAgenda/v13_overrides/MedicationBoxOcrParser.kt "$ROOT/app/src/main/java/com/mediagenda/app/ocr/MedicationBoxOcrParser.kt"
+          python3 MediAgenda/v13_overrides/apply_v13.py
+
+      - name: Apply v1.4 profile and medication photos
+        run: |
+          ROOT="build-src/MediAgenda_Android_v1"
+          cp MediAgenda/v14_overrides/CitizenCardOcrParser.kt "$ROOT/app/src/main/java/com/mediagenda/app/ocr/CitizenCardOcrParser.kt"
+          python3 MediAgenda/v14_overrides/apply_v14.py
+
+      - name: Apply v1.5 SNS24, navigation and theme
+        run: |
+          python3 MediAgenda/v15_overrides/apply_v15.py
+
+      - name: Apply v1.6 notifications and IPO multi-appointment OCR
+        run: |
+          ROOT="build-src/MediAgenda_Android_v1"
+          cp MediAgenda/v16_overrides/NotificationScheduler.kt "$ROOT/app/src/main/java/com/mediagenda/app/notifications/NotificationScheduler.kt"
+          cp MediAgenda/v16_overrides/NotificationReceiver.kt "$ROOT/app/src/main/java/com/mediagenda/app/notifications/NotificationReceiver.kt"
+          cp MediAgenda/v16_overrides/MultiAppointmentOcrParser.kt "$ROOT/app/src/main/java/com/mediagenda/app/ocr/MultiAppointmentOcrParser.kt"
+          python3 MediAgenda/v16_overrides/apply_v16.py
+
+      - name: Apply v1.7 compact interface and spatial IPO OCR
+        run: |
+          ROOT="build-src/MediAgenda_Android_v1"
+          cp MediAgenda/v17_overrides/IpoTableParser.kt "$ROOT/app/src/main/java/com/mediagenda/app/ocr/IpoTableParser.kt"
+          python3 MediAgenda/v17_overrides/apply_v17.py
+
+      - name: Apply v1.8 SaúdePrática branding
+        run: |
+          python3 MediAgenda/v18_overrides/apply_v18.py
+
+      - name: Apply louder medication notifications
+        run: |
+          ROOT="build-src/MediAgenda_Android_v1"
+          cp MediAgenda/v18_overrides/NotificationReceiver.kt "$ROOT/app/src/main/java/com/mediagenda/app/notifications/NotificationReceiver.kt"
+
+      - name: Apply SaúdePrática v1.9 document import and About
+        run: python3 MediAgenda/v19_overrides/apply_v19.py
+
+      - name: Apply SaúdePrática v1.9.1 branded About
+        run: python3 MediAgenda/v20_overrides/apply_v20.py
+
+      - name: Apply SaúdePrática v1.9.2 multi-user profiles
+        run: |
+          python3 MediAgenda/v21_overrides/apply_v21.py
+          python3 MediAgenda/v21_overrides/apply_v21_notifications.py
+
+      - name: Apply SaúdePrática v1.9.3 document library and list improvements
+        run: |
+          python3 MediAgenda/v22_overrides/apply_v22.py
+          python3 MediAgenda/v22_overrides/apply_v22_cards.py
+
+      - name: Apply SaúdePrática v1.9.4 dashboard and wellness notifications
+        run: |
+          python3 MediAgenda/v23_overrides/apply_v23_notifications.py
+          python3 MediAgenda/v23_overrides/apply_v23_home.py
+          python3 MediAgenda/v23_overrides/apply_v23_water.py
+
+      - name: Apply SaúdePrática v1.9.5 unified navigation and personal health
+        run: |
+          python3 MediAgenda/v24_overrides/apply_v24_navigation.py
+          python3 MediAgenda/v24_overrides/apply_v24_documents.py
+          python3 MediAgenda/v24_overrides/apply_v24_profile.py
+          python3 MediAgenda/v24_overrides/apply_v24_records.py
+          python3 MediAgenda/v24_overrides/apply_v24_intake.py
+
+      - name: Apply SaúdePrática v1.9.6 accessibility and patient information
+        run: |
+          python3 MediAgenda/v25_overrides/apply_v25_wellness.py
+          python3 MediAgenda/v25_overrides/apply_v25_profile.py
+          python3 MediAgenda/v25_overrides/apply_v25_emergency.py
+          python3 MediAgenda/v25_overrides/apply_v25_version.py
+
+      - name: Apply SaúdePrática v1.9.7 monthly calendar, cycle and tidy Mais
+        run: |
+          python3 MediAgenda/v26_overrides/apply_v26_clean_more.py
+          python3 MediAgenda/v26_overrides/apply_v26_main.py
+          python3 MediAgenda/v26_overrides/apply_v26_cycle_calendar.py
+          python3 MediAgenda/v26_overrides/apply_v26_pill_alerts.py
+
+      - name: Apply SaúdePrática v1.9.8 personal records and home navigation
+        run: |
+          python3 MediAgenda/v27_overrides/apply_v27_dashboard.py
+          python3 MediAgenda/v27_overrides/apply_v27_profile.py
+          python3 MediAgenda/v27_overrides/apply_v27_finalize.py
+
+      - name: Fix SaúdePrática v1.9.9 gallery and camera image import
+        run: python3 MediAgenda/v28_overrides/apply_v28.py
+
+      - name: Apply SaúdePrática v1.9.10 CC data OCR and gender selector
+        run: |
+          python3 MediAgenda/v29_overrides/apply_v29_ocr.py
+          python3 MediAgenda/v29_overrides/apply_v29_fields.py
+          python3 MediAgenda/v29_overrides/apply_v29_version.py
+
+      - name: Apply SaúdePrática v1.9.11 CC OCR fix
+        run: python3 MediAgenda/v30_overrides/apply_v30.py
+
+      - name: Apply SaúdePrática v1.9.12 PIN and complete CC extraction
+        run: |
+          python3 MediAgenda/v31_overrides/apply_v31_ocr.py
+          python3 MediAgenda/v31_overrides/apply_v31_pin.py
+
+      - name: Apply SaúdePrática v1.9.13 separate CC OCR and masked PIN
+        run: python3 MediAgenda/v32_overrides/apply_v32.py
+
+      - name: Apply SaúdePrática v1.9.14 appointment alerts, OCR, PIN and Home
+        run: |
+          python3 MediAgenda/v33_overrides/apply_v33_notifications.py
+          python3 MediAgenda/v33_overrides/apply_v33_cc_parents.py
+          python3 MediAgenda/v33_overrides/apply_v33_login.py
+          python3 MediAgenda/v33_overrides/apply_v33_home.py
+          python3 MediAgenda/v33_overrides/apply_v33_version.py
+
+      - name: Apply SaúdePrática v1.9.15 corrected CC OCR and notification actions
+        run: |
+          python3 MediAgenda/v34_overrides/apply_v34_cc_parser.py
+          python3 MediAgenda/v34_overrides/apply_v34_cc_regions.py
+          python3 MediAgenda/v34_overrides/apply_v34_home_notifications_ui.py
+          python3 MediAgenda/v34_overrides/apply_v34_tomei.py
+          python3 MediAgenda/v34_overrides/apply_v34_version.py
+
+      - name: Apply SaúdePrática v1.9.16 CC filiation OCR and profile cleanup
+        run: python3 MediAgenda/v35_overrides/apply_v35.py
+
+      - name: Apply SaúdePrática v1.9.17 Android phone contact picker
+        run: python3 MediAgenda/v36_overrides/apply_v36_contacts.py
+
+      - name: Apply SaúdePrática v1.9.18 messages and medication details
+        run: python3 MediAgenda/v37_overrides/apply_v37_comms_medinfo.py
+
+      - name: Apply SaúdePrática v1.9.19 clinical analyses, postal code and communications
+        run: |
+          python3 MediAgenda/v38_overrides/apply_v38.py
+          python3 MediAgenda/v38_overrides/apply_v38_fix_review.py
+
+      - name: Apply SaúdePrática v1.9.20 Medicina do Trabalho MCG
+        run: |
+          python3 MediAgenda/v39_overrides/apply_v39.py
+          python3 MediAgenda/v39_overrides/apply_v39_specialties.py
+          python3 MediAgenda/v39_overrides/apply_v39_classification.py
+
+      - name: Apply SaúdePrática v1.9.21 PIN backup modules and expenses
+        run: |
+          python3 MediAgenda/v40_overrides/apply_v40.py
+          python3 MediAgenda/v40_overrides/apply_v40_expenses.py
+          python3 MediAgenda/v40_overrides/apply_v40_fixes.py
+
+      - name: Fix SaúdePrática v1.9.22 module checklist and pill scheme
+        run: python3 MediAgenda/v41_overrides/apply_v41.py
+
+      - name: Apply SaúdePrática v1.9.23 avatar cropping
+        run: python3 MediAgenda/v42_overrides/apply_v42.py
+
+      - name: Apply SaúdePrática v1.9.24 rotation of documents and CC
+        run: python3 MediAgenda/v43_overrides/apply_v43.py
+
+      - name: Apply SaúdePrática v1.9.25 medication photographs and medicines search
+        run: python3 MediAgenda/v44_overrides/apply_v44.py
+
+      - name: Fix SaúdePrática v1.9.26 medicine photo gallery and notifications
+        run: python3 MediAgenda/v45_overrides/apply_v45.py
+
+      - name: Show packaging photos in the medication list and record v1.9.27
+        run: python3 MediAgenda/v46_overrides/apply_v46.py
+
+      - name: Apply SaúdePrática v1.9.28 clinical situation and expense receipt OCR
+        run: python3 MediAgenda/v47_overrides/apply_v47.py
+
+      - name: Apply SaúdePrática v1.9.29 native form selectors and observation number
+        run: python3 MediAgenda/v48_overrides/apply_v48.py
+
+      - name: Make TOMEI notification action clear and testable v1.9.30
+        run: python3 MediAgenda/v49_overrides/apply_v49.py
+
+      - name: Register doses awaiting confirmation in Tomas v1.9.31
+        run: python3 MediAgenda/v50_overrides/apply_v50.py
+
+      - name: Add local two-way Nearby Connections sync v1.9.32
+        run: python3 MediAgenda/v51_overrides/apply_v51.py
+
+      - name: Add IPO Lisboa shortcut beside SNS24 v1.9.33
+        run: python3 MediAgenda/v52_overrides/apply_v52.py
+
+      - name: Optional fingerprint unlock with PIN fallback v1.9.34
+        run: python3 MediAgenda/v53_overrides/apply_v53.py
+
+      - name: Languages, support contact, PayPal and illustrated help v1.9.35
+        run: python3 MediAgenda/v54_overrides/apply_v54.py
+
+      - name: Optional offline ML Kit photo recognition and smart help v1.9.36
+        run: python3 MediAgenda/v55_overrides/apply_v55.py
+
+      - name: Ask after photo whether to use ML Kit, preserving same image v1.9.37
+        run: python3 MediAgenda/v56_overrides/apply_v56.py
+
+      - name: Handle Xiaomi camera result and reuse latest capture v1.9.38
+        run: python3 MediAgenda/v57_overrides/apply_v57.py
+
+      - name: Use in-app CameraX for medicine box capture v1.9.39
+        run: python3 MediAgenda/v58_overrides/apply_v58.py
+
+      - name: Feed decoded camera bitmap directly to ML Kit v1.9.40
+        run: python3 MediAgenda/v59_overrides/apply_v59.py
+
+      - name: Repair Nearby received file access and Xiaomi location permission v1.9.41
+        run: python3 MediAgenda/v60_overrides/apply_v60.py
+
+      - name: Profile deletion and refreshed bilateral Nearby UI v1.9.42
+        run: python3 MediAgenda/v61_overrides/apply_v61.py
+
+      - name: Profile editor deletion, dialog layout and keyboard-safe help v1.9.43
+        run: python3 MediAgenda/v62_overrides/apply_v62.py
+
+      - name: Fix profile dialog footer and smart help input focus v1.9.44
+        run: python3 MediAgenda/v63_overrides/apply_v63.py
+
+      - name: Fixed profile action bar and app wallpaper for Nearby v1.9.45
+        run: python3 MediAgenda/v64_overrides/apply_v64.py
+
+      - name: Auto-archive PDF imports in Digital Documents v1.9.46
+        run: python3 MediAgenda/v65_overrides/apply_v65.py
+
+      - name: Preview PDFs and images internally without Android chooser v1.9.47
+        run: python3 MediAgenda/v66_overrides/apply_v66.py
+
+      - name: Water taken notification action and target celebration v1.9.48
+        run: python3 MediAgenda/v67_overrides/apply_v67.py
+      
+      - name: View all saved documents internally and fix profile action buttons v1.9.50
+        run: python3 MediAgenda/v68_overrides/apply_v68.py
+
+      - name: Add Health Connect Activity and permission UI v1.9.51
+        run: python3 MediAgenda/v69_overrides/apply_v69.py
+
+      - name: Health Connect settings in Mais and improved activity charts v1.9.52
+        run: python3 MediAgenda/v70_overrides/apply_v70.py
+
+      - name: Heart icon and manual measurements in Activity & Health v1.9.53
+        run: python3 MediAgenda/v71_overrides/apply_v71.py
+
+      - name: Add meal photo diary and optional AI nutritional estimates v1.9.54
+        run: python3 MediAgenda/v72_overrides/apply_v72.py
+
+      - name: Centralized meal AI setup without user tokens v1.9.55
+        run: python3 MediAgenda/v73_overrides/apply_v73.py
+
+      - name: Replace cloud meal AI with offline ML Kit and nutrition lookup v1.9.56
+        run: python3 MediAgenda/v74_overrides/apply_v74.py
+
+      - name: Organize Opções and add Modo Sénior v1.9.57
+        run: python3 MediAgenda/v75_overrides/apply_v75.py
+
+      - name: Fix Modo Sénior selection always visible on Xiaomi v1.9.58
+        run: python3 MediAgenda/v76_overrides/apply_v76.py
+
+      - name: Transferir e validar modelo de pratos offline (Apache-2.0)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSETS="build-src/MediAgenda_Android_v1/app/src/main/assets"
+          mkdir -p "$ASSETS"
+          curl -fsSL --retry 3 --max-time 180 'https://www.kaggle.com/api/v1/models/google/aiy/tfLite/vision-classifier-food-v1/1/download' -o /tmp/food-model.tar.gz
+          tar -xzf /tmp/food-model.tar.gz -C /tmp 1.tflite
+          mv /tmp/1.tflite "$ASSETS/saude_food_v1.tflite"
+          curl -fsSL --retry 3 --max-time 60 'https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_food_V1_labelmap.csv' -o "$ASSETS/saude_food_labels.csv"
+          echo "03dd6d9129501f97be00775d9e17b5d9ad13be730149352adb8f4ca953b7a650  $ASSETS/saude_food_v1.tflite" | sha256sum -c -
+          echo "8335571e32d893c986addae14d96b6ab0157ea1f8bad983a22c224e9eeac6f90  $ASSETS/saude_food_labels.csv" | sha256sum -c -
+
+      - name: Integrar modelo alimentar e melhorar reconhecimento v1.9.59
+        run: python3 MediAgenda/v77_overrides/apply_v77.py
+
+      - name: Remove duplicated help links from Accessibility v1.9.60
+        run: python3 MediAgenda/v78_overrides/apply_v78.py
+
+      - name: Medication schedules, manual doses and healthcare directory v1.9.61
+        run: python3 MediAgenda/v79_overrides/apply_v79.py
+
+      - name: Select healthcare facilities by District and Municipality v1.9.62
+        run: python3 MediAgenda/v80_overrides/apply_v80.py
+
+      - name: Correct sync identity and add missed dose badges v1.9.63
+        run: python3 MediAgenda/v81_overrides/apply_v81.py
+
+      - name: Medication type, notes and stronger alarm v1.9.64
+        run: python3 MediAgenda/v82_overrides/apply_v82.py
+
+      - name: Caregiver profile and family intake reminders v1.9.65
+        run: python3 MediAgenda/v83_overrides/apply_v83.py
+
+      - name: Persistent lock-screen medicine alarm v1.9.67
+        run: python3 MediAgenda/v84_overrides/apply_v84.py
+
+      - name: Unify alarm channels and medication form v1.9.67
+        run: python3 MediAgenda/v85_overrides/apply_v85.py
+
+      - name: Portuguese spoken alarms and quiet overdue counters v1.9.68
+        run: python3 MediAgenda/v86_overrides/apply_v86.py
+
+
+      - name: Flag missing artwork in intermediate APK
+        shell: bash
+        run: |
+          if python3 MediAgenda/tools/verify_graphics.py; then
+            echo "HAS_GRAPHICS=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_GRAPHICS=false" >> "$GITHUB_ENV"
+            echo "::warning title=Missing original artwork::Intermediate unsigned build only. Final APK must have real icon, background and splash inserted and signed locally."
+          fi
+
+      - name: Upload reconstructed source for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaudePratica-reconstructed-source
+          path: |
+            build-src/MediAgenda_Android_v1/app/src/main/java
+            build-src/MediAgenda_Android_v1/app/build.gradle.kts
+            build-src/MediAgenda_Android_v1/app/src/main/AndroidManifest.xml
+          retention-days: 3
+
+      - name: Upload complete v1.9.67 Android source project
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaudePratica-v1.9.68-FULL-SOURCE
+          path: build-src/MediAgenda_Android_v1/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build APK
+        working-directory: build-src/MediAgenda_Android_v1
+        run: gradle --no-daemon assembleRelease
+
+      - name: Inspect app graphic asset mapping
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump resources build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk | grep -E -A 4 -B 3 'saude_splash|saude_background|saude_icon' || true
+
+      - name: Prepare APK
+        run: |
+          cp build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk SaudePratica-v1.9.68-unsigned.apk
+          ls -lh SaudePratica-v1.9.68-unsigned.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaudePratica-v1.9.68-INTERMEDIATE-unsigned
+          path: SaudePratica-v1.9.68-unsigned.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Sign release APK using existing stable key
+        if: ${{ env.HAS_SIGNING_KEY == 'true' && env.HAS_GRAPHICS == 'true' }}
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SAUDEPRATICA_KEYSTORE_B64 }}
+          SIGNING_PASSWORD: ${{ secrets.SAUDEPRATICA_KEYSTORE_PASSWORD }}
+          SIGNING_ALIAS: ${{ secrets.SAUDEPRATICA_KEY_ALIAS }}
+        run: |
+          printf '%s' "$SIGNING_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/saudepratica.jks"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/saudepratica.jks" \
+            --ks-key-alias "$SIGNING_ALIAS" \
+            --ks-pass env:SIGNING_PASSWORD \
+            --key-pass env:SIGNING_PASSWORD \
+            --out SaudePratica-v1.9.67-SIGNED.apk \
+            SaudePratica-v1.9.68-unsigned.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose SaudePratica-v1.9.67-SIGNED.apk
+
+      - name: Upload signed APK
+        if: ${{ env.HAS_SIGNING_KEY == 'true' && env.HAS_GRAPHICS == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaudePratica-v1.9.67-SIGNED
+          path: SaudePratica-v1.9.67-SIGNED.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Package apksigner
+        shell: bash
+        run: |
+          mkdir -p apksigner-tools
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" apksigner-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" apksigner-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt2" apksigner-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" apksigner-tools/
+          chmod +x apksigner-tools/apksigner
+          tar -czf apksigner-tools.tar.gz apksigner-tools
+
+      - name: Upload apksigner
+        uses: actions/upload-artifact@v4
+        with:
+          name: MediAgenda-apksigner-tools
+          path: apksigner-tools.tar.gz
+          retention-days: 7

@@ -21,9 +21,9 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
-OutputDir=..\dist\installer
+OutputDir=..\..\dist\installer
 OutputBaseFilename=SaudePratica-Setup
-SetupIconFile=..\dist\saude_icon.ico
+SetupIconFile=..\..\dist\saude_icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -40,7 +40,7 @@ Name: "portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
 Name: "desktopicon"; Description: "Criar um atalho no Ambiente de Trabalho"; GroupDescription: "Atalhos:"; Flags: unchecked
 
 [Files]
-Source: "..\dist\SaudePraticaDesktop.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\SaudePraticaDesktop.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}"

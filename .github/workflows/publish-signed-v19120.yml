@@ -1,0 +1,70 @@
+name: Publicar SaúdePrática v1.9.120 com assinatura original verificada
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-signed-v19120.yml"
+      - "MediAgenda/release-verified/v1.9.120/**"
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install zstd and Android signing verification tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zstd
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Retrieve exact previously verified unsigned build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 41077181482 --repo DanBar1971/SaudePratica --name SaudePratica-v1.9.120-UNSIGNED --dir original-unsigned
+          test "$(find original-unsigned -name '*.apk' -type f | wc -l)" -eq 1
+          cp "$(find original-unsigned -name '*.apk' -type f | head -n 1)" original-unsigned.apk
+          echo "e4ad8a81e4d828dfaed15014f6645bf842f0507e6a4e13b1b99df12e5eb42499  original-unsigned.apk" | sha256sum --check
+      - name: Reconstruct and verify originally signed APK
+        run: |
+          base64 --decode MediAgenda/release-verified/v1.9.120/signed.patch.zst.b64 > signed.patch.zst
+          echo "a4dcff40721520b7a5e9aa243fa9ad6d0dd96b378a429a4ab4ebfe2d4a2e3e36  signed.patch.zst" | sha256sum --check
+          zstd --long=28 --decompress --patch-from=original-unsigned.apk signed.patch.zst -o SaudePratica.apk
+          echo "b2e03b4d51d44251f5fe9c9baab8a47d42624666d0f7803803d5f1b735675cf3  SaudePratica.apk" | sha256sum --check
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee apk-verified.txt
+          grep -F "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a" apk-verified.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" apk-verified.txt
+          grep -F "Verified using v3 scheme (APK Signature Scheme v3): true" apk-verified.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | head -n 1 | tee apk-identity.txt
+          grep -F "name='com.mediagenda.app.stable'" apk-identity.txt
+          grep -F "versionCode='130'" apk-identity.txt
+          grep -F "versionName='1.9.120'" apk-identity.txt
+      - name: Publish immutable signed APK with source and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=v1.9.120
+          REPO=DanBar1971/SaudePratica
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isPrerelease,assets |
+              jq -e '.tagName=="v1.9.120" and (.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")'
+            exit 0
+          fi
+          git archive --format=zip --output="SaudePratica-v1.9.120-CODIGO-FONTE.zip" HEAD
+          sha256sum SaudePratica.apk SaudePratica-v1.9.120-CODIGO-FONTE.zip > SaudePratica-v1.9.120-SHA256SUMS.txt
+          gh release create "$TAG" SaudePratica.apk SaudePratica-v1.9.120-CODIGO-FONTE.zip SaudePratica-v1.9.120-SHA256SUMS.txt --repo "$REPO" --target "$GITHUB_SHA" --title "SaúdePrática v1.9.120 — APK assinada" --notes-file MediAgenda/v140_overrides/RELEASE_NOTES.md --latest
+          gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isPrerelease,assets |
+            jq -e '.tagName=="v1.9.120" and (.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")'
+          gh workflow run pages.yml --repo "$REPO" --ref main

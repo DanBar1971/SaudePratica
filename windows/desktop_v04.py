@@ -188,7 +188,7 @@ class Desktop(ctk.CTk):
         elif self.page=="profiles": self._profiles()
         elif self.page=="medication": self._medication()
         elif self.page=="backup": self._backup()
-        elif self.page=="options": self._options()
+        elif self.page=="options": self._settings_page()
         elif self.page=="more": self._modules(full=True)
         else: self._pending(self.page)
 
@@ -529,7 +529,7 @@ class Desktop(ctk.CTk):
         except (LocalStoreError,ValueError,KeyError) as exc:
             messagebox.showerror(self.t("med_save_error"),str(exc),parent=self)
 
-    def _options(self):
+    def _settings_page(self):
         self._heading(self.t("preferences"),self.t("preferences_desc"))
         card=self._card(self.body)
         card.pack(fill="x",pady=8)

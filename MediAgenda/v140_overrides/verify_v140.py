@@ -41,4 +41,11 @@ assert "NotificationScheduler" in main
 # Staged MVP deliberately excludes insulin dosing or fake sensor capture.
 assert "insulinDoseCalculator" not in glucose
 assert "Camera" not in glucose
+# Report public UI source anchors to guide migration of old settings, no user data.
+for term in ("Modo Sénior","Acessibilidade","Aspeto e Idioma","Atalhos Importantes",
+             "Acerca da SaúdePrática","Atalhos", "Modo senior"):
+    p=main.find(term)
+    if p>=0:
+        print("UI_ANCHOR",repr(term),"POSITION",p,"SOURCE",
+              repr(main[max(0,p-280):p+550]))
 print("v140 static checks passed (not equivalent to Android compilation/device testing)")

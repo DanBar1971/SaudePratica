@@ -11,7 +11,7 @@ class VisualV06Tests(unittest.TestCase):
         im=wallpaper_image(1600,900,False)
         self.assertEqual(im.size,(1600,900))
         self.assertNotEqual(im.getpixel((50,50)),im.getpixel((800,450)))
-        self.assertNotEqual(im.getpixel((1200,60)),im.getpixel((800,450)))
+        self.assertNotEqual(im.getpixel((1490,760)),im.getpixel((800,450)))
         self.assertEqual(wallpaper_image(1600,900,True).size,(1600,900))
         self.assertNotEqual(wallpaper_image(1600,900,True).getpixel((300,100)),
                             wallpaper_image(1600,900,False).getpixel((300,100)))

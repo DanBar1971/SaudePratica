@@ -21,7 +21,7 @@ class VisualV06Tests(unittest.TestCase):
             image=icon_image(emoji,i,50)
             self.assertEqual(image.size,(50,50))
             center=image.getpixel((25,25))
-            self.assertNotEqual(center[:3],(255,255,255),key)
+            self.assertNotEqual(image.getpixel((6,6))[:3],(255,255,255),key)
             self.assertGreater(center[3],0,key)
 
     def test_missing_photo_is_not_invented(self):

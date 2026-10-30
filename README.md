@@ -2,6 +2,16 @@
 
 Website público e repositório multiplataforma **SaúdePrática**, em português de Portugal. Android disponível, Windows experimental com instalador e iOS planeado.
 
+## Descargas diretas
+
+| Plataforma | Estado | Instalação |
+| --- | --- | --- |
+| **Android** | Disponível | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
+| **Windows 10/11 (x64)** | **Experimental 0.1.0** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.1.0-preview/SaudePratica-Setup.exe) |
+| **iPhone / iOS** | Planeado | Ainda sem aplicação para descarregar |
+
+Para Windows, consultar também a [release Windows específica](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.1.0-preview), e **não a lista genérica de releases Android/Windows**. A página oficial identifica sempre cada plataforma e a ligação do instalador. A versão Windows é experimental e ainda não sincroniza com o Android nem fornece alarmes clínicos.
+
 **Website:** https://danbar1971.github.io/SaudePratica/
 
 **Código e APKs da aplicação:** https://github.com/DanBar1971/SaudePratica

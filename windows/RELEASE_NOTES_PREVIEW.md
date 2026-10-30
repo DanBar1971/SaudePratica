@@ -1,21 +1,19 @@
-# SaúdePrática Desktop 0.1.0 — Windows experimental
+# SaúdePrática Desktop 0.2.0 — Windows experimental
 
-Primeiro **instalador para Windows 10/11 (64 bits)**, com assistente de instalação em português, atalho no menu Iniciar, opção de atalho no Ambiente de Trabalho, atualização por cima da versão anterior e desinstalador nas Definições do Windows.
+## Melhorias de interface
+- Ecrã inicial redesenhado, com identidade oficial, ícone, contadores e informações úteis.
+- Nova ficha de medicação dentro da janela principal, sem sequência de caixas popup para cada campo.
+- Editar medicação já registada ou criar nova, com campos acessíveis e scroll, e rodapé com Guardar/Cancelar.
+- Nome, dose, via de administração, tipo de injeção, tipo de toma, hora, indicação, sem alarme, suspensão e notas.
+- Criar perfil diretamente no ecrã Perfis, sem janela popup.
+- Mantém todos os dados locais criados na 0.1.0: localização e formato de armazenamento Windows inalterados.
+- Compatibilidade com o backup experimental .spbackup da versão anterior e preservação de campos já guardados.
 
-## O que já está incluído
-- Janela redimensionável com dimensão inicial 1280 × 720 (16:9), ícone e fundo SaúdePrática originais.
-- Perfis e registo inicial de medicação guardados localmente, protegidos com Windows DPAPI.
-- Exportação e restauro conservador de perfis novos num backup experimental `.spbackup` encriptado.
-- Testes automatizados em Windows e verificação SHA-256 do instalador.
+## Instalação
+Instalador português para Windows 10 e 11 (x64). Instala por cima da versão experimental anterior, com atalho e desinstalador, sem apagar dados locais.
 
 ## Limitações e segurança
-**Versão experimental, sem assinatura digital de editor Windows.** O Windows SmartScreen pode avisar que o editor é desconhecido. Confirma sempre a origem oficial no GitHub; não desatives globalmente a proteção do Windows.
-
-Esta versão **ainda não sincroniza** com o Android, não importa diretamente o backup Android, não abrange todos os módulos clínicos e **não substitui os alarmes de medicação do telemóvel**. Testar inicialmente com dados fictícios.
-
-**A desinstalação não apaga automaticamente os dados locais de saúde**, para evitar perdas acidentais. A gestão segura de eliminação de dados será adicionada posteriormente.
-
-## Atualizações
-As versões Windows usam tags `windows-vX.Y.Z-preview`; as versões Android mantêm `v1.9.X`. Esta release experimental não altera o identificador `releases/latest` usado pelas APKs Android.
-
-Website oficial: https://danbar1971.github.io/SaudePratica/
+A versão **ainda é experimental e não tem assinatura digital Windows**. Pode surgir um aviso de editor desconhecido; confirmar sempre a origem oficial antes de executar.
+Não sincroniza com Android, não importa backups Android, não substitui alarmes do telemóvel, nem fornece gestão clínica completa. Testar com dados fictícios.
+O backup .spbackup é encriptado (AES-256-GCM) e protegido por palavra-passe; Android/iOS ainda não o conseguem restaurar.
+Nenhum dado clínico real deve ser enviado para o GitHub.

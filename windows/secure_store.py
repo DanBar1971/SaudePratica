@@ -82,24 +82,85 @@ class SecureStore:
         return next((p for p in self.profiles() if p.get("id") == profile_id), None)
 
     def add_medication(self, profile_id: str, name: str, dose: str, time: str, route: str):
+        """Compatibility with records saved by the first experimental build."""
+        return self.save_medication(profile_id, {
+            "name": name, "dose": dose, "time": time,
+            "administration_route": route,
+            "no_alarm": not bool(time.strip()),
+        })
+
+    def save_medication(self, profile_id: str, fields: dict, medication_id: str | None = None):
+        """Create/update without dropping unknown fields or existing attachments.
+
+        Clinical time is recorded for later sync; no Windows alarm is scheduled.
+        """
         p = self.get_profile(profile_id)
         if p is None:
-            raise LocalStoreError("Escolhe primeiro um perfil.")
-        name, dose, time = name.strip(), dose.strip(), time.strip()
+            raise LocalStoreError("Perfil não encontrado.")
+        if not isinstance(fields, dict):
+            raise LocalStoreError("Os dados da medicação são inválidos.")
+
+        route = str(fields.get("administration_route", "")).strip().lower()
+        allowed_routes = ("", "oral", "sublingual", "parenteral", "topical",
+                          "inhaled", "rectal", "vaginal", "ocular", "otic", "nasal", "other")
+        if route not in allowed_routes:
+            raise LocalStoreError("Seleciona uma via de administração válida.")
+        injection = str(fields.get("injection_type", "")).lower().strip()
+        if injection not in ("", "sc", "im", "iv", "id", "other"):
+            raise LocalStoreError("O tipo de injeção é inválido.")
+        if route != "parenteral":
+            injection = ""
+
+        name = str(fields.get("name", "")).strip()
+        dose = str(fields.get("dose", "")).strip()
+        time = str(fields.get("time", "")).strip()
+        indication = str(fields.get("indication", "")).strip()
+        notes = str(fields.get("notes", "")).strip()
+        dose_pattern = str(fields.get("dose_pattern", "")).strip()
         if not 1 <= len(name) <= 160 or len(dose) > 90:
-            raise LocalStoreError("Nome ou dose inválidos.")
-        # Time is stored as clinical input, NOT registered as a Windows alarm.
-        if time and (len(time)!=5 or time[2]!=":" or not time[:2].isdigit() or
-                     not time[3:].isdigit() or int(time[:2])>23 or int(time[3:])>59):
-            raise LocalStoreError("Hora inválida. Usa HH:mm.")
-        if route not in ("", "oral", "sublingual", "parenteral", "topical",
-                         "inhaled", "rectal", "vaginal", "ocular", "otic", "nasal", "other"):
-            raise LocalStoreError("Via de administração desconhecida.")
-        medication = {"id": str(uuid.uuid4()), "name":name, "dose":dose,
-                      "time":time, "administration_route":route}
-        p["medications"].append(medication)
-        self.save()
-        return medication
+            raise LocalStoreError("Indica o nome e uma dose com até 90 caracteres.")
+        if len(indication) > 2000 or len(notes) > 4000:
+            raise LocalStoreError("O texto da indicação ou das notas é demasiado longo.")
+        if dose_pattern not in ("", "Jejum", "Pequeno-almoço", "Almoço", "Jantar",
+                                "Às refeições", "Ao deitar", "SOS", "Horário livre",
+                                "De 4 em 4 horas", "De 6 em 6 horas", "De 12 em 12 horas"):
+            raise LocalStoreError("Tipo de toma inválido.")
+        no_alarm = bool(fields.get("no_alarm", False)) or dose_pattern == "SOS"
+        if not no_alarm:
+            if (len(time) != 5 or time[2] != ":" or not time[:2].isdigit()
+                    or not time[3:].isdigit() or int(time[:2]) > 23
+                    or int(time[3:]) > 59):
+                raise LocalStoreError("Indica uma hora de aviso válida (HH:mm) ou ativa Sem alarme.")
+        elif time and (len(time) != 5 or time[2] != ":" or not time[:2].isdigit()
+                       or not time[3:].isdigit() or int(time[:2]) > 23
+                       or int(time[3:]) > 59):
+            raise LocalStoreError("Hora inválida (HH:mm).")
+        suspended = bool(fields.get("suspended", False))
+
+        old = next((m for m in p["medications"] if m.get("id") == medication_id), None) if medication_id else None
+        if medication_id and old is None:
+            raise LocalStoreError("O medicamento já não está disponível neste perfil.")
+        new = dict(old) if old else {"id": str(uuid.uuid4())}
+        new.update({
+            "name": name, "dose": dose, "time": time,
+            "administration_route": route, "injection_type": injection,
+            "dose_pattern": dose_pattern, "indication": indication, "notes": notes,
+            "no_alarm": no_alarm, "suspended": suspended,
+        })
+        if old is None:
+            p["medications"].append(new)
+        else:
+            index = p["medications"].index(old)
+            p["medications"][index] = new
+        try:
+            self.save()
+        except Exception:
+            if old is None:
+                p["medications"].pop()
+            else:
+                p["medications"][index] = old
+            raise
+        return new
 
     def export_backup(self, password: str) -> bytes:
         files = {}

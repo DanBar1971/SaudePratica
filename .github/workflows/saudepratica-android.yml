@@ -1,0 +1,281 @@
+name: SaudePratica Android Build + AutoRelease
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saudepratica-android.yml"
+      - "MediAgenda/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/saudepratica-android.yml"
+      - "MediAgenda/**"
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Android SDK
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Reconstruct previous versions and apply v1.9.98
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import subprocess,yaml
+          workflow=yaml.safe_load(open(".github/workflows/mediagenda-build.yml"))
+          steps=workflow["jobs"]["build"]["steps"]
+          started=False
+          for step in steps:
+              name=step.get("name","")
+              if name=="Reconstruct MediAgenda base":started=True
+              if not started:continue
+              if name=="Flag missing artwork in intermediate APK":break
+              script=step.get("run")
+              if script:
+                  print("Applying:",name,flush=True)
+                  subprocess.run(["bash","-eo","pipefail","-c",script],check=True)
+          subprocess.run(["python3","MediAgenda/v87_overrides/apply_v87.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v89_overrides/apply_v89.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v90_overrides/apply_v90.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v91_overrides/apply_v91.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v92_overrides/apply_v92.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v93_overrides/apply_v93.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v94_overrides/apply_v94.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v95_overrides/apply_v95.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v96_overrides/apply_v96.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v97_overrides/apply_v97.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v98_overrides/apply_v98.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v99_overrides/apply_v99.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v100_overrides/apply_v100.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v101_overrides/apply_v101.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v102_overrides/apply_v102.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v103_overrides/apply_v103.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v104_overrides/apply_v104.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v104_overrides/apply_v104_group_snooze.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v104_overrides/apply_v104_updater.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v105_overrides/apply_v105.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v105_overrides/apply_v105_lockscreen.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v106_overrides/apply_v106.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v107_overrides/apply_v107.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v108_overrides/apply_v108.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v109_overrides/apply_v109.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v110_overrides/apply_v110.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v111_overrides/apply_v111.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v112_overrides/apply_v112.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v113_overrides/apply_v113.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v113_overrides/apply_v113_catalog.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v114_overrides/apply_v114.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v115_overrides/apply_v115.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v116_overrides/apply_v116.py"],check=True)
+          subprocess.run(["python3","MediAgenda/v117_overrides/apply_v117.py"],check=True)
+          PY
+      - name: Verify Fase A safe identity invariants
+        run: python3 MediAgenda/v110_overrides/verify_identity.py
+      - name: Verify Fase B alarm and patient routing invariants
+        run: python3 MediAgenda/v111_overrides/verify_phase_b.py
+      - name: Verify Fase C nutrition, barcode, photos and privacy
+        run: python3 MediAgenda/v112_overrides/verify_phase_c.py
+      - name: Verify Fase D original document and clinic safety gates
+        run: python3 MediAgenda/v113_overrides/verify_phase_d.py
+      - name: Verify Gemini nutrition UX hotfix and original images
+        run: python3 MediAgenda/v114_overrides/verify_nutrition_hotfix.py
+      - name: Verify Phase E Health Connect, hydration and visible Phase D access
+        run: python3 MediAgenda/v115_overrides/verify_phase_e.py
+      - name: Verify Gemini retry and exact alarm diagnostics (TOMEI unchanged)
+        run: python3 MediAgenda/v116_overrides/verify_v116.py
+      - name: Verify nutrition review, permanent Save and original photo
+        run: python3 MediAgenda/v117_overrides/verify_v117.py
+      - name: Apply v1.9.99 Gemini stable model fallback
+        run: python3 MediAgenda/v118_overrides/apply_v118.py
+      - name: Verify 429/503 diagnostics and 1.9.99 compatibility
+        run: python3 MediAgenda/v118_overrides/verify_v118.py
+      - name: Apply v1.9.100 fullscreen medication alarm fixes
+        run: python3 MediAgenda/v119_overrides/apply_v119.py
+      - name: Verify v1.9.100 full-screen, TOMEI, snooze and missed doses
+        run: python3 MediAgenda/v119_overrides/verify_v119.py
+      - name: Apply v1.9.101 medication visuals, PDF leaflet and agenda changes
+        run: python3 MediAgenda/v120_overrides/apply_v120.py
+      - name: Verify v1.9.101 medication document persistence and illustrations
+        run: python3 MediAgenda/v120_overrides/verify_v120.py
+      - name: Apply v1.9.102 guided profile and clinical data editor
+        run: python3 MediAgenda/v121_overrides/apply_v121.py
+      - name: Verify v1.9.102 profile wizard, photos and clinical identifiers
+        run: python3 MediAgenda/v121_overrides/verify_v121.py
+      - name: Apply audited lockscreen alarm and per-profile intake isolation
+        run: python3 MediAgenda/v122_overrides/apply_v122.py
+      - name: Reject PIN and caregiver alarm regressions
+        run: python3 MediAgenda/v122_overrides/verify_v122.py
+      - name: Apply v1.9.103 real nutrition gallery and selected-language labels
+        run: python3 MediAgenda/v123_overrides/apply_v123.py
+      - name: Verify nutrition photos, macros and Gemini/manual persistence
+        run: python3 MediAgenda/v123_overrides/verify_v123.py
+      - name: Apply profile picker and Android 16 wizard system-bar fix
+        run: python3 MediAgenda/v124_overrides/apply_v124.py
+      - name: Verify selectable profiles and navigation / keyboard insets
+        run: python3 MediAgenda/v124_overrides/verify_v124.py
+      - name: Apply v1.9.105 multi-record clinical editor and themed screens
+        run: python3 MediAgenda/v125_overrides/apply_v125.py
+      - name: Verify clinical data, coffee support and branded backgrounds
+        run: python3 MediAgenda/v125_overrides/verify_v125.py
+      - name: Apply v1.9.106 UX redesign and persistent appointment statuses
+        run: |
+          python3 MediAgenda/v126_overrides/apply_v126.py
+          python3 MediAgenda/v126_overrides/v126_extra.py
+      - name: Verify v1.9.106 Agenda, Medicação, profile, light branding and language
+        run: python3 MediAgenda/v126_overrides/verify_v126.py
+      - name: Apply v1.9.107 voluntary author support with Buy Me a Coffee first
+        run: python3 MediAgenda/v127_overrides/apply_v127.py
+      - name: Verify v1.9.107 payment options, no preset price, original app identity
+        run: python3 MediAgenda/v127_overrides/verify_v127.py
+      - name: Apply v1.9.108 automatic appointments, login updates and support buttons
+        run: python3 MediAgenda/v128_overrides/apply_v128.py
+      - name: Verify v1.9.108 no manual appointments and two valid support links
+        run: python3 MediAgenda/v128_overrides/verify_v128.py
+      - name: Apply v1.9.109 safe optional meal/menu audit (Gemini unchanged)
+        run: python3 MediAgenda/v129_overrides/apply_v129.py
+      - name: Verify v1.9.109 existing Gemini and local meal diary integrity
+        run: python3 MediAgenda/v129_overrides/verify_v129.py
+      - name: Apply v1.9.110 common safe dialog and profile footer layout
+        run: python3 MediAgenda/v130_overrides/apply_v130.py
+      - name: Verify v1.9.110 safe buttons across all Material dialogs
+        run: python3 MediAgenda/v130_overrides/verify_v130.py
+      - name: Apply v1.9.111 consistent rounded dialog buttons and water goal picker
+        run: python3 MediAgenda/v131_overrides/apply_v131.py
+      - name: Verify v1.9.111 button groups and water choice actions
+        run: python3 MediAgenda/v131_overrides/verify_v131.py
+      - name: Apply v1.9.112 remote information posters and local archive
+        run: python3 MediAgenda/v132_overrides/apply_v132.py
+      - name: Verify v1.9.112 tip cache, archive and original app identity
+        run: python3 MediAgenda/v132_overrides/verify_v132.py
+      - name: Apply v1.9.113 photoreal poster and clickable embedded button regions
+        run: python3 MediAgenda/v133_overrides/apply_v133.py
+      - name: Verify v1.9.113 photo button overlay and archive compatibility
+        run: python3 MediAgenda/v133_overrides/verify_v133.py
+      - name: Apply v1.9.114 one-profile one-way Nearby synchronization and FICHA
+        run: python3 MediAgenda/v134_overrides/apply_v134.py
+      - name: Verify v1.9.114 medical profile identity, deduplication and UI
+        run: python3 MediAgenda/v134_overrides/verify_v134.py
+      - name: Apply v1.9.115 PIN-only profile deletion
+        run: python3 MediAgenda/v135_overrides/apply_v135.py
+      - name: Verify v1.9.115 PIN safeguard and exact profile deletion target
+        run: python3 MediAgenda/v135_overrides/verify_v135.py
+      - name: Apply SaúdePrática v1.9.116 full-screen editors and profile cleanup
+        run: python3 MediAgenda/v136_overrides/apply_v136.py
+      - name: Verify v1.9.116 UI changes and medical data invariants
+        run: python3 MediAgenda/v136_overrides/verify_v136.py
+      - name: Apply v1.9.117 fullscreen hydration and scalable buttons
+        run: python3 MediAgenda/v137_overrides/apply_v137.py
+      - name: Verify v1.9.117 large-font hydration UI and alarm invariants
+        run: python3 MediAgenda/v137_overrides/verify_v137.py
+      - name: Apply v1.9.118 reorganized medication editor and administration routes
+        run: python3 MediAgenda/v138_overrides/apply_v138.py
+      - name: Verify v1.9.118 medication form, JSON and alarm integrity
+        run: python3 MediAgenda/v138_overrides/verify_v138.py
+      - name: Require original app artwork (background, icon and splash)
+        run: python3 MediAgenda/tools/verify_graphics.py
+      - name: Compile Android 1.9.118
+        working-directory: build-src/MediAgenda_Android_v1
+        run: gradle --no-daemon assembleRelease
+      - name: Check branded graphics exist inside compiled APK
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          apk="build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk"
+          with ZipFile(apk) as z:
+              branded=[(a.filename,a.file_size) for a in z.infolist()
+                       if a.filename.startswith("res/") and
+                          a.filename.lower().endswith(".png") and a.file_size>50000]
+          if len(branded)<3:
+              raise SystemExit("App artwork missing from APK; blocking this release: "+repr(branded))
+          print("Branded graphics packaged:",branded)
+          PY
+      - name: Check version and stable app identity
+        run: |
+          python3 - <<'PY'
+          import pathlib,re,subprocess
+          file='build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk'
+          p=subprocess.run([pathlib.Path(__import__('os').environ['ANDROID_HOME'])/'build-tools/35.0.0/aapt2','dump','badging',file],capture_output=True,text=True,check=True)
+          first=p.stdout.splitlines()[0]
+          gradle=pathlib.Path('build-src/MediAgenda_Android_v1/app/build.gradle.kts').read_text()
+          pkg=re.search(r"name='([^']+)'",first)
+          vn=re.search(r"versionName='([^']+)'",first)
+          vc=re.search(r"versionCode='([^']+)'",first)
+          ver=re.search(r'versionName\s*=\s*"([^"]+)"',gradle)
+          code=re.search(r'versionCode\s*=\s*(\d+)',gradle)
+          assert pkg and pkg.group(1)=='com.mediagenda.app.stable',first
+          assert vn and re.fullmatch(r'\d+\.\d+\.\d+',vn.group(1)),first
+          assert vc and vc.group(1).isdigit(),first
+          assert ver and ver.group(1)==vn.group(1),first
+          assert code and code.group(1)==vc.group(1),first
+          print(f'IDENTITY OK: {pkg.group(1)}, version {vn.group(1)}, code {vc.group(1)}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SaudePratica-v1.9.118-FULL-SOURCE
+          path: build-src/MediAgenda_Android_v1/
+          retention-days: 7
+      - name: Export Android signing tools (no certificates or passwords)
+        if: success() || failure()
+        run: |
+          mkdir -p android-signing-tools
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" android-signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" android-signing-tools/
+          tar -czf android-signing-tools.tar.gz android-signing-tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SaudePratica-Android-Signing-Tools
+          path: android-signing-tools.tar.gz
+          retention-days: 2
+      - uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: SaudePratica-v1.9.118-UNSIGNED
+          path: build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 7
+      - name: Confirmar se a chave de assinatura original está configurada
+        env:
+          ORIGINAL_RECOVERY: ${{ secrets.SAUDEPRACTICA_SIGNING_RECOVERY_HEX }}
+        run: |
+          if [ -n "$ORIGINAL_RECOVERY" ]; then
+            echo 'CAN_SIGN_ORIGINAL=true' >> "$GITHUB_ENV"
+          else
+            echo 'CAN_SIGN_ORIGINAL=false' >> "$GITHUB_ENV"
+            echo '::notice::Não há segredo de assinatura neste repositório. Compilação sem release assinada.'
+          fi
+      - name: Install audited AES-GCM recovery dependency (trusted master only)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.CAN_SIGN_ORIGINAL == 'true'
+        run: python3 -m pip install --quiet 'cryptography>=42,<50'
+      - name: Sign release with original SaúdePrática certificate
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.CAN_SIGN_ORIGINAL == 'true'
+        id: original_signing
+        env:
+          SAUDEPRACTICA_SIGNING_RECOVERY_HEX: ${{ secrets.SAUDEPRACTICA_SIGNING_RECOVERY_HEX }}
+        run: python3 MediAgenda/tools/sign_release.py
+      - name: Publish signed APK and redeploy official website
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.CAN_SIGN_ORIGINAL == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SP_TAG: ${{ steps.original_signing.outputs.tag }}
+          SP_CODE: ${{ steps.original_signing.outputs.version_code }}
+          SP_SHA: ${{ steps.original_signing.outputs.sha256 }}
+        run: bash MediAgenda/tools/publish_release.sh "$SP_TAG" "$SP_CODE" "$SP_SHA"
+

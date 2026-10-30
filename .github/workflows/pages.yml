@@ -61,9 +61,9 @@ jobs:
           grep -F 'Windows 10 / 11' index.html
           grep -F 'iPhone / iOS' index.html
           grep -F 'data-windows-download' index.html
-          grep -F 'releases/download/windows-v0.5.0-preview/SaudePratica-Setup.exe' index.html
-          grep -F 'releases/download/windows-v0.5.0-preview/SaudePratica-Setup.exe' windows/README.md
-          grep -F 'releases/download/windows-v0.5.0-preview/SaudePratica-Setup.exe' README.md
+          grep -F 'releases/download/windows-v0.6.0-preview/SaudePratica-Setup.exe' index.html
+          grep -F 'releases/download/windows-v0.6.0-preview/SaudePratica-Setup.exe' windows/README.md
+          grep -F 'releases/download/windows-v0.6.0-preview/SaudePratica-Setup.exe' README.md
           if grep -Fq 'data-windows-download href="https://github.com/DanBar1971/SaudePratica/releases"' index.html; then
             echo 'ERRO: botão Windows não pode apontar para lista genérica de Releases'
             exit 1
@@ -71,7 +71,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           html=Path("index.html").read_text(encoding="utf-8")
-          assert html.count('data-windows-download href="https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.5.0-preview/SaudePratica-Setup.exe"') >= 3
+          assert html.count('data-windows-download href="https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.0-preview/SaudePratica-Setup.exe"') >= 3
           assert 'id="plataformas"' in html
           print("Windows: 3 botões com ligação direta ao instalador verificados.")
           PY

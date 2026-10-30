@@ -1,0 +1,17 @@
+name: Export existing public encrypted signing backup
+on:
+  push:
+    branches: ["chore/public-recovery-backup-artifact-20261030"]
+    paths: [".github/workflows/export-public-backup.yml"]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: existing-public-encrypted-backup
+          path: SaúdePrática/release-unsigned-patches/v1.9.98/MediAgenda-CHAVE-PRIVADA-ENCRIPTADA.aesgcm.b64
+          retention-days: 1

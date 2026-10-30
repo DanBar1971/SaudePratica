@@ -1,6 +1,6 @@
 #define MyAppName "SaúdePrática Desktop"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.3.0"
+  #define MyAppVersion "0.4.0"
 #endif
 #define MyAppPublisher "SaúdePrática"
 #define MyAppExeName "SaudePraticaDesktop.exe"

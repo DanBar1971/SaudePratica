@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 import sys
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from PIL import Image, ImageOps, ImageTk
 
@@ -32,13 +32,15 @@ BUTTON = "#164c57"
 class Desktop(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("SaúdePrática Desktop · Experimental")
+        self.title("SaúdePrática Desktop · 0.2.0 experimental")
         self.geometry("1280x720")
         self.minsize(940, 620)
         self.configure(bg=DARK)
         self.store = None
         self.selected_profile = None
         self.page = "Início"
+        self.selected_medication = None
+        self._editor_open = False
         self._background = Image.open(ROOT / "assets" / "saude_background.png").convert("RGB")
         self._icon = Image.open(ROOT / "assets" / "saude_icon.png").convert("RGBA")
         self._splash = Image.open(ROOT / "assets" / "saude_splash.png").convert("RGBA")
@@ -104,8 +106,10 @@ class Desktop(tk.Tk):
         label.pack(pady=(20,2))
         tk.Label(self.sidebar,text="SaúdePrática",bg=DARKER,fg=TEAL,
                  font=("Segoe UI",18,"bold")).pack(pady=(0,18))
+        self.nav_buttons = {}
         for title in ("Início","Perfis","Medicação","Agenda","Documentos","Backup","Sincronização"):
-            self._button(self.sidebar,title,lambda name=title:self.show(name),wide=True)
+            button = self._button(self.sidebar, title, lambda name=title:self.show(name), wide=True)
+            self.nav_buttons[title] = button
         tk.Label(self.sidebar,text="DESKTOP · EXPERIMENTAL",bg=DARKER,fg=MUTED,
                  font=("Segoe UI",9)).pack(side="bottom",pady=24)
 
@@ -128,7 +132,17 @@ class Desktop(tk.Tk):
         return body
 
     def show(self, page):
+        if self._editor_open and self.page == "Medicação" and page != "Medicação":
+            if not messagebox.askyesno("Sair da ficha",
+                    "Tens uma ficha de medicação aberta. Sair sem guardar alterações?",
+                    parent=self):
+                return
+        self._editor_open = False
         self.page=page
+        for label, button in getattr(self, "nav_buttons", {}).items():
+            active = label == page
+            button.configure(bg="#177b7f" if active else BUTTON,
+                             fg="#ffffff" if active else WHITE)
         body=self._reset()
         if page=="Início": self._home(body)
         elif page=="Perfis": self._profiles(body)
@@ -160,63 +174,268 @@ class Desktop(tk.Tk):
         self._label(warning,"O Windows ainda não sincroniza com o telemóvel e não emite os alarmes de medicação. Os dados locais ficam protegidos na conta Windows.",12,MUTED).pack(fill="x",pady=8)
 
     def _profiles(self, body):
-        actions=tk.Frame(body,bg=DARK);actions.pack(fill="x")
-        self._button(actions,"+ Criar perfil",self.create_profile).pack(side="left",pady=10)
-        if not self.store: self._planned(body,"Armazenamento indisponível","Não é seguro editar dados.");return
+        if not self.store:
+            self._planned(body, "Armazenamento indisponível",
+                          "Não é seguro editar dados sem a proteção Windows.")
+            return
+        self._label(body, "Os perfis são guardados nesta conta Windows.", 12, MUTED).pack(
+            anchor="w", pady=(0, 8))
+        create = self._card(body)
+        create.pack(fill="x", pady=(8, 16))
+        self._label(create, "Novo perfil", 16, TEAL, True).pack(anchor="w")
+        row = tk.Frame(create, bg=CARD)
+        row.pack(fill="x", pady=(12, 0))
+        name = tk.StringVar()
+        entry = self._entry(row, name)
+        entry.pack(side="left", fill="x", expand=True, padx=(0, 12))
+        entry.insert(0, "")
+        def save_profile():
+            try:
+                p = self.store.create_profile(name.get())
+                self.selected_profile = p["id"]
+                self.show("Perfis")
+            except Exception as exc:
+                messagebox.showerror("Perfil", str(exc), parent=self)
+        self._button(row, "Criar perfil", save_profile).pack(side="right")
+        entry.bind("<Return>", lambda event: save_profile())
+
         for p in self.store.profiles():
-            card=self._card(body);card.pack(fill="x",pady=5)
-            self._label(card,p["name"],17,bold=True).pack(side="left")
-            self._button(card,"Selecionar",lambda pid=p["id"]:self.choose_profile(pid)).pack(side="right")
+            card = self._card(body)
+            card.pack(fill="x", pady=5)
+            self._label(card, p["name"], 17, bold=True).pack(side="left")
+            self._button(card, "Abrir medicação",
+                         lambda pid=p["id"]: self.choose_profile(pid)).pack(side="right")
+
+    def _entry(self, parent, var):
+        return tk.Entry(parent, textvariable=var, relief="flat", bd=0,
+                        highlightthickness=1, highlightbackground="#35606b",
+                        highlightcolor=TEAL, bg="#09242c", fg=WHITE,
+                        insertbackground=WHITE, font=("Segoe UI", 12))
 
     def create_profile(self):
-        if not self.store: return
-        name=simpledialog.askstring("Novo perfil","Nome do perfil:",parent=self)
-        if name is None:return
-        try:
-            p=self.store.create_profile(name)
-            self.selected_profile=p["id"]
-            self.show("Perfis")
-        except Exception as exc:messagebox.showerror("Perfil",str(exc),parent=self)
+        self.show("Perfis")
 
     def choose_profile(self, profile_id):
         self.selected_profile=profile_id
+        self.selected_medication=None
         self.show("Medicação")
 
+    def _form_field(self, parent, caption, variable, row, column=0, width=1):
+        box=tk.Frame(parent,bg=CARD)
+        box.grid(row=row,column=column,columnspan=width,sticky="ew",padx=6,pady=8)
+        self._label(box,caption,11,MUTED,True).pack(anchor="w",pady=(0,7))
+        entry=self._entry(box,variable)
+        entry.pack(fill="x",ipady=10)
+        return entry
+
+    def _form_combo(self, parent, caption, variable, choices, row, column=0):
+        box=tk.Frame(parent,bg=CARD)
+        box.grid(row=row,column=column,sticky="ew",padx=6,pady=8)
+        self._label(box,caption,11,MUTED,True).pack(anchor="w",pady=(0,7))
+        combo=ttk.Combobox(box,textvariable=variable,values=choices,state="readonly",
+                           font=("Segoe UI",11))
+        combo.pack(fill="x",ipady=8)
+        return box,combo
+
     def _medication(self, body):
-        if not self.store: self._planned(body,"Indisponível","Armazenamento protegido não foi aberto.");return
-        if not self.selected_profile and self.store.profiles():
-            self.selected_profile=self.store.profiles()[0]["id"]
+        if not self.store:
+            self._planned(body,"Armazenamento protegido indisponível",
+                          "Não é possível guardar medicação com segurança.")
+            return
+        profiles=self.store.profiles()
+        if not self.selected_profile and profiles:
+            self.selected_profile=profiles[0]["id"]
         profile=self.store.get_profile(self.selected_profile) if self.selected_profile else None
         if not profile:
-            self._planned(body,"Sem perfil selecionado","Cria ou seleciona um perfil para registar medicação.")
-            self._button(body,"Criar perfil",self.create_profile).pack(anchor="w",pady=10);return
-        actions=tk.Frame(body,bg=DARK);actions.pack(fill="x")
-        self._button(actions,"+ Adicionar medicamento",self.add_medication).pack(side="left",pady=8)
-        if not profile["medications"]:
-            self._planned(body,"Sem medicação registada","Os registos desta versão ficam apenas no armazenamento local protegido.")
-        for m in profile["medications"]:
-            c=self._card(body);c.pack(fill="x",pady=5)
-            self._label(c,m.get("name",""),16,WHITE,True).pack(fill="x")
-            self._label(c,m.get("dose","")+"   ·   "+(m.get("time") or "Sem hora"),12,MUTED).pack(fill="x",pady=7)
+            self._planned(body,"Sem perfil selecionado",
+                          "Cria ou seleciona um perfil para registar medicação.")
+            self._button(body,"Criar perfil",lambda:self.show("Perfis")).pack(anchor="w",pady=10)
+            return
 
-    def add_medication(self):
-        if not self.store or not self.selected_profile:return
-        name=simpledialog.askstring("Medicação","Nome do medicamento:",parent=self)
-        if name is None:return
-        dose=simpledialog.askstring("Medicação","Dose (por exemplo 20 mg):",parent=self)
-        if dose is None:return
-        time=simpledialog.askstring("Medicação","Hora de aviso (HH:mm) ou vazio:",parent=self)
-        if time is None:return
-        route=simpledialog.askstring("Medicação","Via (oral, sublingual, parenteral, inhaled...):",parent=self)
-        if route is None:return
-        try:
-            self.store.add_medication(self.selected_profile,name,dose,time,route.lower().strip())
+        header=tk.Frame(body,bg=DARK)
+        header.pack(fill="x",pady=(0,14))
+        self._label(header,f"Perfil: {profile['name']}",13,MUTED).pack(side="left")
+        self._button(header,"+ Nova medicação",
+                     lambda:self._show_medication_editor(editor,profile,None)).pack(side="right")
+
+        workspace=tk.Frame(body,bg=DARK)
+        workspace.pack(fill="both",expand=True)
+        list_side=tk.Frame(workspace,bg=CARD,padx=12,pady=16,
+                           highlightthickness=1,highlightbackground="#275662")
+        list_side.pack(side="left",fill="y",padx=(0,14))
+        list_side.configure(width=270)
+        list_side.pack_propagate(False)
+        self._label(list_side,"Medicamentos",16,WHITE,True).pack(anchor="w",padx=5)
+        self._label(list_side,f"{len(profile['medications'])} registados",
+                    11,MUTED).pack(anchor="w",padx=5,pady=(3,15))
+
+        editor=tk.Frame(workspace,bg=CARD,highlightthickness=1,
+                        highlightbackground="#275662")
+        editor.pack(side="left",fill="both",expand=True)
+
+        if not profile["medications"]:
+            self._label(list_side,"Nenhum medicamento.\nSeleciona + Nova medicação.",
+                        12,MUTED).pack(fill="x",pady=12)
+
+        for medication in profile["medications"]:
+            card=tk.Frame(list_side,bg="#0c323d",padx=12,pady=12,
+                          highlightthickness=1,highlightbackground="#21535e")
+            card.pack(fill="x",pady=5)
+            name=medication.get("name","Sem nome")
+            self._label(card,name[:38],12,WHITE,True).pack(anchor="w")
+            time=medication.get("time") or "Sem horário"
+            tag=(" · Sem alarme" if medication.get("no_alarm") else
+                 (" · Suspensa" if medication.get("suspended") else ""))
+            self._label(card,medication.get("dose","")+" · "+time+tag,
+                        10,MUTED).pack(anchor="w",pady=(6,0))
+            self._button(card,"Editar",lambda m=medication:
+                         self._show_medication_editor(editor,profile,m)).pack(
+                             anchor="e",pady=(8,0))
+
+        initial=next((m for m in profile["medications"] if m.get("id")==self.selected_medication),None)
+        if initial is not None:
+            self._show_medication_editor(editor,profile,initial)
+        else:
+            self._medication_empty(editor)
+
+    def _medication_empty(self, parent):
+        for child in parent.winfo_children():child.destroy()
+        self._editor_open=False
+        title=tk.Frame(parent,bg=CARD,padx=34,pady=35)
+        title.pack(fill="both",expand=True)
+        self._label(title,"Uma ficha, todos os campos.",21,TEAL,True).pack(anchor="w")
+        self._label(title,
+            "Seleciona Editar num medicamento ou cria um novo.\n"
+            "Os dados aparecem num único formulário, sem caixas sucessivas.",
+            13,MUTED).pack(anchor="w",pady=15)
+
+    def _show_medication_editor(self,parent,profile,medication):
+        for child in parent.winfo_children():child.destroy()
+        self._editor_open=True
+        self.selected_medication=medication.get("id") if medication else None
+        vals=medication or {}
+        heading=tk.Frame(parent,bg=CARD,padx=24,pady=14)
+        heading.pack(fill="x")
+        self._label(heading,"Editar medicação" if medication else "Nova medicação",
+                    20,WHITE,True).pack(anchor="w")
+        self._label(heading,"Ficha completa · Guardar e Cancelar sempre visíveis",
+                    11,MUTED).pack(anchor="w",pady=(4,0))
+
+        section=tk.Frame(parent,bg=CARD)
+        section.pack(fill="both",expand=True,padx=(15,5))
+        cv=tk.Canvas(section,bg=CARD,highlightthickness=0)
+        sb=ttk.Scrollbar(section,orient="vertical",command=cv.yview)
+        cv.configure(yscrollcommand=sb.set)
+        sb.pack(side="right",fill="y")
+        cv.pack(side="left",fill="both",expand=True)
+        form=tk.Frame(cv,bg=CARD,padx=8,pady=8)
+        window=cv.create_window((0,0),window=form,anchor="nw")
+        form.bind("<Configure>",lambda _:cv.configure(scrollregion=cv.bbox("all")))
+        cv.bind("<Configure>",lambda e:cv.itemconfigure(window,width=e.width))
+        def wheel(event):
+            if event.delta:cv.yview_scroll(int(-1*(event.delta/120)),"units")
+        cv.bind("<Enter>",lambda _:cv.bind_all("<MouseWheel>",wheel))
+        cv.bind("<Leave>",lambda _:cv.unbind_all("<MouseWheel>"))
+
+        form.grid_columnconfigure(0,weight=1,uniform="details")
+        form.grid_columnconfigure(1,weight=1,uniform="details")
+        name=tk.StringVar(value=vals.get("name",""))
+        dose=tk.StringVar(value=vals.get("dose",""))
+        time=tk.StringVar(value=vals.get("time","07:00"))
+        indication=tk.StringVar(value=vals.get("indication",""))
+        routes={
+            "Por indicar": "", "Via oral": "oral","Via sublingual": "sublingual",
+            "Injeção / parentérica": "parenteral","Via tópica / cutânea": "topical",
+            "Via inalatória": "inhaled","Via retal": "rectal",
+            "Via vaginal": "vaginal","Via ocular": "ocular",
+            "Via otológica": "otic","Via nasal": "nasal","Outra": "other",
+        }
+        injections={
+            "Por especificar":"","Subcutânea":"sc","Intramuscular":"im",
+            "Intravenosa":"iv","Intradérmica":"id","Outra injeção":"other"
+        }
+        route_start=next((label for label,key in routes.items()
+                          if key==vals.get("administration_route","")),"Por indicar")
+        injection_start=next((label for label,key in injections.items()
+                              if key==vals.get("injection_type","")),"Por especificar")
+        route=tk.StringVar(value=route_start)
+        injection=tk.StringVar(value=injection_start)
+        takes=("", "Jejum", "Pequeno-almoço", "Almoço", "Jantar",
+               "Às refeições", "Ao deitar", "SOS", "Horário livre",
+               "De 4 em 4 horas", "De 6 em 6 horas", "De 12 em 12 horas")
+        take=tk.StringVar(value=vals.get("dose_pattern",""))
+        no_alarm=tk.BooleanVar(value=bool(vals.get("no_alarm",False)))
+        suspended=tk.BooleanVar(value=bool(vals.get("suspended",False)))
+
+        self._label(form,"IDENTIFICAÇÃO",11,TEAL,True).grid(
+            row=0,column=0,columnspan=2,sticky="w",pady=(4,9),padx=6)
+        focus=self._form_field(form,"Nome do medicamento",name,1)
+        self._form_field(form,"Dose / apresentação",dose,1,1)
+        route_box,_=self._form_combo(form,"Via de administração",route,list(routes),2)
+        inject_box,_=self._form_combo(form,"Tipo de injeção",injection,list(injections),2,1)
+        take_box,take_combo=self._form_combo(form,"Tipo de toma",take,list(takes),3,0)
+        self._form_field(form,"Hora de aviso (HH:mm)",time,3,1)
+        self._form_field(form,"Posologia / indicação",indication,4,width=2)
+
+        def update_route(*_):
+            if routes.get(route.get())=="parenteral":
+                inject_box.grid()
+            else:
+                inject_box.grid_remove()
+        route.trace_add("write",update_route)
+        update_route()
+        def update_sos(*_):
+            if take.get()=="SOS":no_alarm.set(True)
+        take.trace_add("write",update_sos)
+
+        toggles=tk.Frame(form,bg=CARD)
+        toggles.grid(row=5,column=0,columnspan=2,sticky="ew",padx=6,pady=(12,12))
+        for label,var in (("Sem alarme (registo apenas)",no_alarm),
+                          ("Terapêutica suspensa",suspended)):
+            tk.Checkbutton(toggles,text=label,variable=var,bg=CARD,fg=WHITE,
+                           selectcolor="#164c57",activebackground=CARD,
+                           activeforeground=TEAL,font=("Segoe UI",11),
+                           padx=5,pady=8).pack(side="left",padx=(0,12))
+        self._label(form,"NOTAS",11,TEAL,True).grid(
+            row=6,column=0,columnspan=2,sticky="w",pady=(0,6),padx=6)
+        notes=tk.Text(form,height=4,wrap="word",relief="flat",bd=0,
+                      highlightthickness=1,highlightbackground="#35606b",
+                      highlightcolor=TEAL,bg="#09242c",fg=WHITE,
+                      insertbackground=WHITE,font=("Segoe UI",11),padx=12,pady=10)
+        notes.grid(row=7,column=0,columnspan=2,sticky="ew",padx=6,pady=(0,14))
+        notes.insert("1.0",vals.get("notes",""))
+
+        footer=tk.Frame(parent,bg="#102b34",padx=20,pady=14)
+        footer.pack(side="bottom",fill="x")
+        self._label(footer,"Os alarmes continuam no Android.",10,MUTED).pack(side="left")
+
+        def cancel():
+            self.selected_medication=None
+            self._editor_open=False
             self.show("Medicação")
-        except Exception as exc:messagebox.showerror("Medicação",str(exc),parent=self)
+
+        def save():
+            try:
+                self.store.save_medication(profile["id"],{
+                    "name":name.get(),"dose":dose.get(),"time":time.get(),
+                    "administration_route":routes[route.get()],
+                    "injection_type":injections[injection.get()],
+                    "dose_pattern":take.get(),"indication":indication.get(),
+                    "notes":notes.get("1.0","end-1c"),
+                    "no_alarm":no_alarm.get(),"suspended":suspended.get(),
+                }, medication_id=medication.get("id") if medication else None)
+                self.selected_medication=None
+                self._editor_open=False
+                self.show("Medicação")
+            except (LocalStoreError, ValueError, KeyError) as exc:
+                messagebox.showerror("Verificar medicação",str(exc),parent=self)
+        self._button(footer,"Guardar",save).pack(side="right",padx=(10,0))
+        self._button(footer,"Cancelar",cancel).pack(side="right")
+        focus.focus_set()
 
     def _backup(self, body):
-        self._planned(body,"Backup seguro · formato .spbackup",
-          "Ficheiro encriptado com palavra-passe e validado por SHA-256. Este formato está implementado aqui no Windows; a importação/exportação Android ainda não foi integrada. Não partilhes a palavra-passe pelo GitHub.")
+        self._planned(body,"Backup encriptado da SaúdePrática · .spbackup",
+          "Guarda os perfis e medicação deste Windows num ficheiro privado, protegido por palavra-passe. Não é um ZIP comum. Conserva a palavra-passe em local seguro; sem ela não será possível restaurar. A importação no Android ainda não está disponível.")
         bar=tk.Frame(body,bg=DARK);bar.pack(fill="x",pady=10)
         self._button(bar,"Exportar backup",self.export_backup).pack(side="left",padx=(0,10))
         self._button(bar,"Restaurar backup",self.restore_backup).pack(side="left")

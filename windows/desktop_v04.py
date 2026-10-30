@@ -497,35 +497,129 @@ class Desktop(ctk.CTk):
             messagebox.showerror(self.t("profile_save_error"),str(exc),parent=self)
 
     def _medication(self):
-        self._heading(self.t("medication"),self.t("not_alarm"))
-        if not self.active_id:
-            self._pending("medication")
+        self._heading(self.t("medication"),
+                      "Catálogo de medicação · " + self.t("not_alarm"))
+        if not self.active_id or not self.store.get_profile(self.active_id):
+            self._label(self.body,self.t("invalid_profile"),15).pack(anchor="w")
+            self._button(self.body,self.t("profiles"),
+                         lambda:self.navigate("profiles"),True).pack(anchor="w",pady=10)
             return
-        current=self.store.get_profile(self.active_id)
-        if not current:
-            self._pending("medication")
+        if self.gallery_mode == "editor":
+            frame=self._card(self.body)
+            frame.pack(fill="both",expand=True)
+            meds=self.store.get_profile(self.active_id).get("medications",[])
+            med=next((m for m in meds if m.get("id")==self.editing_med),None)
+            self._med_form(frame,med)
             return
-        left,listing,right=self._two_pane(self.t("medication_list"),315)
-        self._button(listing,"+ "+self.t("new_medication"),self._new_med,
-                     True,width=255).pack(fill="x",pady=(0,11))
-        for m in current.get("medications",[]):
-            row=ctk.CTkFrame(listing,fg_color=self.p["panel2"],corner_radius=15)
-            row.pack(fill="x",pady=5)
-            self._label(row,m.get("name",""),14,True).pack(anchor="w",padx=13,pady=(9,2))
-            self._label(row,(m.get("dose","")+" · "+m.get("time","")).strip(),
-                        11,color=self.p["muted"]).pack(anchor="w",padx=13)
-            self._button(row,self.t("open"),lambda mid=m["id"]:self._edit_med(mid),
-                         width=105,height=31).pack(anchor="e",padx=9,pady=(5,10))
-        med=next((m for m in current.get("medications",[])
-                  if m.get("id")==self.editing_med),None)
-        self._med_form(right,med)
+        bar=ctk.CTkFrame(self.body,fg_color="transparent",height=35)
+        bar.pack(fill="x",pady=(0,6))
+        self._label(bar,self.t("medication_list"),15,True).pack(side="left",padx=(1,15))
+        self._button(bar,"+ "+self.t("new_medication"),self._new_med,
+                     True,width=160,height=32).pack(side="right",padx=(8,0))
+        query_var=ctk.StringVar(value=self.med_gallery_query)
+        search=ctk.CTkEntry(bar,textvariable=query_var,height=31,width=230,
+            fg_color=self.p["field"],text_color=self.p["text"],
+            border_color=self.p["line"],corner_radius=9,
+            placeholder_text="⌕  "+("Procurar medicamento" if self.lang=="pt" else "Search"),
+            placeholder_text_color=self.p["muted"])
+        search.pack(side="right")
+        filters=ctk.CTkFrame(self.body,fg_color="transparent")
+        filters.pack(fill="x",pady=(0,8))
+        for key,label in (("all","Todos"),("active","Ativos"),("suspended","Suspensos"),
+                          ("no_alarm","Sem alarme")):
+            self._button(filters,label,lambda k=key:self._set_med_filter(k),
+                accent=(self.med_gallery_state==key),width=100,height=29).pack(
+                    side="left",padx=(0,5))
+        listing=ctk.CTkScrollableFrame(self.body,fg_color="transparent",
+            scrollbar_button_color=self.p["panel2"],corner_radius=0)
+        listing.pack(fill="both",expand=True)
+        self._med_gallery_grid=ctk.CTkFrame(listing,fg_color="transparent")
+        self._med_gallery_grid.pack(fill="both",expand=True)
+        def filter_query(*_):
+            self.med_gallery_query=query_var.get()
+            self._populate_med_gallery()
+        query_var.trace_add("write",filter_query)
+        self._populate_med_gallery()
+
+    def _set_med_filter(self,key):
+        self.med_gallery_state=key
+        self._render()
+
+    def _populate_med_gallery(self):
+        grid=self._med_gallery_grid
+        for child in grid.winfo_children():child.destroy()
+        profile=self.store.get_profile(self.active_id)
+        if not profile:return
+        meds=profile.get("medications",[])
+        search=normalized(self.med_gallery_query)
+        meds=[m for m in meds if search in normalized(m.get("name","")+" "+
+              m.get("dose","")+" "+m.get("dose_pattern",""))]
+        def relevant(m):
+            state=self.med_gallery_state
+            return (state=="all" or (state=="active" and not m.get("suspended")) or
+                    (state=="suspended" and m.get("suspended")) or
+                    (state=="no_alarm" and m.get("no_alarm")))
+        meds=[m for m in meds if relevant(m)]
+        columns=5 if self.winfo_width()>=1400 else 4 if self.winfo_width()>=1100 else 3
+        for col in range(columns):grid.grid_columnconfigure(col,weight=1,uniform="meds")
+        if not meds:
+            empty=self._card(grid)
+            empty.grid(row=0,column=0,columnspan=columns,sticky="ew",pady=5)
+            self._label(empty,"Sem medicamentos para estes filtros.",13,
+                        color=self.p["muted"]).pack(pady=30)
+        for i,med in enumerate(meds):
+            r,c=divmod(i,columns)
+            tile=self._card(grid,rounding=13)
+            tile.grid(row=r,column=c,sticky="nsew",padx=5,pady=5)
+            tile.configure(height=263)
+            tile.grid_propagate(False)
+            photo=self._authentic_thumb(med.get("photo_b64",""),160,142)
+            poster=ctk.CTkFrame(tile,fg_color=self.p["thumb"],height=137,
+                                 corner_radius=10)
+            poster.pack(fill="x",padx=8,pady=(8,7))
+            poster.pack_propagate(False)
+            if photo:
+                picture=ctk.CTkLabel(poster,image=photo,text="")
+            else:
+                picture=ctk.CTkLabel(poster,text="💊",height=115,
+                    font=ctk.CTkFont(family="Segoe UI Emoji",size=46),
+                    text_color=self.p["text"])
+                self._label(poster,"Sem fotografia",9,
+                            color=self.p["muted"]).place(relx=.5,rely=.9,anchor="center")
+            picture.pack(fill="both",expand=True)
+            title=self._label(tile,med.get("name",""),14,True)
+            title.pack(anchor="w",padx=12)
+            meta=med.get("dose","")
+            if med.get("time"):meta+="  ·  "+med["time"]
+            subtitle=self._label(tile,meta,11,color=self.p["muted"])
+            subtitle.pack(anchor="w",padx=12,pady=(2,1))
+            status=("Suspensa" if med.get("suspended") else
+                    ("Sem alarme" if med.get("no_alarm") else "Ativa"))
+            line=ctk.CTkFrame(tile,fg_color="transparent")
+            line.pack(fill="x",padx=10,pady=(6,5))
+            self._chip(line,status).pack(side="left")
+            self._button(line,self.t("edit_medication"),
+                         lambda mid=med["id"]:self._edit_med(mid),
+                         width=77,height=27).pack(side="right")
+            # Clicking the poster or title opens the editor, just like a
+            # movie card; no extra floating form windows.
+            for widget in (poster,picture,title,subtitle):
+                widget.bind("<Button-1>",lambda event,mid=med["id"]:self._edit_med(mid),add="+")
+            tile.configure(cursor="hand2")
 
     def _new_med(self):
         self.editing_med=None
+        self.gallery_mode="editor"
         self._render()
 
     def _edit_med(self,mid):
         self.editing_med=mid
+        self.gallery_mode="editor"
+        self._render()
+
+    def _back_to_med_gallery(self):
+        self.gallery_mode="catalog"
+        self.editing_med=None
         self._render()
 
     def _med_form(self,frame,med):

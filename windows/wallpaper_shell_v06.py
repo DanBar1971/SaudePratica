@@ -2,7 +2,7 @@
 import tkinter as tk
 import customtkinter as ctk
 from PIL import ImageTk
-from windows.visual_v06 import wallpaper_image
+from windows.visual_v07 import wallpaper_image
 
 class WallpaperShell(tk.Canvas):
     def __init__(self,parent,light=False):

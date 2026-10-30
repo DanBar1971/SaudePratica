@@ -38,6 +38,10 @@ left=46+(420-focus.width)//2
 top=64+(370-focus.height)//2
 base.paste(focus,(left,top))
 draw.line((490,115,490,385),fill=(45,210,198,135),width=2)
+fonts=Path("C:/Windows/Fonts")
+def font(name,size):
+    p=fonts/name
+    return ImageFont.truetype(str(p),size) if p.is_file() else ImageFont.load_default()
 regular=font("segoeui.ttf",23)
 bold=font("segoeuib.ttf",38)
 small=font("segoeui.ttf",19)

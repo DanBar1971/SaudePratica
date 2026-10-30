@@ -26,10 +26,10 @@ from windows.ui_v04_i18n import translate
 from windows.ui_catalog_v05 import MODULE_CARDS, normalized, filter_cards
 from windows.dashboard_v06 import Dashboard
 from windows.wallpaper_shell_v06 import WallpaperShell
-from windows.visual_v06 import circular_photo, wallpaper_image
+from windows.visual_v07 import circular_photo, wallpaper_image
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -310,13 +310,15 @@ class Desktop(ctk.CTk):
     def _two_pane(self,left_title,left_width=330):
         container=ctk.CTkFrame(self.body,fg_color="transparent")
         container.pack(fill="both",expand=True)
-        left=self._card(container,width=left_width)
+        left=ctk.CTkFrame(container,width=left_width,fg_color=self.p["panel"],
+                          corner_radius=12)
         left.pack(side="left",fill="y",padx=(0,10))
         left.pack_propagate(False)
         self._label(left,left_title,16,True).pack(anchor="w",padx=13,pady=(11,6))
         left_scroll=ctk.CTkScrollableFrame(left,fg_color="transparent")
         left_scroll.pack(fill="both",expand=True,padx=8,pady=(2,8))
-        right=self._card(container)
+        right=ctk.CTkFrame(container,fg_color=self.p["panel"],
+                           corner_radius=12)
         right.pack(side="left",fill="both",expand=True)
         return left,left_scroll,right
 
@@ -489,7 +491,8 @@ class Desktop(ctk.CTk):
                          lambda:self.navigate("profiles"),True).pack(anchor="w",pady=10)
             return
         if self.gallery_mode == "editor":
-            frame=self._card(self.body)
+            frame=ctk.CTkFrame(self.body,fg_color=self.p["panel"],
+                               corner_radius=12)
             frame.pack(fill="both",expand=True)
             meds=self.store.get_profile(self.active_id).get("medications",[])
             med=next((m for m in meds if m.get("id")==self.editing_med),None)
@@ -659,7 +662,7 @@ class Desktop(ctk.CTk):
             text_color=self.p["text"])
         self.med_notes.grid(row=7,column=0,columnspan=2,sticky="ew",padx=8,pady=(5,16))
         self.med_notes.insert("1.0",fields.get("notes",""))
-        photo_row=ctk.CTkFrame(body,fg_color=self.p["panel2"],corner_radius=10)
+        photo_row=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
         photo_row.grid(row=8,column=0,columnspan=2,sticky="ew",padx=6,pady=5)
         self.med_photo_widget=ctk.CTkLabel(photo_row,text="Sem fotografia",
             text_color=self.p["muted"],width=80,height=62)
@@ -671,7 +674,7 @@ class Desktop(ctk.CTk):
             width=100,height=31).pack(side="left",padx=4)
         # Future fields are labelled, not falsely presented as implemented.
         for i,key in enumerate(("prescription","repetitions","leaflet","more_info")):
-            p=ctk.CTkFrame(body,fg_color=self.p["panel2"],corner_radius=9)
+            p=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
             p.grid(row=9+i,column=0,columnspan=2,sticky="ew",padx=6,pady=3)
             self._label(p,self.t(key)+"  ·  "+self.t("coming"),11,
                         color=self.p["muted"]).pack(anchor="w",padx=11,pady=7)

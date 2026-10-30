@@ -328,29 +328,53 @@ class Desktop(ctk.CTk):
         container=ctk.CTkFrame(self.body,fg_color="transparent")
         container.pack(fill="both",expand=True)
         left=self._card(container,width=left_width)
-        left.pack(side="left",fill="y",padx=(0,16))
+        left.pack(side="left",fill="y",padx=(0,10))
         left.pack_propagate(False)
-        self._label(left,left_title,19,True).pack(anchor="w",padx=17,pady=(20,8))
+        self._label(left,left_title,16,True).pack(anchor="w",padx=13,pady=(11,6))
         left_scroll=ctk.CTkScrollableFrame(left,fg_color="transparent")
-        left_scroll.pack(fill="both",expand=True,padx=10,pady=(2,12))
+        left_scroll.pack(fill="both",expand=True,padx=8,pady=(2,8))
         right=self._card(container)
         right.pack(side="left",fill="both",expand=True)
         return left,left_scroll,right
 
+    def _authentic_thumb(self,b64,width=92,height=92):
+        """Use only the actual photo saved with the record; never fake packaging."""
+        if not b64:return None
+        try:
+            raw=base64.b64decode(b64,validate=True)
+            if len(raw)>450000:return None
+            with Image.open(BytesIO(raw)) as original:
+                if original.width*original.height>20_000_000:return None
+                image=ImageOps.contain(original.convert("RGB"),(width,height),
+                                       method=Image.Resampling.LANCZOS)
+            return ctk.CTkImage(image,image,size=(image.width,image.height))
+        except Exception:
+            return None
+
     def _profiles(self):
         self._heading(self.t("profiles"),self.t("profile_hint"))
-        left,listing,right=self._two_pane(self.t("registered_profiles"),315)
+        left,listing,right=self._two_pane(self.t("registered_profiles"),290)
         self._button(listing,"+ "+self.t("new_profile"),
-                     self._new_profile,True,width=260,height=43).pack(fill="x",pady=(3,12))
+                     self._new_profile,True,width=225,height=32).pack(
+                         fill="x",pady=(0,8))
         for profile in self.store.profiles():
-            active=profile["id"]==self.active_id
-            row=ctk.CTkFrame(listing,fg_color=self.p["panel2"],corner_radius=14)
-            row.pack(fill="x",pady=5)
-            icon="◉" if active else "○"
-            text=icon+"  "+profile["name"]
-            ctk.CTkButton(row,text=text,anchor="w",fg_color="transparent",
-                hover_color=BLUE,text_color=self.p["text"],height=50,
-                command=lambda pid=profile["id"]:self._edit_profile(pid)).pack(fill="x",padx=8,pady=6)
+            row=ctk.CTkFrame(listing,fg_color=self.p["panel2"],corner_radius=11)
+            row.pack(fill="x",pady=4)
+            pic=self._authentic_thumb(profile.get("photo_b64",""),49,49)
+            if pic:
+                photo=ctk.CTkLabel(row,image=pic,text="",width=50,height=53)
+            else:
+                photo=ctk.CTkLabel(row,text="👤",width=50,height=53,
+                    font=ctk.CTkFont(family="Segoe UI Emoji",size=25))
+            photo.pack(side="left",padx=(8,4),pady=6)
+            content=ctk.CTkFrame(row,fg_color="transparent")
+            content.pack(side="left",fill="both",expand=True,padx=3)
+            self._label(content,profile.get("name",""),13,True).pack(anchor="w",pady=(6,0))
+            status=("🙌  "+self.t("caregiver_field") if profile.get("caregiver") else
+                    ("● "+self.t("active_profile") if profile["id"]==self.active_id else ""))
+            if status:self._label(content,status,10,color=self.p["muted"]).pack(anchor="w")
+            self._button(row,"›",lambda pid=profile["id"]:self._edit_profile(pid),
+                         width=32,height=30).pack(side="right",padx=(0,7))
         self._profile_form(right)
 
     def _new_profile(self):
@@ -378,14 +402,14 @@ class Desktop(ctk.CTk):
         current=self.store.get_profile(self.editing_profile) if self.editing_profile else None
         fields=current or {}
         head=ctk.CTkFrame(frame,fg_color="transparent")
-        head.pack(fill="x",padx=25,pady=(19,6))
+        head.pack(fill="x",padx=16,pady=(9,4))
         self._label(head,self.t("edit_profile") if current else self.t("new_profile"),
-                    20,True).pack(side="left")
+                    17,True).pack(side="left")
         self._button(head,self.t("cancel"),
                      lambda:self._edit_profile(self.active_id) if self.active_id
                      else self._new_profile(),width=100,height=34).pack(side="right")
         scroll=ctk.CTkScrollableFrame(frame,fg_color="transparent")
-        scroll.pack(fill="both",expand=True,padx=14,pady=(4,10))
+        scroll.pack(fill="both",expand=True,padx=9,pady=(2,6))
         scroll.grid_columnconfigure(0,weight=1)
         scroll.grid_columnconfigure(1,weight=1)
         self.profile_widgets={}
@@ -428,8 +452,8 @@ class Desktop(ctk.CTk):
         self.profile_notes.grid(row=13,column=0,columnspan=2,sticky="ew",padx=8,pady=(4,14))
         self.profile_notes.insert("1.0",fields.get("notes",""))
         footer=ctk.CTkFrame(frame,fg_color="transparent")
-        footer.pack(fill="x",padx=22,pady=(0,18))
-        self._button(footer,self.t("save"),self._save_profile,True,width=185,height=45).pack(side="right")
+        footer.pack(fill="x",padx=16,pady=(0,9))
+        self._button(footer,self.t("save"),self._save_profile,True,width=137,height=33).pack(side="right")
 
     def _refresh_photo(self):
         try:

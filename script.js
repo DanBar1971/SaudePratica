@@ -1,6 +1,6 @@
 'use strict';
 (function () {
-  const REPO='DanBar1971/AndroidAppDev';
+  const REPO='DanBar1971/SaudePratica';
   const descriptions={
     alarm:'Quando chega a hora, o alarme apresenta a medicação e as ações disponíveis. A apresentação em ecrã inteiro depende das permissões e das regras do Android.',
     intakes:'Consulta as tomas por confirmar e as já confirmadas. Cada medicamento tem o seu próprio registo, mesmo nos alarmes de grupo.',

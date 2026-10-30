@@ -21,7 +21,7 @@ import java.util.Locale
 
 /** Safe app + website shortcuts, separate from the Home dashboard. */
 class ImportantShortcutsV2Activity:AppCompatActivity() {
-    private val prefs by lazy{getSharedPreferences("saudepratica_important_shortcuts_v1",MODE_PRIVATE)}
+    private val prefs by lazy{getSharedPreferences("saudepratica_important_shortcuts_apps_web_v2",MODE_PRIVATE)}
     private lateinit var shortcuts:JSONArray
     private lateinit var cards:LinearLayout
     private val accent=Color.rgb(6,113,104)

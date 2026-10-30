@@ -5,7 +5,7 @@ Repositório antigo/arquivo: https://github.com/DanBar1971/AndroidAppDev
 
 ## Projeto único, várias plataformas
 - Android: fonte atual em MediAgenda/ e compilação em .github/workflows/saudepratica-android.yml.
-- Windows: desenvolvimento em windows/ (ainda não existe EXE/MSI funcional).
+- Windows: versão experimental com instalador Inno Setup em windows/; releases `windows-vX.Y.Z-preview`; ainda sem sincronização bidirecional e sem assinatura digital Windows.
 - iPhone: desenvolvimento futuro em ios/ (sem build iOS publicado).
 - shared/: contratos de dados e APIs comuns (a estruturar à medida que novos clientes forem criados).
 - website e cartazes públicos: raiz / info_saude.
@@ -17,7 +17,7 @@ Repositório antigo/arquivo: https://github.com/DanBar1971/AndroidAppDev
 4. Registar no changelog o que mudou e o estado de cada plataforma; não publicar uma versão simultânea sem binários válidos.
 5. Preservar o identificador Android com.mediagenda.app.stable e a assinatura CERT_SHA256 já verificada. Nunca criar chave alternativa para atualização de utilizadores existentes.
 6. Não alterar a lógica dos alarmes (ecrã bloqueado, agrupamento, TOMEI, ADIAR) sem testes específicos.
-7. Publicar APK assinada no GitHub Releases deste repositório (não apenas como artifact) e manter o website a apontar para a release válida.
+7. Publicar APK Android assinada no GitHub Releases. Para Windows, publicar `SaudePratica-Setup.exe` em release própria, não apenas como artifact. Nunca deixar uma release Windows substituir `releases/latest` Android. Atualizar sempre a página web Android/Windows/iOS e testar os dois downloads.
 8. Nunca colocar segredos, dados clínicos pessoais ou keystores privados neste repositório público.
 
 ## Migração

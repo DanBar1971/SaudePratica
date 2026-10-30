@@ -38,8 +38,31 @@ class ImportantShortcutsV2Activity:AppCompatActivity() {
     override fun onCreate(savedInstanceState:Bundle?){
         super.onCreate(savedInstanceState)
         window.statusBarColor=accent;window.navigationBarColor=accent
-        shortcuts=try{JSONArray(prefs.getString("items",null)?:defaultItems().toString())}
-                  catch(e:Exception){defaultItems()}
+        // Copy existing saved websites once; do not overwrite old preferences.
+        val stored=prefs.getString("items",null)
+        shortcuts=try {
+            if(stored!=null)JSONArray(stored)
+            else defaultItems().apply {
+                val legacyPrefs=getSharedPreferences("saudepratica_important_shortcuts_v1",MODE_PRIVATE)
+                val legacy=legacyPrefs.getString("links",null)
+                if(!legacy.isNullOrBlank()) {
+                    val oldItems=JSONArray(legacy)
+                    val seen=mutableSetOf<String>()
+                    for(i in 0 until oldItems.length()){
+                        val item=oldItems.optJSONObject(i)?:continue
+                        val name=item.optString("name").trim().take(80)
+                        val url=item.optString("url").trim()
+                        val parsed=runCatching{Uri.parse(url)}.getOrNull()
+                        if(name.isBlank()||parsed==null||
+                            parsed.scheme !in listOf("https","http")||
+                            parsed.host.isNullOrBlank()||!seen.add(url))continue
+                        put(JSONObject().put("kind","web")
+                            .put("title",name).put("url",url))
+                    }
+                }
+            }
+        } catch(e:Exception){defaultItems()}
+        if(stored==null)prefs.edit().putString("items",shortcuts.toString()).commit()
         val root=LinearLayout(this).apply{
             orientation=LinearLayout.VERTICAL
             setPadding(dp(13),dp(16),dp(13),dp(16))

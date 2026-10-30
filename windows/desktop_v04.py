@@ -27,9 +27,10 @@ from windows.ui_catalog_v05 import MODULE_CARDS, normalized, filter_cards
 from windows.dashboard_v06 import Dashboard
 from windows.wallpaper_shell_v06 import WallpaperShell
 from windows.visual_v07 import circular_photo, wallpaper_image
+from windows.android_import_v062 import plan_json, apply_plan, inspect_android_zip, AndroidImportError
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -90,6 +91,8 @@ class Desktop(ctk.CTk):
         self.gallery_mode = "catalog"
         self.profile_menu = None
         self.profile_avatar = None
+        self.android_import_plan = None
+        self.android_zip_inspection = None
         self._assets()
         self._render()
 
@@ -212,20 +215,29 @@ class Desktop(ctk.CTk):
         elif self.page=="profiles": self._profiles()
         elif self.page=="medication": self._medication()
         elif self.page=="backup": self._backup()
+        elif self.page=="import": self._android_import_page()
+        elif self.page=="agenda": self._agenda()
         elif self.page=="options": self._settings_page()
         elif self.page=="more": self._modules(full=True)
         else: self._pending(self.page)
 
         footer=ctk.CTkFrame(self,height=28,fg_color=self.p["panel"],corner_radius=0)
         footer.pack(fill="x",side="bottom")
-        self._label(footer,"Windows 0.6 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
+        self._label(footer,"Windows 0.6.2 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
         self._label(footer,self.t("not_alarm"),10,color=self.p["muted"]).pack(side="right",padx=18,pady=5)
         self.profile_menu=None
 
     def _heading(self,title,subtitle=None):
-        self._label(self.body,title,23,True).pack(anchor="w",pady=(0,2))
+        # One clean typography-only header, never another opaque box.
+        head=ctk.CTkFrame(self.body,fg_color="transparent",corner_radius=0)
+        head.pack(fill="x",pady=(7,13))
+        rule=ctk.CTkFrame(head,fg_color=TEAL,width=3,height=42,corner_radius=2)
+        rule.pack(side="left",fill="y",padx=(4,15),pady=1)
+        texts=ctk.CTkFrame(head,fg_color="transparent")
+        texts.pack(side="left",fill="x",expand=True)
+        self._label(texts,title,26,True).pack(anchor="w")
         if subtitle:
-            self._label(self.body,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(0,10))
+            self._label(texts,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(1,0))
 
     def navigate(self,page):
         self.page=page
@@ -302,10 +314,8 @@ class Desktop(ctk.CTk):
 
     def _pending(self,key):
         self._heading(self.t(key),self.t("module_pending"))
-        card=self._card(self.body)
-        card.pack(fill="x",pady=14)
-        self._label(card,self.t("coming"),22,True,color=TEAL).pack(anchor="w",padx=24,pady=(24,10))
-        self._label(card,self.t("soon_detail"),15,color=self.p["muted"]).pack(anchor="w",padx=24,pady=(0,26))
+        self._label(self.body,self.t("coming"),20,True,color=TEAL).pack(anchor="w",pady=(15,4))
+        self._label(self.body,self.t("soon_detail"),13,color=self.p["muted"]).pack(anchor="w")
 
     def _two_pane(self,left_title,left_width=330):
         container=ctk.CTkFrame(self.body,fg_color="transparent")
@@ -317,8 +327,8 @@ class Desktop(ctk.CTk):
         self._label(left,left_title,16,True).pack(anchor="w",padx=13,pady=(11,6))
         left_scroll=ctk.CTkScrollableFrame(left,fg_color="transparent")
         left_scroll.pack(fill="both",expand=True,padx=8,pady=(2,8))
-        right=ctk.CTkFrame(container,fg_color=self.p["panel"],
-                           corner_radius=12)
+        right=ctk.CTkFrame(container,fg_color="transparent",
+                           corner_radius=0)
         right.pack(side="left",fill="both",expand=True)
         return left,left_scroll,right
 
@@ -491,8 +501,8 @@ class Desktop(ctk.CTk):
                          lambda:self.navigate("profiles"),True).pack(anchor="w",pady=10)
             return
         if self.gallery_mode == "editor":
-            frame=ctk.CTkFrame(self.body,fg_color=self.p["panel"],
-                               corner_radius=12)
+            frame=ctk.CTkFrame(self.body,fg_color="transparent",
+                               corner_radius=0)
             frame.pack(fill="both",expand=True)
             meds=self.store.get_profile(self.active_id).get("medications",[])
             med=next((m for m in meds if m.get("id")==self.editing_med),None)
@@ -503,6 +513,8 @@ class Desktop(ctk.CTk):
         self._label(bar,self.t("medication_list"),15,True).pack(side="left",padx=(1,15))
         self._button(bar,"+ "+self.t("new_medication"),self._new_med,
                      True,width=160,height=32).pack(side="right",padx=(8,0))
+        self._button(bar,"Importar JSON",lambda:self.navigate("import"),
+                     width=120,height=32).pack(side="right",padx=(8,0))
         query_var=ctk.StringVar(value=self.med_gallery_query)
         search=ctk.CTkEntry(bar,textvariable=query_var,height=31,width=230,
             fg_color=self.p["field"],text_color=self.p["text"],
@@ -786,6 +798,171 @@ class Desktop(ctk.CTk):
         actions.pack(anchor="w")
         self._button(actions,self.t("export"),self._export_backup,True,200).pack(side="left",padx=(0,10))
         self._button(actions,self.t("restore"),self._restore_backup,width=200).pack(side="left")
+        self._button(wrapper,"Importar JSON Android / Analisar ZIP",
+                     lambda:self.navigate("import"),width=290,height=35).pack(anchor="w",pady=(18,0))
+
+    def _agenda(self):
+        """Read-only agenda initially; no reminders or Android schedule changes."""
+        self._heading("Agenda", "Compromissos do perfil selecionado · sem criar alarmes Windows")
+        bar=ctk.CTkFrame(self.body,fg_color="transparent")
+        bar.pack(fill="x",pady=(0,10))
+        self._button(bar,"Importar agenda JSON",lambda:self.navigate("import"),
+                     True,width=200,height=35).pack(side="left")
+        profile=self.store.get_profile(self.active_id) if self.active_id else None
+        if not profile:
+            self._label(self.body,"Seleciona primeiro um perfil.",14).pack(anchor="w")
+            return
+        items=profile.get("appointments",[])
+        if not items:
+            self._label(self.body,"Este perfil ainda não tem marcações importadas.",
+                        15,color=self.p["muted"]).pack(anchor="w",pady=18)
+            return
+        scroll=ctk.CTkScrollableFrame(self.body,fg_color="transparent",
+                                    corner_radius=0)
+        scroll.pack(fill="both",expand=True)
+        for item in items:
+            if not isinstance(item,dict):continue
+            title=str(item.get("title") or item.get("name") or "Marcação")[:160]
+            date=str(item.get("date") or "")[:40]
+            time=str(item.get("time") or "")[:40]
+            location=str(item.get("location") or item.get("place") or
+                         item.get("unit") or "")[:200]
+            row=ctk.CTkFrame(scroll,fg_color=self.p["panel"],
+                             corner_radius=10,height=71)
+            row.pack(fill="x",pady=4,padx=(0,9))
+            self._label(row,title,15,True).pack(anchor="w",padx=16,pady=(9,0))
+            self._label(row,"   •   ".join(x for x in (date,time,location) if x),
+                        11,color=self.p["muted"]).pack(anchor="w",padx=16,pady=(3,10))
+
+    def _pick_android_json(self,kind):
+        # File picker is the OS-native dialog; the preview and confirmation
+        # live in the full-size SaúdePrática screen, never in a popup form.
+        title="Medicação Android" if kind=="medications" else "Agenda Android"
+        file=filedialog.askopenfilename(parent=self,title="Importar JSON: "+title,
+             filetypes=[("Ficheiros JSON","*.json"),("Todos os ficheiros","*.*")])
+        if not file:return
+        try:
+            source=Path(file)
+            if source.stat().st_size>8*1024*1024:
+                raise AndroidImportError("O JSON excede 8 MB.")
+            profile=self.store.get_profile(self.active_id)
+            self.android_import_plan=plan_json(source.read_bytes(),kind,profile)
+            self.android_zip_inspection=None
+            self.android_import_error=""
+            self.android_import_feedback=""
+        except (AndroidImportError,OSError,ValueError) as exc:
+            self.android_import_error=str(exc)
+            self.android_import_plan=None
+        self._render()
+
+    def _inspect_android_zip(self):
+        file=filedialog.askopenfilename(parent=self,
+             title="Inspecionar ZIP Android (sem restauro)",
+             filetypes=[("ZIP Android","*.zip"),("Todos os ficheiros","*.*")])
+        if not file:return
+        try:
+            source=Path(file)
+            if source.stat().st_size>80*1024*1024:
+                raise AndroidImportError("O ZIP excede 80 MB.")
+            self.android_zip_inspection=inspect_android_zip(source.read_bytes())
+            self.android_import_plan=None
+            self.android_import_error=""
+            self.android_import_feedback=""
+        except (AndroidImportError,OSError,ValueError) as exc:
+            self.android_import_error=str(exc)
+            self.android_zip_inspection=None
+        self._render()
+
+    def _confirm_android_import(self):
+        plan=self.android_import_plan
+        if plan is None:return
+        if plan.profile_id!=self.active_id:
+            self.android_import_error="O perfil ativo mudou. Escolhe o ficheiro novamente."
+            self.android_import_plan=None
+            self._render()
+            return
+        try:
+            count=apply_plan(self.store,plan)
+            kind="medicamentos" if plan.kind=="medications" else "marcações"
+            self.android_import_feedback=f"Importação concluída: {count} {kind} adicionados."
+            self.android_import_error=""
+            self.android_import_plan=None
+        except Exception as exc:
+            self.android_import_error=str(exc)
+        self._render()
+
+    def _android_import_page(self):
+        self._heading("Importar dados Android", "Medicação e Agenda JSON por perfil · sem substituir registos")
+        profile=self.store.get_profile(self.active_id) if self.active_id else None
+        if not profile:
+            self._label(self.body,"Seleciona um perfil de destino no canto superior direito.",
+                        15).pack(anchor="w",pady=15)
+            return
+        self._label(self.body,"Destino: "+str(profile.get("name","")),
+                    17,True,color=TEAL).pack(anchor="w",pady=(4,13))
+        bar=ctk.CTkFrame(self.body,fg_color="transparent")
+        bar.pack(fill="x",pady=(0,14))
+        self._button(bar,"Importar Medicação JSON",lambda:self._pick_android_json("medications"),
+                     True,width=232,height=38).pack(side="left",padx=(0,10))
+        self._button(bar,"Importar Agenda JSON",lambda:self._pick_android_json("appointments"),
+                     True,width=216,height=38).pack(side="left",padx=(0,10))
+        self._button(bar,"Analisar ZIP Android",self._inspect_android_zip,
+                     width=218,height=38).pack(side="left")
+        self._label(self.body,"Ficheiros aceites: medicacao.json e agenda.json do Android. "
+                    "Os dados novos serão acrescentados apenas ao perfil escolhido.",
+                    12,color=self.p["muted"],wrap=1000).pack(anchor="w",pady=(0,12))
+        if getattr(self,"android_import_error",""):
+            self._label(self.body,"Não foi possível preparar a importação: "+
+                   self.android_import_error,13,color="#f5a0a0",wrap=1000).pack(
+                   anchor="w",pady=(8,12))
+        if getattr(self,"android_import_feedback",""):
+            self._label(self.body,self.android_import_feedback,16,True,
+                   color=TEAL).pack(anchor="w",pady=(8,12))
+        plan=self.android_import_plan
+        if plan is not None:
+            label="Medicação" if plan.kind=="medications" else "Agenda"
+            self._label(self.body,"Pré-visualização · "+label,19,True).pack(
+                anchor="w",pady=(12,7))
+            self._label(self.body,f"Registos no ficheiro: {len(plan.entries)}  ·  "
+                f"Novos: {len(plan.new)}  ·  Já importados: {plan.repeated}",
+                15).pack(anchor="w",pady=(0,9))
+            self._label(self.body,"Exemplos: "+", ".join(plan.names[:8])+
+                    ("…" if len(plan.names)>8 else ""),12,
+                    color=self.p["muted"],wrap=1000).pack(anchor="w",pady=(0,15))
+            controls=ctk.CTkFrame(self.body,fg_color="transparent")
+            controls.pack(fill="x",pady=(5,11))
+            self._button(controls,"Confirmar importação",self._confirm_android_import,
+                  True,width=210,height=39).pack(side="left",padx=(0,9))
+            self._button(controls,"Cancelar",self._cancel_android_import,
+                  width=130,height=39).pack(side="left")
+        info=self.android_zip_inspection
+        if info:
+            self._label(self.body,"Análise do ZIP (sem modificar dados)",19,True).pack(
+                   anchor="w",pady=(12,8))
+            self._label(self.body,f"{info['files']} ficheiros; "
+                    f"{info['medications']} JSON de medicação; "
+                    f"{info['appointments']} JSON de agenda.",15).pack(
+                    anchor="w",pady=6)
+            self._label(self.body,info["warning"],12,color="#f3bc70").pack(
+                    anchor="w",pady=10)
+        spacer=ctk.CTkFrame(self.body,fg_color="transparent")
+        spacer.pack(fill="both",expand=True)
+        actions=ctk.CTkFrame(self.body,fg_color="transparent")
+        actions.pack(fill="x",pady=(8,11))
+        self._button(actions,"Ver Medicação",lambda:self.navigate("medication"),
+            width=160,height=34).pack(side="left",padx=(0,8))
+        self._button(actions,"Ver Agenda",lambda:self.navigate("agenda"),
+            width=160,height=34).pack(side="left")
+        self._label(self.body,"Restauro ZIP completo do Android: ainda não disponível. "
+            "É necessário validar imagens, documentos, histórico de tomas e perfis.",
+            11,color=self.p["muted"],wrap=1000).pack(anchor="w",pady=(8,4))
+
+    def _cancel_android_import(self):
+        self.android_import_plan=None
+        self.android_import_error=""
+        self.android_import_feedback=""
+        self.android_zip_inspection=None
+        self._render()
 
     def _export_backup(self):
         password=self.backup_pass.get()

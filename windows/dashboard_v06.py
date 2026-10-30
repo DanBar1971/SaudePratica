@@ -33,15 +33,8 @@ class Dashboard(tk.Canvas):
         self._scroll=None
         self._width=0
         self._height=0
-        self.search_var=tk.StringVar(master=self,value=app.catalog_query)
-        self.search_field=tk.Entry(self,textvariable=self.search_var,bd=1,
-                        relief="flat",highlightthickness=1,
-                        highlightbackground=app.p["line"],
-                        highlightcolor="#00c9b7",bg=app.p["field"],
-                        fg=app.p["text"],insertbackground=app.p["text"],
-                        font=("Segoe UI",11))
-        self.search_field.bind("<KeyRelease>",self._on_search)
-        self.search_field.bind("<Escape>",lambda e:self._clear_search())
+        # No search field on the homepage or module catalogue.
+        self.search_var=tk.StringVar(master=self,value="")
         self.bind("<Configure>",self._resize,add="+")
         self.bind("<MouseWheel>",self._wheel,add="+")
         self.bind("<Button-4>",lambda e:self.yview_scroll(-2,"units"),add="+")
@@ -103,15 +96,13 @@ class Dashboard(tk.Canvas):
                              font=("Segoe UI",12))
             self._module_top=179
         else:
-            self.create_text(30,31,text=self.app.t("menu_more"),
+            self.create_text(30,27,text=self.app.t("menu_more"),
                              anchor="nw",fill=title_color,
                              font=("Segoe UI",23,"bold"))
-            self._module_top=91
-        self.create_text(29,self._module_top-27,
-             text=self.app.t("sections") if not self.full else "Explorar módulos",
-             anchor="nw",fill=title_color,font=("Segoe UI",16,"bold"))
-        self.create_window(w-27,self._module_top-24,window=self.search_field,
-                           anchor="ne",width=216,height=31,tags="search")
+            self._module_top=92
+        if not self.full:
+            self.create_text(29,self._module_top-27,text=self.app.t("sections"),
+                 anchor="nw",fill=title_color,font=("Segoe UI",16,"bold"))
         self._paint_cards()
 
     def _paint_cards(self):

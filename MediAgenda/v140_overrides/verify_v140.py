@@ -32,7 +32,7 @@ for term in ("CATEGORY_LAUNCHER","queryIntentActivities","https","Intent.ACTION_
 for term in ('"profile_id"','SHA-256','JSONArray','hba1c','glucose','mg/dL','mmol/L','"manual"'):
     assert term in glucose,term
 for term in ("Como registar a glicemia?","Como criar um atalho de aplicação?",
-             "O catálogo português PortFIR ainda está em integração"):
+             "PortFIR ainda está em integração"):
     assert term in smart,term
 assert "Diabetes · Diário por perfil" in help
 assert "Atalhos Importantes" in help

@@ -233,7 +233,7 @@ class SecureStore:
                     raw = base64.b64decode(photo_b64, validate=True)
                 except Exception as exc:
                     raise LocalStoreError("Fotografia da medicação inválida.") from exc
-                if not raw.startswith(b"\\xff\\xd8\\xff") or len(raw)>450000:
+                if not raw.startswith(bytes((0xff, 0xd8, 0xff))) or len(raw)>450000:
                     raise LocalStoreError("A fotografia deve ser JPEG válido e até 450 kB.")
         suspended = bool(fields.get("suspended", False))
 

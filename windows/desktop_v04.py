@@ -310,8 +310,8 @@ class Desktop(ctk.CTk):
     def _two_pane(self,left_title,left_width=330):
         container=ctk.CTkFrame(self.body,fg_color="transparent")
         container.pack(fill="both",expand=True)
-        left=ctk.CTkFrame(container,width=left_width,fg_color=self.p["panel"],
-                          corner_radius=12)
+        left=ctk.CTkFrame(container,width=left_width,fg_color="transparent",
+                          corner_radius=0)
         left.pack(side="left",fill="y",padx=(0,10))
         left.pack_propagate(False)
         self._label(left,left_title,16,True).pack(anchor="w",padx=13,pady=(11,6))

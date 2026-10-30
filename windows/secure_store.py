@@ -219,6 +219,22 @@ class SecureStore:
                        or not time[3:].isdigit() or int(time[:2]) > 23
                        or int(time[3:]) > 59):
             raise LocalStoreError("Hora inválida (HH:mm).")
+        # The desktop may save an authentic photo of the medication package.
+        # Keep legacy image/attachment fields untouched when the editor does
+        # not supply a new photo, and never store unbounded or fake thumbnails.
+        import base64
+        supplied_photo = "photo_b64" in fields
+        photo_b64 = fields.get("photo_b64", "")
+        if supplied_photo:
+            if not isinstance(photo_b64, str) or len(photo_b64) > 600000:
+                raise LocalStoreError("Fotografia da medicação demasiado grande.")
+            if photo_b64:
+                try:
+                    raw = base64.b64decode(photo_b64, validate=True)
+                except Exception as exc:
+                    raise LocalStoreError("Fotografia da medicação inválida.") from exc
+                if not raw.startswith(b"\\xff\\xd8\\xff") or len(raw)>450000:
+                    raise LocalStoreError("A fotografia deve ser JPEG válido e até 450 kB.")
         suspended = bool(fields.get("suspended", False))
 
         old = next((m for m in p["medications"] if m.get("id") == medication_id), None) if medication_id else None
@@ -231,6 +247,8 @@ class SecureStore:
             "dose_pattern": dose_pattern, "indication": indication, "notes": notes,
             "no_alarm": no_alarm, "suspended": suspended,
         })
+        if supplied_photo:
+            new["photo_b64"] = photo_b64
         if old is None:
             p["medications"].append(new)
         else:

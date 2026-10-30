@@ -853,6 +853,35 @@ def main():
         app.update()
         _close_boot_splash()
         if smoke_report:
+            # Real multi-page GUI check, not just a splash check. The runner
+            # supplies an isolated LOCALAPPDATA directory and synthetic data.
+            person=app.store.save_profile({"name":"Pessoa de teste",
+                "caregiver":True, "health_unit":"Unidade fictícia"})
+            app.active_id=person["id"]
+            med=app.store.save_medication(person["id"],{
+                "name":"Comprimido fictício","dose":"10 mg","time":"09:00",
+                "administration_route":"oral","dose_pattern":"Jejum"})
+            for page in ("home","profiles","medication"):
+                app.navigate(page)
+                app.update_idletasks()
+                app.update()
+            app._edit_med(med["id"])
+            app.update_idletasks()
+            app.update()
+            app._back_to_med_gallery()
+            app._set_med_filter("active")
+            app.update()
+            for theme in ("light","dark","system"):
+                ctk.set_appearance_mode(theme)
+                app.navigate("home")
+                app.update_idletasks()
+                app.update()
+                app.navigate("medication")
+                app.update()
+                app.navigate("profiles")
+                app.update()
+                app.navigate("options")
+                app.update()
             Path(smoke_report).write_text("GUI_READY\n", encoding="utf-8")
             app.destroy()
             return

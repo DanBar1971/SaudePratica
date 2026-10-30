@@ -43,6 +43,13 @@
   .then(data=>{
     if(!/^v\d+(?:\.\d+)+$/.test(data.tag_name))return;
     document.querySelectorAll('[data-release]').forEach(el=>el.textContent=data.tag_name);
+    // Announce new Android features only after the signed release is live.
+    const versionParts=data.tag_name.slice(1).split('.').map(Number);
+    const diabetesReleased=versionParts[0]>1 ||
+      (versionParts[0]===1 && (versionParts[1]>9 ||
+        (versionParts[1]===9 && versionParts[2]>=120)));
+    const news=document.getElementById('android-diabetes-news');
+    if(news) news.hidden=!diabetesReleased;
     if(typeof data.html_url==='string'&&data.html_url.startsWith('https://github.com/'+REPO+'/releases/')){
       document.querySelectorAll('[data-release-link]').forEach(el=>el.href=data.html_url);
     }

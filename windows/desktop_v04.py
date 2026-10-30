@@ -236,54 +236,86 @@ class Desktop(ctk.CTk):
         self._render()
 
     def _home(self):
-        banner=ctk.CTkFrame(self.body,height=234,fg_color=self.p["banner"],
-                            corner_radius=23)
-        banner.pack(fill="x",pady=(2,15))
+        # Short banner to leave most of the desktop window for the module grid.
+        banner=ctk.CTkFrame(self.body,height=126,fg_color=self.p["banner"],
+                            corner_radius=15)
+        banner.pack(fill="x",pady=(0,10))
         banner.pack_propagate(False)
-        wallpaper=ctk.CTkLabel(banner,image=self._hero_image,text="")
-        wallpaper.place(x=0,y=0,relwidth=1,relheight=1)
-        content=ctk.CTkFrame(banner,fg_color="transparent")
-        content.place(x=30,y=24)
-        self._label(content,"SAÚDEPRÁTICA DESKTOP",12,True,color="#67eee2").pack(anchor="w")
-        self._label(content,self.t("welcome"),31,True,color=WHITE).pack(anchor="w",pady=(10,3))
-        self._label(content,self.t("welcome_sub"),14,color="#d5ebed").pack(anchor="w")
-        self._button(content,self.t("welcome_action"),
-                     lambda:self.navigate("profiles"),True,180,40).pack(anchor="w",pady=(20,0))
-        ctk.CTkLabel(banner,image=self.hero_logo,text="").place(relx=.89,rely=.45,anchor="center")
-
-        stats=ctk.CTkFrame(self.body,fg_color="transparent")
-        stats.pack(fill="x",pady=(0,16))
-        profiles=self.store.profiles()
-        med_count=sum(len(p.get("medications",[])) for p in profiles)
-        for i,(val,label) in enumerate(((str(len(profiles)),self.t("registered_profiles")),
-                                        (str(med_count),self.t("registered_meds")),
-                                        ("0",self.t("agenda")))):
-            stats.grid_columnconfigure(i,weight=1)
-            card=self._card(stats)
-            card.grid(row=0,column=i,sticky="ew",padx=5,ipady=12)
-            self._label(card,val,27,True,color=TEAL).pack(anchor="w",padx=22,pady=(5,0))
-            self._label(card,label,12,color=self.p["muted"]).pack(anchor="w",padx=22)
-        self._modules(compact=True)
+        ctk.CTkLabel(banner,image=self._hero_image,text="").place(
+            x=0,y=0,relwidth=1,relheight=1)
+        person=self.store.get_profile(self.active_id) if self.active_id else None
+        first=person["name"].split()[0] if person else ""
+        heading=("Olá, "+first+"!") if self.lang=="pt" and first else self.t("welcome")
+        self._label(banner,heading,27,True,color="#ffffff").place(x=20,y=14)
+        current_meds=len(person.get("medications",[])) if person else 0
+        subtitle=(f"{current_meds} medicamento(s)   •   "+
+                  self.t("welcome_sub"))
+        self._label(banner,subtitle,12,color="#d9eff1").place(x=22,y=65)
+        self._modules()
 
     def _modules(self,compact=False,full=False):
-        if full:
-            self._heading(self.t("menu_more"),self.t("notice"))
-        else:
-            self._label(self.body,self.t("sections"),19,True).pack(anchor="w",pady=(0,10))
-        outer=ctk.CTkScrollableFrame(self.body,fg_color="transparent",
-                                     scrollbar_button_color=self.p["panel2"])
-        outer.pack(fill="both",expand=True)
-        items=MODULES if full else MODULES[:10]
-        cols=4 if full else 5
-        for col in range(cols):outer.grid_columnconfigure(col,weight=1)
-        for i,(key,glyph,label) in enumerate(items):
-            r,c=divmod(i,cols)
-            card=self._card(outer)
-            card.grid(row=r,column=c,sticky="nsew",padx=6,pady=7)
-            self._label(card,glyph,31).pack(anchor="w",padx=17,pady=(9,2))
-            self._label(card,self.t(label),14,True).pack(anchor="w",padx=17,pady=(0,9))
-            self._button(card,self.t("open"),lambda k=key:self.navigate(k),
-                         width=110,height=33).pack(anchor="w",padx=16,pady=(0,14))
+        title=self.t("sections") if not full else self.t("menu_more")
+        bar=ctk.CTkFrame(self.body,fg_color="transparent",height=43)
+        bar.pack(fill="x",pady=(0,6))
+        self._label(bar,title,17,True).pack(side="left")
+        # Search filters only the visible module catalog, not personal data.
+        query=ctk.StringVar(value=self.catalog_query)
+        search=ctk.CTkEntry(bar,textvariable=query,width=245,height=31,
+            fg_color=self.p["field"],border_color=self.p["line"],
+            text_color=self.p["text"],placeholder_text="⌕  "+(
+                "Procurar módulo" if self.lang=="pt" else "Search modules"),
+            placeholder_text_color=self.p["muted"],corner_radius=9)
+        search.pack(side="right",padx=4)
+        self._module_container=ctk.CTkScrollableFrame(
+            self.body,fg_color="transparent",
+            scrollbar_button_color=self.p["panel2"],corner_radius=0)
+        self._module_container.pack(fill="both",expand=True)
+        self._module_grid=ctk.CTkFrame(self._module_container,fg_color="transparent")
+        self._module_grid.pack(fill="both",expand=True)
+        self._module_cols=5 if self.winfo_width()>=1250 else 4
+        def update_query(*_):
+            self.catalog_query=query.get()
+            self._populate_module_grid()
+        query.trace_add("write",update_query)
+        self._populate_module_grid()
+
+    def _populate_module_grid(self):
+        grid=self._module_grid
+        for child in grid.winfo_children():child.destroy()
+        cols=self._module_cols
+        for c in range(cols):grid.grid_columnconfigure(c,weight=1,uniform="modules")
+        cards=filter_cards(self.catalog_query)
+        for i,(key,icon,title,subtitle,ready) in enumerate(cards):
+            row,column=divmod(i,cols)
+            frame=self._card(grid,rounding=14)
+            frame.grid(row=row,column=column,sticky="nsew",padx=5,pady=5)
+            frame.grid_propagate(False)
+            frame.configure(height=146)
+            icon_label=ctk.CTkLabel(frame,text=icon,width=54,height=49,
+                font=ctk.CTkFont(family="Segoe UI Emoji",size=30),anchor="w",
+                text_color=self.p["text"])
+            icon_label.pack(anchor="w",padx=13,pady=(8,0))
+            name=self.t(key) if key in ("medication","agenda","documents","water",
+                     "nutrition","profiles","residences","shortcuts","info",
+                     "backup","sync","options") else title
+            title_label=self._label(frame,name,14,True)
+            title_label.pack(anchor="w",padx=13,pady=(0,0))
+            sub=self._label(frame,subtitle,11,color=self.p["muted"],wrap=185)
+            sub.pack(anchor="w",padx=13)
+            if not ready:
+                ctk.CTkLabel(frame,text="EM BREVE" if self.lang=="pt" else
+                    self.t("coming").upper(),text_color=self.p["muted"],
+                    fg_color=self.p["panel2"],height=17,
+                    font=ctk.CTkFont(size=9),corner_radius=5).place(
+                        relx=.96,y=13,anchor="ne")
+            # Mouse click on any visible content, plus a real keyboard-focusable
+            # button for accessible navigation.
+            click=lambda event=None,k=key:self.navigate(k)
+            for widget in (frame,icon_label,title_label,sub):
+                widget.bind("<Button-1>",click,add="+")
+            frame.configure(cursor="hand2")
+            self._button(frame,"›",click,width=30,height=24).place(
+                relx=.96,rely=.94,anchor="se")
 
     def _pending(self,key):
         self._heading(self.t(key),self.t("module_pending"))

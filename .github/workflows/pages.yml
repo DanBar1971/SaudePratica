@@ -8,11 +8,22 @@ on:
       - script.js
       - assets/**
       - info_saude/**
+      - windows/**
+      - ios/**
+      - shared/**
       - .nojekyll
       - robots.txt
       - sitemap.xml
       - .github/workflows/pages.yml
   workflow_dispatch:
+  release:
+    types: [published, edited]
+  workflow_run:
+    workflows:
+      - "SaúdePrática Desktop — Windows experimental build"
+      - "SaudePratica Android Build + AutoRelease"
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -46,6 +57,12 @@ jobs:
           done
           grep -F 'github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk' index.html
           grep -F 'https://danbar1971.github.io/SaudePratica/' index.html
+          grep -F 'id="plataformas"' index.html
+          grep -F 'Windows 10 / 11' index.html
+          grep -F 'iPhone / iOS' index.html
+          grep -F 'data-windows-download' index.html
+          grep -F 'SaudePratica-Setup.exe' script.js
+          grep -F 'releases?per_page=60' script.js
           if grep -iEn 'private.?key|keystore|\.jks|password|token=' index.html script.js styles.css; then
             echo "::error::Possível segredo exposto no website"
             exit 1

@@ -1,6 +1,6 @@
 #define MyAppName "SaúdePrática Desktop"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.0"
+  #define MyAppVersion "0.3.0"
 #endif
 #define MyAppPublisher "SaúdePrática"
 #define MyAppExeName "SaudePraticaDesktop.exe"
@@ -20,7 +20,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\SaudePratica.ico
 OutputDir=..\..\dist\installer
 OutputBaseFilename=SaudePratica-Setup
 SetupIconFile=..\..\dist\saude_icon.ico
@@ -40,11 +40,12 @@ Name: "portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
 Name: "desktopicon"; Description: "Criar um atalho no Ambiente de Trabalho"; GroupDescription: "Atalhos:"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\SaudePraticaDesktop.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\SaudePraticaDesktop\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\saude_icon.ico"; DestDir: "{app}"; DestName: "SaudePratica.ico"; Flags: ignoreversion
 
 [Icons]
-Name: "{userprograms}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}"
-Name: "{userdesktop}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userprograms}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\SaudePratica.ico"
+Name: "{userdesktop}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\SaudePratica.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir a SaúdePrática Desktop"; Flags: nowait postinstall skipifsilent

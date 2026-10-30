@@ -19,6 +19,7 @@ ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(ROOT))
 from windows.secure_store import SecureStore, LocalStoreError
 from shared.python.saude_backup import BackupError
+from windows.ui_widgets import RoundedButton
 
 DARK = "#071d25"
 DARKER = "#041720"
@@ -32,7 +33,7 @@ BUTTON = "#13505c"
 class Desktop(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("SaúdePrática Desktop · 0.2.0 experimental")
+        self.title("SaúdePrática Desktop · 0.3.0 experimental")
         self.geometry("1280x720")
         self.minsize(1040, 640)
         self.configure(bg=DARK)
@@ -43,8 +44,17 @@ class Desktop(tk.Tk):
         self._editor_open = False
         self._background = Image.open(ROOT / "assets" / "saude_background.png").convert("RGB")
         self._icon = Image.open(ROOT / "assets" / "saude_icon.png").convert("RGBA")
-        self._splash = Image.open(ROOT / "assets" / "saude_splash.png").convert("RGBA")
-        self.iconphoto(True, ImageTk.PhotoImage(self._icon.resize((48, 48))))
+        # Use the real Windows icon and keep a PhotoImage for the title bar.
+        icon_file = ROOT / "assets" / "saude_icon.ico"
+        if icon_file.is_file():
+            try:
+                self.iconbitmap(str(icon_file))
+            except tk.TclError:
+                pass
+        self._title_icon = ImageTk.PhotoImage(
+            self._icon.resize((48, 48), Image.Resampling.LANCZOS))
+        self.iconphoto(True, self._title_icon)
+        self._init_theme()
         self._last_size = None
         self._backref = None
 
@@ -85,13 +95,33 @@ class Desktop(tk.Tk):
         self.canvas.coords(self.main_id,sidebar_width,0)
         self.canvas.itemconfigure(self.main_id,width=w-sidebar_width,height=h)
 
+    def _init_theme(self):
+        """Keep drop-downs dark and legible; no white Windows comboboxes."""
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("Saude.TCombobox", padding=(12, 8),
+                        fieldbackground="#0b2a34", background="#164854",
+                        foreground="#f4fbfc", arrowcolor="#55e8db",
+                        bordercolor="#2a6672", lightcolor="#2a6672",
+                        darkcolor="#2a6672", relief="flat")
+        style.map("Saude.TCombobox",
+                  fieldbackground=[("readonly", "#0b2a34")],
+                  foreground=[("readonly", "#f4fbfc")],
+                  selectbackground=[("readonly", "#0b2a34")],
+                  selectforeground=[("readonly", "#f4fbfc")])
+        style.configure("Saude.Vertical.TScrollbar", background="#125260",
+                        troughcolor="#0a252e", arrowcolor="#5ce6d6",
+                        bordercolor="#0a252e")
+        self.option_add("*TCombobox*Listbox.background", "#0b2a34")
+        self.option_add("*TCombobox*Listbox.foreground", "#f4fbfc")
+        self.option_add("*TCombobox*Listbox.selectBackground", "#176c75")
+        self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
+
     def _button(self, parent, title, action, wide=False):
-        b = tk.Button(parent, text=title, command=action,
-                      bg=BUTTON, fg=WHITE, activebackground="#127e80",
-                      activeforeground=WHITE, font=("Segoe UI", 12),
-                      relief="flat", bd=0, padx=18, pady=12, cursor="hand2",
-                      wraplength=210)
-        if wide: b.pack(fill="x", padx=12, pady=6)
+        b = RoundedButton(parent, title, action, height=48,
+                          fill=BUTTON, fg=WHITE, radius=13)
+        if wide:
+            b.pack(fill="x", padx=12, pady=6)
         return b
 
     def _label(self, parent, text, size=14, color=WHITE, bold=False):
@@ -162,24 +192,46 @@ class Desktop(tk.Tk):
 
     def _home(self, body):
         """Dashboard legível num PC, com iconografia oficial."""
-        hero=tk.Frame(body,bg=CARD,highlightthickness=1,
-                      highlightbackground="#27626a",padx=26,pady=24)
-        hero.pack(fill="x",pady=(12,16))
-        text=tk.Frame(hero,bg=CARD)
-        text.pack(side="left",fill="both",expand=True)
-        self._label(text,"SAÚDEPRÁTICA DESKTOP",12,TEAL,True).pack(anchor="w")
-        self._label(text,"Tudo num só lugar.",26,WHITE,True).pack(
-            anchor="w",pady=(13,8))
-        self._label(text,"Os teus perfis, medicação e documentos, organizados "
-                         "num ambiente pensado para Windows.",
-                    13,MUTED).pack(anchor="w",pady=(0,18))
-        self._button(text,"Gerir medicação",
-                     lambda:self.show("Medicação")).pack(anchor="w")
-        logo=ImageTk.PhotoImage(self._icon.resize((170,170),
-                                                    Image.Resampling.LANCZOS))
-        logo_widget=tk.Label(hero,image=logo,bg=CARD,bd=0)
-        logo_widget.image=logo
-        logo_widget.pack(side="right",padx=(15,0))
+        # Visible official wallpaper, not hidden behind an opaque panel.
+        hero=tk.Canvas(body,height=238,bg=CARD,highlightthickness=0,
+                       bd=0)
+        hero.pack(fill="x",pady=(12,17))
+        hero_button=RoundedButton(hero,"Gerir medicação",
+                                  lambda:self.show("Medicação"),
+                                  height=45,fill="#087d7d",fg=WHITE)
+        icon=ImageTk.PhotoImage(self._icon.resize((156,156),
+                                                  Image.Resampling.LANCZOS))
+        self._hero_icon_ref=icon
+
+        def paint_hero(event):
+            width=max(event.width,500)
+            height=238
+            art=ImageOps.fit(self._background,(width,height),
+                             method=Image.Resampling.LANCZOS)
+            # Glass-style dark overlay keeps original artwork legible.
+            from PIL import ImageDraw
+            tint=Image.new("RGBA",(width,height),(2,20,29,115))
+            art=Image.alpha_composite(art.convert("RGBA"),tint)
+            self._hero_wallpaper_ref=ImageTk.PhotoImage(art)
+            hero.delete("banner")
+            hero.create_image(0,0,image=self._hero_wallpaper_ref,
+                              anchor="nw",tags="banner")
+            hero.create_text(28,25,text="SAÚDEPRÁTICA DESKTOP",
+                             fill="#78eee1",font=("Segoe UI",11,"bold"),
+                             anchor="nw",tags="banner")
+            hero.create_text(28,67,text="Tudo num só lugar.",
+                             fill=WHITE,font=("Segoe UI",26,"bold"),
+                             anchor="nw",tags="banner")
+            hero.create_text(29,127,text="Os teus perfis e medicação num ambiente Windows.",
+                             fill="#d0e9ea",font=("Segoe UI",12),
+                             anchor="nw",tags="banner",
+                             width=max(360,width-270))
+            hero.create_image(width-110,119,image=icon,tags="banner")
+            hero.tag_lower("banner")
+            hero.coords("cta",28,179)
+        hero.create_window(28,179,anchor="nw",window=hero_button,
+                           width=200,height=45,tags="cta")
+        hero.bind("<Configure>",paint_hero)
 
         profiles=self.store.profiles() if self.store else []
         n=sum(len(p.get("medications",[])) for p in profiles)
@@ -264,7 +316,7 @@ class Desktop(tk.Tk):
         box.grid(row=row,column=column,sticky="ew",padx=6,pady=8)
         self._label(box,caption,11,MUTED,True).pack(anchor="w",pady=(0,7))
         combo=ttk.Combobox(box,textvariable=variable,values=choices,state="readonly",
-                           font=("Segoe UI",11))
+                           font=("Segoe UI",12),style="Saude.TCombobox")
         combo.pack(fill="x",ipady=8)
         return box,combo
 
@@ -334,7 +386,11 @@ class Desktop(tk.Tk):
         self._editor_open=False
         title=tk.Frame(parent,bg=CARD,padx=34,pady=35)
         title.pack(fill="both",expand=True)
-        self._label(title,"Uma ficha, todos os campos.",21,TEAL,True).pack(anchor="w")
+        icon=ImageTk.PhotoImage(self._icon.resize((118,118),Image.Resampling.LANCZOS))
+        mark=tk.Label(title,image=icon,bg=CARD,bd=0)
+        mark.image=icon
+        mark.pack(anchor="w",pady=(2,24))
+        self._label(title,"Uma ficha, todos os campos.",23,TEAL,True).pack(anchor="w")
         self._label(title,
             "Seleciona Editar num medicamento ou cria um novo.\n"
             "Os dados aparecem num único formulário, sem caixas sucessivas.",
@@ -349,13 +405,13 @@ class Desktop(tk.Tk):
         heading.pack(fill="x")
         self._label(heading,"Editar medicação" if medication else "Nova medicação",
                     20,WHITE,True).pack(anchor="w")
-        self._label(heading,"Ficha completa · Guardar e Cancelar sempre visíveis",
+        self._label(heading,"Informação principal · todas as alterações num único ecrã",
                     11,MUTED).pack(anchor="w",pady=(4,0))
 
         section=tk.Frame(parent,bg=CARD)
         section.pack(fill="both",expand=True,padx=(15,5))
         cv=tk.Canvas(section,bg=CARD,highlightthickness=0)
-        sb=ttk.Scrollbar(section,orient="vertical",command=cv.yview)
+        sb=ttk.Scrollbar(section,orient="vertical",command=cv.yview,style="Saude.Vertical.TScrollbar")
         cv.configure(yscrollcommand=sb.set)
         sb.pack(side="right",fill="y")
         cv.pack(side="left",fill="both",expand=True)
@@ -438,7 +494,7 @@ class Desktop(tk.Tk):
 
         footer=tk.Frame(parent,bg="#102b34",padx=20,pady=14)
         footer.pack(side="bottom",fill="x")
-        self._label(footer,"Os alarmes continuam no Android.",10,MUTED).pack(side="left")
+        self._label(footer,"Sem alterações aos alarmes Android",10,MUTED).pack(side="left")
 
         def cancel():
             self.selected_medication=None
@@ -460,7 +516,7 @@ class Desktop(tk.Tk):
                 self.show("Medicação")
             except (LocalStoreError, ValueError, KeyError) as exc:
                 messagebox.showerror("Verificar medicação",str(exc),parent=self)
-        self._button(footer,"Guardar",save).pack(side="right",padx=(10,0))
+        self._button(footer,"✓ Guardar",save).pack(side="right",padx=(10,0))
         self._button(footer,"Cancelar",cancel).pack(side="right")
         focus.focus_set()
 
@@ -511,4 +567,11 @@ class Desktop(tk.Tk):
 
 
 if __name__=="__main__":
-    Desktop().mainloop()
+    app = Desktop()
+    # The bootloader splash stays visible until the first real window is ready.
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except ImportError:
+        pass
+    app.mainloop()

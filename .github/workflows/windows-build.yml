@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 env:
-  WINDOWS_APP_VERSION: "0.2.0"
+  WINDOWS_APP_VERSION: "0.3.0"
 
 jobs:
   windows-preview:
@@ -40,17 +40,20 @@ jobs:
           python -m compileall -q windows shared
           python -m unittest discover -s shared/tests -v
           python -m unittest discover -s windows/tests -v
-      - name: Package Windows experimental EXE
+      - name: Criar identidade Windows oficial (ICO e splash)
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name SaudePraticaDesktop --paths . --add-data "assets;assets" windows/desktop.py
-          if (!(Test-Path "dist/SaudePraticaDesktop.exe")) { throw "EXE ausente" }
-          Get-FileHash "dist/SaudePraticaDesktop.exe" -Algorithm SHA256
-      - name: Preparar ícone oficial para instalador
+          python windows/tools/build_brand_assets.py
+          if (!(Test-Path "dist/saude_icon.ico")) { throw "Ícone oficial em falta" }
+          if (!(Test-Path "dist/saude_splash_windows.png")) { throw "Splash oficial em falta" }
+      - name: Compilar aplicação com arranque rápido e splash
         shell: pwsh
         run: |
-          python -c 'from PIL import Image; Image.open("assets/saude_icon.png").save("dist/saude_icon.ico",format="ICO",sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])'
-          if (!(Test-Path "dist/saude_icon.ico")) { throw "Ícone original em falta" }
+          pyinstaller --noconfirm --clean --onedir --windowed --name SaudePraticaDesktop --icon dist/saude_icon.ico --splash dist/saude_splash_windows.png --paths . --add-data "assets;assets" --add-data "dist/saude_icon.ico;assets" windows/desktop.py
+          if ($LASTEXITCODE -ne 0) { throw "Falhou a compilação PyInstaller" }
+          if (!(Test-Path "dist/SaudePraticaDesktop/SaudePraticaDesktop.exe")) { throw "EXE em falta" }
+          if (!(Test-Path "dist/SaudePraticaDesktop/_internal")) { throw "Bibliotecas da instalação rápida ausentes" }
+          Get-FileHash "dist/SaudePraticaDesktop/SaudePraticaDesktop.exe" -Algorithm SHA256
       - name: Instalar Inno Setup 6 no runner Windows
         shell: pwsh
         run: |

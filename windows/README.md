@@ -1,7 +1,7 @@
 # SaúdePrática Desktop — Windows experimental
 
 ## O que existe nesta primeira base
-- Janela inicial 1350×810, redimensionável, navegação horizontal e painel de módulos.
+- Janela inicial 1370×790, redimensionável, navegação horizontal compacta, menu de cartões de módulos inspirado no Android e galeria de medicação com fotografias autênticas.
 - Interface escura/turquesa, inspirada na aplicação Android; usa os ficheiros
   oficiais disponíveis na raiz do repositório: assets/saude_background.png
   e assets/saude_icon.png. O splash original surge durante o arranque.
@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.4.1**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.4.1-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.5.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.5.0-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.4.1-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.5.0-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.4.1-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.5.0-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -74,3 +74,9 @@ O pipeline executa `python windows/tools/smoke_windows.py --script` e `python wi
 Caso haja falha, a aplicação fecha o splash e regista um relatório em `%LOCALAPPDATA%\\SaudePraticaDesktop\\startup_error.log` na conta Windows; não é necessário partilhar perfis nem cópias DPAPI para diagnóstico.
 
 O splash `assets/saude_splash.png` agora aparece inteiro, sem qualquer recorte ou texto inventado, limitado proporcionalmente a 720 px de altura.
+
+## Nova galeria de medicação v0.5
+
+Cartões em grelha com foto da embalagem quando existe, nome, dose, horário e estado. A fotografia pode ser anexada na ficha de edição, ficando guardada na conta Windows com DPAPI e incluída no backup encriptado. Sem imagem, é mostrado apenas um símbolo de medicação, não uma embalagem inventada. Pesquisa e filtros são locais. O tema claro usa uma paleta explícita e é validado pelos testes.
+
+Todos os módulos Android são apresentados na grelha, mas os que ainda não têm implementação Windows mostram **Em breve**.

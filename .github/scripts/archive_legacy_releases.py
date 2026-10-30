@@ -28,9 +28,16 @@ def digest(path):
     return h.hexdigest()
 
 def main():
-    start=int(sys.argv[1])
-    assert 76<=start<=116 and (start-76)%5==0
-    for n in range(start,min(start+5,119)):
+    arg=sys.argv[1]
+    if arg.startswith("v1.9."):
+        n=int(arg.removeprefix("v1.9."))
+        assert 76<=n<=119
+        numbers=[n]
+    else:
+        start=int(arg)
+        assert 76<=start<=116 and (start-76)%5==0
+        numbers=range(start,min(start+5,119))
+    for n in numbers:
         tag=f"v1.9.{n}"
         original=metadata(SOURCE,tag)
         print("MIGRATING:",tag,flush=True)

@@ -126,7 +126,7 @@ class Desktop(ctk.CTk):
             text_color=color or self.p["text"],
             font=ctk.CTkFont(family="Segoe UI",size=size,
                              weight="bold" if bold else "normal"),
-            wraplength=wrap)
+            wraplength=wrap or 0)
 
     def _card(self,parent,rounding=19,**kw):
         return ctk.CTkFrame(parent,fg_color=self.p["panel"],
@@ -613,7 +613,7 @@ class Desktop(ctk.CTk):
             count=self.store.restore_backup(files)
             messagebox.showinfo(self.t("restore"),self.t("restore_success")+f" ({count})",parent=self)
             self._render()
-        except (BackupError,LocalStoreError,ValueError,Exception) as exc:
+        except Exception as exc:
             messagebox.showerror(self.t("restore"),str(exc),parent=self)
 
 

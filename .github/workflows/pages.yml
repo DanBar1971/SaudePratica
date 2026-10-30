@@ -44,7 +44,7 @@ jobs:
             file "assets/$image.png" | grep -F 'PNG image data'
             test "$(stat -c%s "assets/$image.png")" -gt 1000
           done
-          grep -F 'github.com/DanBar1971/AndroidAppDev/releases/latest/download/SaudePratica.apk' index.html
+          grep -F 'github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk' index.html
           grep -F 'https://danbar1971.github.io/SaudePratica/' index.html
           if grep -iEn 'private.?key|keystore|\.jks|password|token=' index.html script.js styles.css; then
             echo "::error::Possível segredo exposto no website"

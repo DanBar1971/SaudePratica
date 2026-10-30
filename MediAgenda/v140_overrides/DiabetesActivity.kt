@@ -54,7 +54,7 @@ class DiabetesActivity : AppCompatActivity() {
     }
     private fun date(t:Long)=DateFormat.getDateTimeInstance(
         DateFormat.SHORT,DateFormat.SHORT,Locale("pt","PT")).format(Date(t))
-    private fun entries():List<JSONObject>=(0 until readings.length())
+    private fun entries():List<JSONObject> = (0 until readings.length())
         .mapNotNull{readings.optJSONObject(it)}.sortedByDescending{it.optLong("time")}
     override fun onCreate(savedInstanceState:Bundle?){
         super.onCreate(savedInstanceState)

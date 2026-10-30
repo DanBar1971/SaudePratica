@@ -27,9 +27,10 @@ from windows.ui_catalog_v05 import MODULE_CARDS, normalized, filter_cards
 from windows.dashboard_v06 import Dashboard
 from windows.wallpaper_shell_v06 import WallpaperShell
 from windows.visual_v07 import circular_photo, wallpaper_image
+from windows.android_import_v062 import plan_json, apply_plan, inspect_android_zip, AndroidImportError
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -90,6 +91,8 @@ class Desktop(ctk.CTk):
         self.gallery_mode = "catalog"
         self.profile_menu = None
         self.profile_avatar = None
+        self.android_import_plan = None
+        self.android_zip_inspection = None
         self._assets()
         self._render()
 
@@ -212,20 +215,29 @@ class Desktop(ctk.CTk):
         elif self.page=="profiles": self._profiles()
         elif self.page=="medication": self._medication()
         elif self.page=="backup": self._backup()
+        elif self.page=="import": self._android_import_page()
+        elif self.page=="agenda": self._agenda()
         elif self.page=="options": self._settings_page()
         elif self.page=="more": self._modules(full=True)
         else: self._pending(self.page)
 
         footer=ctk.CTkFrame(self,height=28,fg_color=self.p["panel"],corner_radius=0)
         footer.pack(fill="x",side="bottom")
-        self._label(footer,"Windows 0.6 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
+        self._label(footer,"Windows 0.6.2 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
         self._label(footer,self.t("not_alarm"),10,color=self.p["muted"]).pack(side="right",padx=18,pady=5)
         self.profile_menu=None
 
     def _heading(self,title,subtitle=None):
-        self._label(self.body,title,23,True).pack(anchor="w",pady=(0,2))
+        # One clean typography-only header, never another opaque box.
+        head=ctk.CTkFrame(self.body,fg_color="transparent",corner_radius=0)
+        head.pack(fill="x",pady=(7,13))
+        rule=ctk.CTkFrame(head,fg_color=TEAL,width=3,height=42,corner_radius=2)
+        rule.pack(side="left",fill="y",padx=(4,15),pady=1)
+        texts=ctk.CTkFrame(head,fg_color="transparent")
+        texts.pack(side="left",fill="x",expand=True)
+        self._label(texts,title,26,True).pack(anchor="w")
         if subtitle:
-            self._label(self.body,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(0,10))
+            self._label(texts,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(1,0))
 
     def navigate(self,page):
         self.page=page
@@ -302,10 +314,8 @@ class Desktop(ctk.CTk):
 
     def _pending(self,key):
         self._heading(self.t(key),self.t("module_pending"))
-        card=self._card(self.body)
-        card.pack(fill="x",pady=14)
-        self._label(card,self.t("coming"),22,True,color=TEAL).pack(anchor="w",padx=24,pady=(24,10))
-        self._label(card,self.t("soon_detail"),15,color=self.p["muted"]).pack(anchor="w",padx=24,pady=(0,26))
+        self._label(self.body,self.t("coming"),20,True,color=TEAL).pack(anchor="w",pady=(15,4))
+        self._label(self.body,self.t("soon_detail"),13,color=self.p["muted"]).pack(anchor="w")
 
     def _two_pane(self,left_title,left_width=330):
         container=ctk.CTkFrame(self.body,fg_color="transparent")
@@ -317,8 +327,8 @@ class Desktop(ctk.CTk):
         self._label(left,left_title,16,True).pack(anchor="w",padx=13,pady=(11,6))
         left_scroll=ctk.CTkScrollableFrame(left,fg_color="transparent")
         left_scroll.pack(fill="both",expand=True,padx=8,pady=(2,8))
-        right=ctk.CTkFrame(container,fg_color=self.p["panel"],
-                           corner_radius=12)
+        right=ctk.CTkFrame(container,fg_color="transparent",
+                           corner_radius=0)
         right.pack(side="left",fill="both",expand=True)
         return left,left_scroll,right
 
@@ -491,8 +501,8 @@ class Desktop(ctk.CTk):
                          lambda:self.navigate("profiles"),True).pack(anchor="w",pady=10)
             return
         if self.gallery_mode == "editor":
-            frame=ctk.CTkFrame(self.body,fg_color=self.p["panel"],
-                               corner_radius=12)
+            frame=ctk.CTkFrame(self.body,fg_color="transparent",
+                               corner_radius=0)
             frame.pack(fill="both",expand=True)
             meds=self.store.get_profile(self.active_id).get("medications",[])
             med=next((m for m in meds if m.get("id")==self.editing_med),None)
@@ -503,6 +513,8 @@ class Desktop(ctk.CTk):
         self._label(bar,self.t("medication_list"),15,True).pack(side="left",padx=(1,15))
         self._button(bar,"+ "+self.t("new_medication"),self._new_med,
                      True,width=160,height=32).pack(side="right",padx=(8,0))
+        self._button(bar,"Importar JSON",lambda:self.navigate("import"),
+                     width=120,height=32).pack(side="right",padx=(8,0))
         query_var=ctk.StringVar(value=self.med_gallery_query)
         search=ctk.CTkEntry(bar,textvariable=query_var,height=31,width=230,
             fg_color=self.p["field"],text_color=self.p["text"],
@@ -786,6 +798,8 @@ class Desktop(ctk.CTk):
         actions.pack(anchor="w")
         self._button(actions,self.t("export"),self._export_backup,True,200).pack(side="left",padx=(0,10))
         self._button(actions,self.t("restore"),self._restore_backup,width=200).pack(side="left")
+        self._button(wrapper,"Importar JSON Android / Analisar ZIP",
+                     lambda:self.navigate("import"),width=290,height=35).pack(anchor="w",pady=(18,0))
 
     def _export_backup(self):
         password=self.backup_pass.get()

@@ -124,7 +124,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add MediAgenda 'SaúdePrática' android windows ios shared docs/MIGRACAO_GITHUB.md .github/workflows/mediagenda-build.yml .github/workflows/saudepratica-android.yml
+          git add MediAgenda 'SaúdePrática' android windows ios shared docs/MIGRACAO_GITHUB.md
           if git diff --cached --quiet; then
             echo "Código já importado"
             exit 0

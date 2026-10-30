@@ -27,7 +27,7 @@ ET.parse(manifest)
 assert "QUERY_ALL_PACKAGES" not in manifest.read_text()
 for pkg in ("pt.minsaude.spms.ces","com.seamlink.gatewaybox.ipolisboa"):
     assert pkg in links,pkg
-for term in ("CATEGORY_LAUNCHER","queryIntentActivities","https","android.intent.action"):
+for term in ("CATEGORY_LAUNCHER","queryIntentActivities","https","Intent.ACTION_MAIN"):
     assert term in links,term
 for term in ('"profile_id"','SHA-256','JSONArray','hba1c','glucose','mg/dL','mmol/L','"manual"'):
     assert term in glucose,term

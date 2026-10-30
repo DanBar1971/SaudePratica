@@ -192,24 +192,46 @@ class Desktop(tk.Tk):
 
     def _home(self, body):
         """Dashboard legível num PC, com iconografia oficial."""
-        hero=tk.Frame(body,bg=CARD,highlightthickness=1,
-                      highlightbackground="#27626a",padx=26,pady=24)
-        hero.pack(fill="x",pady=(12,16))
-        text=tk.Frame(hero,bg=CARD)
-        text.pack(side="left",fill="both",expand=True)
-        self._label(text,"SAÚDEPRÁTICA DESKTOP",12,TEAL,True).pack(anchor="w")
-        self._label(text,"Tudo num só lugar.",26,WHITE,True).pack(
-            anchor="w",pady=(13,8))
-        self._label(text,"Os teus perfis, medicação e documentos, organizados "
-                         "num ambiente pensado para Windows.",
-                    13,MUTED).pack(anchor="w",pady=(0,18))
-        self._button(text,"Gerir medicação",
-                     lambda:self.show("Medicação")).pack(anchor="w")
-        logo=ImageTk.PhotoImage(self._icon.resize((170,170),
-                                                    Image.Resampling.LANCZOS))
-        logo_widget=tk.Label(hero,image=logo,bg=CARD,bd=0)
-        logo_widget.image=logo
-        logo_widget.pack(side="right",padx=(15,0))
+        # Visible official wallpaper, not hidden behind an opaque panel.
+        hero=tk.Canvas(body,height=238,bg=CARD,highlightthickness=0,
+                       bd=0)
+        hero.pack(fill="x",pady=(12,17))
+        hero_button=RoundedButton(hero,"Gerir medicação",
+                                  lambda:self.show("Medicação"),
+                                  height=45,fill="#087d7d",fg=WHITE)
+        icon=ImageTk.PhotoImage(self._icon.resize((156,156),
+                                                  Image.Resampling.LANCZOS))
+        self._hero_icon_ref=icon
+
+        def paint_hero(event):
+            width=max(event.width,500)
+            height=238
+            art=ImageOps.fit(self._background,(width,height),
+                             method=Image.Resampling.LANCZOS)
+            # Glass-style dark overlay keeps original artwork legible.
+            from PIL import ImageDraw
+            tint=Image.new("RGBA",(width,height),(2,20,29,115))
+            art=Image.alpha_composite(art.convert("RGBA"),tint)
+            self._hero_wallpaper_ref=ImageTk.PhotoImage(art)
+            hero.delete("banner")
+            hero.create_image(0,0,image=self._hero_wallpaper_ref,
+                              anchor="nw",tags="banner")
+            hero.create_text(28,25,text="SAÚDEPRÁTICA DESKTOP",
+                             fill="#78eee1",font=("Segoe UI",11,"bold"),
+                             anchor="nw",tags="banner")
+            hero.create_text(28,67,text="Tudo num só lugar.",
+                             fill=WHITE,font=("Segoe UI",26,"bold"),
+                             anchor="nw",tags="banner")
+            hero.create_text(29,127,text="Os teus perfis e medicação num ambiente Windows.",
+                             fill="#d0e9ea",font=("Segoe UI",12),
+                             anchor="nw",tags="banner",
+                             width=max(360,width-270))
+            hero.create_image(width-110,119,image=icon,tags="banner")
+            hero.tag_lower("banner")
+            hero.coords("cta",28,179)
+        hero.create_window(28,179,anchor="nw",window=hero_button,
+                           width=200,height=45,tags="cta")
+        hero.bind("<Configure>",paint_hero)
 
         profiles=self.store.profiles() if self.store else []
         n=sum(len(p.get("medications",[])) for p in profiles)

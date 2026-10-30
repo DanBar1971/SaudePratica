@@ -1,0 +1,48 @@
+name: SaúdePrática Desktop — Windows experimental build
+on:
+  push:
+    branches: [main]
+    paths:
+      - "windows/**"
+      - "shared/**"
+      - "assets/**"
+      - ".github/workflows/windows-build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "windows/**"
+      - "shared/**"
+      - "assets/**"
+      - ".github/workflows/windows-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-preview:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Windows build dependencies
+        run: python -m pip install -r windows/requirements.txt
+      - name: Compile Python and run secure backup tests
+        run: |
+          python -m compileall -q windows shared
+          python -m unittest discover -s shared/tests -v
+      - name: Package Windows experimental EXE
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name SaudePraticaDesktop --paths . --add-data "assets;assets" windows/desktop.py
+          if (!(Test-Path "dist/SaudePraticaDesktop.exe")) { throw "EXE ausente" }
+          Get-FileHash "dist/SaudePraticaDesktop.exe" -Algorithm SHA256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SaudePratica-Windows-EXPERIMENTAL-unsigned
+          path: dist/SaudePraticaDesktop.exe
+          retention-days: 14
+          if-no-files-found: error

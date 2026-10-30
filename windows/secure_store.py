@@ -81,6 +81,90 @@ class SecureStore:
     def get_profile(self, profile_id: str):
         return next((p for p in self.profiles() if p.get("id") == profile_id), None)
 
+    def settings(self):
+        """Local preferences only; no new database or migration required."""
+        return dict(self.data.get("settings") or {})
+
+    def update_settings(self, **values):
+        allowed = {"theme", "language", "active_profile"}
+        if not set(values).issubset(allowed):
+            raise LocalStoreError("Preferência desconhecida.")
+        current = self.settings()
+        current.update(values)
+        if current.get("theme", "system") not in {"system", "dark", "light"}:
+            raise LocalStoreError("Tema desconhecido.")
+        if current.get("language", "pt") not in {"pt", "en", "fr", "de", "es"}:
+            raise LocalStoreError("Idioma desconhecido.")
+        chosen = current.get("active_profile")
+        if chosen and not self.get_profile(chosen):
+            raise LocalStoreError("Perfil não encontrado.")
+        old = self.data.get("settings")
+        self.data["settings"] = current
+        try:
+            self.save()
+        except Exception:
+            if old is None: self.data.pop("settings", None)
+            else: self.data["settings"] = old
+            raise
+        return current
+
+    def save_profile(self, fields: dict, profile_id: str | None = None):
+        """Version-compatible profile editor with rollback and no unknown-field loss."""
+        from datetime import date
+        import base64
+        if not isinstance(fields, dict):
+            raise LocalStoreError("Dados do perfil inválidos.")
+        name = str(fields.get("name", "")).strip()
+        if not (1 <= len(name) <= 120):
+            raise LocalStoreError("Indica um nome de 1 a 120 caracteres.")
+        allowed_fields = {
+            "name": 120, "birth_date": 10, "phone": 50, "email": 160,
+            "niss": 40, "health_unit": 180, "address": 250, "city": 100,
+            "postal_code": 24, "emergency_name": 120, "emergency_phone": 50,
+            "notes": 3000, "photo_b64": 600000
+        }
+        cleaned = {}
+        for key, limit in allowed_fields.items():
+            value = fields.get(key, "")
+            if not isinstance(value, str) or len(value) > limit:
+                raise LocalStoreError("Campo do perfil inválido: " + key)
+            cleaned[key] = value.strip() if key != "photo_b64" else value
+        if cleaned["birth_date"]:
+            try:
+                if date.fromisoformat(cleaned["birth_date"]) > date.today():
+                    raise ValueError("future")
+            except ValueError as exc:
+                raise LocalStoreError("A data de nascimento deve ser AAAA-MM-DD e não pode ser futura.") from exc
+        if cleaned["photo_b64"]:
+            try:
+                photo = base64.b64decode(cleaned["photo_b64"], validate=True)
+                if not photo.startswith(b"\xff\xd8\xff") or len(photo) > 450000:
+                    raise ValueError("photo format")
+            except Exception as exc:
+                raise LocalStoreError("A fotografia deve ser JPEG válido e pequeno.") from exc
+        cleaned["caregiver"] = bool(fields.get("caregiver", False))
+        if profile_id:
+            old = self.get_profile(profile_id)
+            if old is None:
+                raise LocalStoreError("Perfil inexistente.")
+            new = dict(old)
+            new.update(cleaned)
+            index = self.data["profiles"].index(old)
+            self.data["profiles"][index] = new
+        else:
+            new = {"id": str(uuid.uuid4()), "medications": [], "appointments": []}
+            new.update(cleaned)
+            self.data["profiles"].append(new)
+        try:
+            self.save()
+        except Exception:
+            if profile_id:
+                self.data["profiles"][index] = old
+            else:
+                self.data["profiles"].pop()
+            raise
+        return new
+
     def add_medication(self, profile_id: str, name: str, dose: str, time: str, route: str):
         """Compatibility with records saved by the first experimental build."""
         return self.save_medication(profile_id, {
@@ -168,8 +252,12 @@ class SecureStore:
             pid = p["id"]
             uuid.UUID(pid)
             prefix = "profiles/" + pid + "/"
+            # Include all profile fields (including photo, caregiver and future
+            # metadata) while keeping medication and agenda as separate payloads.
+            metadata = {k: v for k, v in p.items()
+                        if k not in ("medications", "appointments")}
             files[prefix+"profile.json"] = json.dumps(
-                {"id":pid,"name":p["name"]}, ensure_ascii=False).encode("utf-8")
+                metadata, ensure_ascii=False).encode("utf-8")
             files[prefix+"medicacao.json"] = json.dumps(
                 {"medications":p.get("medications",[])}, ensure_ascii=False).encode("utf-8")
             files[prefix+"agenda.json"] = json.dumps(
@@ -213,8 +301,12 @@ class SecureStore:
                 raise BackupError("Medicação ou agenda inválidas.")
             if not isinstance(person.get("name"), str) or len(person["name"]) not in range(1,121):
                 raise BackupError("Perfil inválido.")
-            added.append({"id":pid,"name":person["name"],
-                          "medications":medications, "appointments":appointments})
+            if not isinstance(person, dict):
+                raise BackupError("Perfil inválido.")
+            # Preserve forward-compatible profile fields, not just id/name.
+            hydrated = dict(person)
+            hydrated.update({"medications": medications, "appointments": appointments})
+            added.append(hydrated)
         if not added:
             raise BackupError("Sem perfis para importar.")
         if len({p["id"] for p in added}) != len(added):

@@ -1,15 +1,15 @@
 # SaúdePrática Desktop — Windows experimental
 
 ## O que existe nesta primeira base
-- Janela inicial 1280×720, formato 16:9, redimensionável (mínimo 940×620).
+- Janela inicial 1350×810, redimensionável, navegação horizontal e painel de módulos.
 - Interface escura/turquesa, inspirada na aplicação Android; usa os ficheiros
   oficiais disponíveis na raiz do repositório: assets/saude_background.png
   e assets/saude_icon.png. O splash original surge durante o arranque.
-- Criação/seleção de perfis e edição de medicação num único formulário sem caixas sucessivas, incluindo via de administração, horas, tipo de toma, notas e suspensão.
+- Gestão completa dos campos do perfil, fotografia, cuidador, seleção permanente do perfil ativo e editor de medicação num único formulário. Aspeto escuro/claro/sistema e cinco idiomas na interface base.
 - **Dados locais encriptados com Windows DPAPI, por utilizador Windows**.
 - Backup com palavra-passe em ficheiro .spbackup (AES-256-GCM), importação
   validada e restauro conservador apenas de perfis novos.
-- Código: windows/desktop.py, windows/secure_store.py,
+- Código: windows/desktop_v04.py, windows/secure_store.py,
   shared/python/saude_backup.py.
 
 ## O que NÃO está disponível ainda
@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.3.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.3.0-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.4.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.4.0-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.3.0-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.4.0-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -43,18 +43,18 @@ Instalar Python 3.12 e, na raiz do repositório:
 
     python -m pip install -r windows/requirements.txt
     python -m unittest discover -s shared/tests -v
-    python windows/desktop.py
+    python windows/desktop_v04.py
 
 Criar executável experimental (mais rápido a iniciar e com ícone/splash oficiais):
 
     python windows/tools/build_brand_assets.py
-    pyinstaller --noconfirm --clean --onedir --windowed --name SaudePraticaDesktop --icon dist/saude_icon.ico --splash dist/saude_splash_windows.png --paths . --add-data "assets;assets" --add-data "dist/saude_icon.ico;assets" windows/desktop.py
+    pyinstaller --noconfirm --clean --onedir --windowed --name SaudePraticaDesktop --icon dist/saude_icon.ico --splash dist/saude_splash_windows.png --paths . --collect-all customtkinter --add-data "assets;assets" --add-data "dist/saude_icon.ico;assets" windows/desktop_v04.py
 
 O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado das suas bibliotecas. O instalador inclui toda a pasta. Não precisa de JDK/Android Studio.
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.3.0-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.4.0-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 

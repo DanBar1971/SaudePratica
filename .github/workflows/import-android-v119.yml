@@ -1,0 +1,26 @@
+name: "SaúdePrática - Migrar APK de transição v1.9.119"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/import-android-v119.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  copy-transition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Arquivar exatamente a APK e anexos assinados da origem
+        run: python3 .github/scripts/archive_legacy_releases.py v1.9.119
+      - name: Marcar versão de transição como última
+        run: |
+          set -euo pipefail
+          gh release edit v1.9.119 --repo DanBar1971/SaudePratica --latest
+          test "$(gh api repos/DanBar1971/SaudePratica/releases/latest --jq .tag_name)" = v1.9.119
+          gh api repos/DanBar1971/SaudePratica/releases/tags/v1.9.119 \
+            --jq '[.assets[].name] | any(. == "SaudePratica.apk")' | grep -Fx true

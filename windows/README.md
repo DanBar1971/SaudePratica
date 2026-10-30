@@ -18,7 +18,19 @@
 - Restauro de todas as categorias e anexos, ou interoperabilidade Android↔Windows.
 - Avisos e alarmes Windows; o Android continua a ser o alarme principal.
 - Editor completo de prescrições, agenda, documentos, fotografias, PIN e idiomas.
-- Instalador assinado; esta build é experimental, não de produção.
+- Instalador **assinado digitalmente**; a primeira versão tem instalador com
+  assistente e desinstalador, mas ainda não tem certificado de editor Windows.
+
+## Instalar no Windows 10/11 x64
+
+Descarregar o instalador oficial da release Windows no GitHub: 
+https://github.com/DanBar1971/SaudePratica/releases
+
+Abrir `SaudePratica-Setup.exe`. O assistente permite instalar sem conta de administrador,
+cria atalho no menu Iniciar, oferece atalho no Ambiente de Trabalho e inclui
+desinstalador em Definições → Aplicações. O instalador é **experimental e não assinado
+digitalmente**. Não desativar a proteção geral do Windows e não guardar dados
+clínicos reais enquanto o programa não estiver validado.
 
 ## Construir no Windows 10/11 x64
 Instalar Python 3.12 e, na raiz do repositório:
@@ -34,7 +46,10 @@ Criar executável experimental:
 O ficheiro fica em dist/SaudePraticaDesktop.exe. Não precisa de JDK/Android Studio.
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
-**Não confundir artifact de teste com uma release final publicada.**
+O workflow cria também o instalador com Inno Setup 6 e publica a versão
+`windows-v0.1.0-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
+**Não confundir a versão Windows experimental com uma versão estável.**
 
 ## Segurança
 - Não importar backups reais antes de testar o restauro entre Android/Windows.

@@ -24,9 +24,12 @@ from windows.secure_store import SecureStore, LocalStoreError
 from shared.python.saude_backup import BackupError
 from windows.ui_v04_i18n import translate
 from windows.ui_catalog_v05 import MODULE_CARDS, normalized, filter_cards
+from windows.dashboard_v06 import Dashboard
+from windows.wallpaper_shell_v06 import WallpaperShell
+from windows.visual_v06 import circular_photo, wallpaper_image
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -85,6 +88,8 @@ class Desktop(ctk.CTk):
         self.catalog_query = ""
         self.med_gallery_state = "all"
         self.gallery_mode = "catalog"
+        self.profile_menu = None
+        self.profile_avatar = None
         self._assets()
         self._render()
 
@@ -98,7 +103,7 @@ class Desktop(ctk.CTk):
         if icon_file.is_file():
             try: self.iconbitmap(str(icon_file))
             except tk.TclError: pass
-        self.logo = ctk.CTkImage(self._original_icon, self._original_icon, size=(48,48))
+        self.logo = ctk.CTkImage(self._original_icon, self._original_icon, size=(40,40))
         self.hero_logo = ctk.CTkImage(self._original_icon,self._original_icon,size=(116,116))
         self._hero_image = None
         self._set_hero_art()
@@ -159,7 +164,8 @@ class Desktop(ctk.CTk):
         self.p=self._palette()
         self.configure(fg_color=self.p["bg"])
         self._clear()
-        header=ctk.CTkFrame(self,height=65,fg_color=self.p["panel"],
+        header=ctk.CTkFrame(self,height=65,
+                            fg_color="#0b2330" if self.p["bg"]!="#edf4f7" else "#ffffff",
                             corner_radius=0)
         header.pack(fill="x")
         header.pack_propagate(False)
@@ -178,30 +184,30 @@ class Desktop(ctk.CTk):
             b.pack(side="left",padx=3,pady=15)
 
         right=ctk.CTkFrame(header,fg_color="transparent")
-        right.pack(side="right",padx=(4,16),pady=13)
-        self._label(right,self.t("active_profile"),11,color=self.p["muted"]).pack(side="left",padx=(0,9))
+        right.pack(side="right",padx=(5,18),pady=11)
         entries=self.store.profiles()
-        self.profile_choices={}
-        for p in entries:
-            title=p["name"]
-            if title in self.profile_choices:
-                title += " · "+p["id"][:6]
-            self.profile_choices[title]=p["id"]
-        if not self.profile_choices:
-            self.profile_choices[self.t("active_none")]=None
-        selected=next((label for label,pid in self.profile_choices.items()
-                       if pid==self.active_id),next(iter(self.profile_choices)))
-        self.profile_select=ctk.CTkOptionMenu(right,values=list(self.profile_choices),
-            command=self._select_profile,width=155,height=34,corner_radius=10,
-            fg_color=self.p["panel2"],button_color=BLUE,button_hover_color=TEAL_HOVER,
-            text_color=self.p["text"],dropdown_fg_color=self.p["panel"],
-            dropdown_text_color=self.p["text"])
-        self.profile_select.set(selected)
-        self.profile_select.pack(side="left")
+        current=self.store.get_profile(self.active_id)
+        label=current.get("name","") if current else self.t("active_none")
+        photo=circular_photo(current.get("photo_b64",""),36) if current else None
+        self.profile_avatar=ctk.CTkImage(photo,photo,size=(36,36)) if photo else None
+        self.profile_select=ctk.CTkButton(
+            right,text=label+"   ⌄",image=self.profile_avatar,
+            command=self._toggle_profile_menu,
+            compound="left",width=172,height=39,corner_radius=13,
+            fg_color=self.p["panel2"],hover_color=self.p["hover"],
+            border_color="#177b87",border_width=1,
+            font=ctk.CTkFont(size=12,weight="bold"),text_color=self.p["text"])
+        self.profile_select.pack(side="right")
 
-        body=ctk.CTkFrame(self,fg_color="transparent")
-        body.pack(fill="both",expand=True,padx=18,pady=(13,4))
-        self.body=body
+        catalog=self.page in ("home","more")
+        if catalog:
+            body=ctk.CTkFrame(self,fg_color="transparent")
+            body.pack(fill="both",expand=True)
+            self.body=body
+        else:
+            shell=WallpaperShell(self,light=self.p["bg"]=="#edf4f7")
+            self.body=shell.content
+            self.wallpaper_shell=shell
         if self.page=="home": self._home()
         elif self.page=="profiles": self._profiles()
         elif self.page=="medication": self._medication()
@@ -212,8 +218,9 @@ class Desktop(ctk.CTk):
 
         footer=ctk.CTkFrame(self,height=28,fg_color=self.p["panel"],corner_radius=0)
         footer.pack(fill="x",side="bottom")
-        self._label(footer,"Windows 0.5 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
+        self._label(footer,"Windows 0.6 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
         self._label(footer,self.t("not_alarm"),10,color=self.p["muted"]).pack(side="right",padx=18,pady=5)
+        self.profile_menu=None
 
     def _heading(self,title,subtitle=None):
         self._label(self.body,title,23,True).pack(anchor="w",pady=(0,2))
@@ -236,86 +243,62 @@ class Desktop(ctk.CTk):
         self._render()
 
     def _home(self):
-        # Short banner to leave most of the desktop window for the module grid.
-        banner=ctk.CTkFrame(self.body,height=126,fg_color=self.p["banner"],
-                            corner_radius=15)
-        banner.pack(fill="x",pady=(0,10))
-        banner.pack_propagate(False)
-        ctk.CTkLabel(banner,image=self._hero_image,text="").place(
-            x=0,y=0,relwidth=1,relheight=1)
-        person=self.store.get_profile(self.active_id) if self.active_id else None
-        first=person["name"].split()[0] if person else ""
-        heading=("Olá, "+first+"!") if self.lang=="pt" and first else self.t("welcome")
-        self._label(banner,heading,27,True,color="#ffffff").place(x=20,y=14)
-        current_meds=len(person.get("medications",[])) if person else 0
-        subtitle=(f"{current_meds} medicamento(s)   •   "+
-                  self.t("welcome_sub"))
-        self._label(banner,subtitle,12,color="#d9eff1").place(x=22,y=65)
-        self._modules()
+        self.dashboard=Dashboard(self.body,self,full=False)
 
     def _modules(self,compact=False,full=False):
-        title=self.t("sections") if not full else self.t("menu_more")
-        bar=ctk.CTkFrame(self.body,fg_color="transparent",height=43)
-        bar.pack(fill="x",pady=(0,6))
-        self._label(bar,title,17,True).pack(side="left")
-        # Search filters only the visible module catalog, not personal data.
-        query=ctk.StringVar(value=self.catalog_query)
-        search=ctk.CTkEntry(bar,textvariable=query,width=245,height=31,
-            fg_color=self.p["field"],border_color=self.p["line"],
-            text_color=self.p["text"],placeholder_text="⌕  "+(
-                "Procurar módulo" if self.lang=="pt" else "Search modules"),
-            placeholder_text_color=self.p["muted"],corner_radius=9)
-        search.pack(side="right",padx=4)
-        self._module_container=ctk.CTkScrollableFrame(
-            self.body,fg_color="transparent",
-            scrollbar_button_color=self.p["panel2"],corner_radius=0)
-        self._module_container.pack(fill="both",expand=True)
-        self._module_grid=ctk.CTkFrame(self._module_container,fg_color="transparent")
-        self._module_grid.pack(fill="both",expand=True)
-        self._module_cols=5 if self.winfo_width()>=1250 else 4
-        def update_query(*_):
-            self.catalog_query=query.get()
-            self._populate_module_grid()
-        query.trace_add("write",update_query)
-        self._populate_module_grid()
+        self.dashboard=Dashboard(self.body,self,full=True)
 
-    def _populate_module_grid(self):
-        grid=self._module_grid
-        for child in grid.winfo_children():child.destroy()
-        cols=self._module_cols
-        for c in range(cols):grid.grid_columnconfigure(c,weight=1,uniform="modules")
-        cards=filter_cards(self.catalog_query)
-        for i,(key,icon,title,subtitle,ready) in enumerate(cards):
-            row,column=divmod(i,cols)
-            frame=self._card(grid,rounding=14)
-            frame.grid(row=row,column=column,sticky="nsew",padx=5,pady=5)
-            frame.grid_propagate(False)
-            frame.configure(height=146)
-            icon_label=ctk.CTkLabel(frame,text=icon,width=54,height=49,
-                font=ctk.CTkFont(family="Segoe UI Emoji",size=30),anchor="w",
-                text_color=self.p["text"])
-            icon_label.pack(anchor="w",padx=13,pady=(8,0))
-            name=self.t(key) if key in ("medication","agenda","documents","water",
-                     "nutrition","profiles","residences","shortcuts","info",
-                     "backup","sync","options") else title
-            title_label=self._label(frame,name,14,True)
-            title_label.pack(anchor="w",padx=13,pady=(0,0))
-            sub=self._label(frame,subtitle,11,color=self.p["muted"],wrap=185)
-            sub.pack(anchor="w",padx=13)
-            if not ready:
-                ctk.CTkLabel(frame,text="EM BREVE" if self.lang=="pt" else
-                    self.t("coming").upper(),text_color=self.p["muted"],
-                    fg_color=self.p["panel2"],height=17,
-                    font=ctk.CTkFont(size=9),corner_radius=5).place(
-                        relx=.96,y=13,anchor="ne")
-            # Mouse click on any visible content, plus a real keyboard-focusable
-            # button for accessible navigation.
-            click=lambda event=None,k=key:self.navigate(k)
-            for widget in (frame,icon_label,title_label,sub):
-                widget.bind("<Button-1>",click,add="+")
-            frame.configure(cursor="hand2")
-            self._button(frame,"›",click,width=30,height=24).place(
-                relx=.96,rely=.94,anchor="se")
+    def _toggle_profile_menu(self):
+        if self.profile_menu is not None:
+            self.profile_menu.destroy()
+            self.profile_menu=None
+            return
+        menu=ctk.CTkFrame(self,fg_color=self.p["panel"],
+                          corner_radius=14,border_color="#267684",
+                          border_width=1,width=280)
+        menu.place(relx=1,x=-17,y=67,anchor="ne")
+        self.profile_menu=menu
+        for person in self.store.profiles():
+            row=ctk.CTkFrame(menu,fg_color="transparent")
+            row.pack(fill="x",padx=6,pady=3)
+            avatar=circular_photo(person.get("photo_b64",""),42)
+            photo=ctk.CTkImage(avatar,avatar,size=(42,42)) if avatar else None
+            active=person["id"]==self.active_id
+            mark="  ✓" if active else ""
+            name=person["name"]+mark
+            if person.get("caregiver"):
+                name+="  🙌"
+            button=ctk.CTkButton(
+                row,text=name,image=photo,compound="left",
+                fg_color=self.p["panel2"] if active else "transparent",
+                hover_color=self.p["hover"],text_color=self.p["text"],
+                anchor="w",height=56,corner_radius=10,
+                font=ctk.CTkFont(size=13,weight="bold"),
+                command=lambda pid=person["id"]:self._select_profile_by_id(pid))
+            button.pack(fill="x")
+        self._button(menu,"⚙  "+self.t("profiles"),
+                    lambda:self._profile_menu_to_profiles(),
+                    width=255,height=34).pack(fill="x",padx=8,pady=(5,9))
+        menu.lift()
+
+    def _select_profile_by_id(self,pid):
+        if self.profile_menu is not None:
+            self.profile_menu.destroy()
+            self.profile_menu=None
+        if pid==self.active_id:return
+        self.active_id=pid
+        self.editing_profile=pid
+        self.editing_med=None
+        try:self.store.update_settings(active_profile=pid)
+        except LocalStoreError as exc:
+            messagebox.showerror("SaúdePrática",str(exc),parent=self)
+        self._render()
+
+    def _profile_menu_to_profiles(self):
+        if self.profile_menu is not None:
+            self.profile_menu.destroy()
+            self.profile_menu=None
+        self.navigate("profiles")
 
     def _pending(self,key):
         self._heading(self.t(key),self.t("module_pending"))
@@ -360,7 +343,8 @@ class Desktop(ctk.CTk):
         for profile in self.store.profiles():
             row=ctk.CTkFrame(listing,fg_color=self.p["panel2"],corner_radius=11)
             row.pack(fill="x",pady=4)
-            pic=self._authentic_thumb(profile.get("photo_b64",""),49,49)
+            raw_avatar=circular_photo(profile.get("photo_b64",""),49)
+            pic=ctk.CTkImage(raw_avatar,raw_avatar,size=(49,49)) if raw_avatar else None
             if pic:
                 photo=ctk.CTkLabel(row,image=pic,text="",width=50,height=53)
             else:

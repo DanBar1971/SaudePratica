@@ -38,7 +38,7 @@ class CatalogTests(unittest.TestCase):
             self.assertGreaterEqual(accessible_contrast(foreground,background),4.5)
     def test_source_uses_real_photo_and_compact_controls(self):
         source=(ROOT/"windows/desktop_v04.py").read_text(encoding="utf-8")
-        for token in ("_populate_med_gallery","_populate_module_grid",
+        for token in ("_populate_med_gallery","Dashboard(self.body,self",
                       "med_gallery_state","_choose_med_photo","_authentic_thumb",
                       "text_color=self.p[\"text\"]", "height=33",
                       "def _settings_page(self):"):

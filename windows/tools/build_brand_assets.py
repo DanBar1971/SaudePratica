@@ -1,57 +1,32 @@
-"""Build Windows-only visuals from the official SaúdePrática images.
+"""Build Windows icon and splash from exact official images — never crop splash.
 
-Never invent or substitute the official icon/splash. All generated images
-derive from assets/saude_icon.png, saude_background.png, saude_splash.png.
+The splash is the same full portrait artwork as Android, resized in a way that
+preserves the entire canvas and aspect ratio for a 720px high Windows screen.
 """
 from pathlib import Path
-import sys
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
+from PIL import Image, ImageOps
 
-ROOT=Path(__file__).resolve().parents[2]
-ASSETS=ROOT/"assets"
-DIST=ROOT/"dist"
+ROOT = Path(__file__).resolve().parents[2]
+ASSETS = ROOT / "assets"
+DIST = ROOT / "dist"
 DIST.mkdir(exist_ok=True)
 
-icon=Image.open(ASSETS/"saude_icon.png").convert("RGBA")
-background=Image.open(ASSETS/"saude_background.png").convert("RGB")
-splash=Image.open(ASSETS/"saude_splash.png").convert("RGB")
+icon = Image.open(ASSETS / "saude_icon.png").convert("RGBA")
+original_splash = Image.open(ASSETS / "saude_splash.png").convert("RGB")
 
-# The ico embeds proper multi-size bitmaps, rather than a renamed PNG.
-icon.save(DIST/"saude_icon.ico",format="ICO",
+# Real multi-resolution .ico for EXE, shortcuts and installer.
+icon.save(DIST / "saude_icon.ico", format="ICO",
           sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
-assert (DIST/"saude_icon.ico").stat().st_size > 5000
+if (DIST / "saude_icon.ico").stat().st_size < 5000:
+    raise RuntimeError("O ícone oficial gerado é inválido.")
 
-W,H=900,500
-base=ImageOps.fit(background,(W,H),method=Image.Resampling.LANCZOS)
-base=base.filter(ImageFilter.GaussianBlur(radius=5)).convert("RGBA")
-veil=Image.new("RGBA",(W,H),(2,17,24,176))
-base=Image.alpha_composite(base,veil)
-draw=ImageDraw.Draw(base)
-draw.rounded_rectangle((48,62,W-48,H-62),radius=36,
-                       fill=(5,32,40,220),outline=(18,204,192,135),width=2)
-# Show the genuine official opening image rather than inventing another logo.
-# A focused crop keeps the central logo, wordmark and tagline readable.
-sw,sh=splash.size
-focus=splash.crop((0,int(sh*0.28),sw,int(sh*0.72)))
-focus=ImageOps.contain(focus,(420,370),method=Image.Resampling.LANCZOS)
-left=46+(420-focus.width)//2
-top=64+(370-focus.height)//2
-base.paste(focus,(left,top))
-draw.line((490,115,490,385),fill=(45,210,198,135),width=2)
-fonts=Path("C:/Windows/Fonts")
-def font(name,size):
-    p=fonts/name
-    return ImageFont.truetype(str(p),size) if p.is_file() else ImageFont.load_default()
-regular=font("segoeui.ttf",23)
-bold=font("segoeuib.ttf",38)
-small=font("segoeui.ttf",19)
-draw.text((527,155),"SaúdePrática",font=bold,fill="#f5ffff")
-draw.text((529,223),"Desktop · Windows",font=regular,fill="#5be6dc")
-draw.rounded_rectangle((527,294,830,346),radius=18,fill=(28,126,128,120))
-draw.text((549,309),"A iniciar a aplicação...",font=small,fill="#f0fafa")
-path=DIST/"saude_splash_windows.png"
-base.convert("RGB").save(path,optimize=True)
+# Preserve EVERY pixel/region of the full source composition. No cropping,
+# overlaid text, new logos, split-panel layout or synthetic decorative parts.
+splash = ImageOps.contain(original_splash, (430, 720),
+                          method=Image.Resampling.LANCZOS)
+path = DIST / "saude_splash_windows.png"
+splash.save(path, format="PNG", optimize=True)
+if abs(splash.width/splash.height-original_splash.width/original_splash.height)>0.002:
+    raise RuntimeError("A proporção do splash original foi alterada.")
 
-# Confirm the exact source files were read, including the original portrait splash.
-assert splash.size[0]>100 and splash.size[1]>100
-print("Assets oficiais: ícone ICO multiresolução e splash Windows gerados:",path)
+print(f"Ícone oficial criado e splash integral: {splash.width}×{splash.height}")

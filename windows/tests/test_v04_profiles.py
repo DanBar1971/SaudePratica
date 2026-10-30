@@ -30,6 +30,10 @@ class TranslationsTests(unittest.TestCase):
         self.assertIn('self._profile_form',s)
         self.assertIn('self._change_theme',s)
         self.assertIn('self._change_language',s)
+        # In Tkinter, _options(cnf, kw) is a reserved internal method.
+        # Accidentally overriding it caused the v0.4.0 launch failure.
+        self.assertNotIn("def _options(self):",s)
+        self.assertIn("def _settings_page(self):",s)
         self.assertIn('pyi_splash.close()',s)
         build=(ROOT/".github/workflows/windows-build.yml").read_text(encoding="utf-8")
         self.assertIn("windows/desktop_v04.py",build)

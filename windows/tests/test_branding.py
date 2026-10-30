@@ -23,15 +23,21 @@ class OfficialBrandingTests(unittest.TestCase):
         installer=(ROOT/"windows/installer/SaudePratica.iss").read_text(encoding="utf-8")
         self.assertIn('IconFilename: "{app}\\SaudePratica.ico"',installer)
         self.assertIn('Source: "..\\..\\dist\\SaudePraticaDesktop\\*"',installer)
-        source=(ROOT/"windows/desktop.py").read_text(encoding="utf-8")
+        source=(ROOT/"windows/desktop_v04.py").read_text(encoding="utf-8")
         self.assertIn("pyi_splash.close()",source)
+        self.assertIn("SAUDEPRATICA_SMOKE_REPORT",source)
+        self.assertIn("startup_error.log",source)
+        self.assertIn("smoke_windows.py --exe",workflow)
         self.assertIn('self.iconbitmap(str(icon_file))',source)
 
     def test_original_splash_is_actually_rendered(self):
         s=(ROOT/"windows/tools/build_brand_assets.py").read_text(encoding="utf-8")
         self.assertIn('saude_splash.png',s)
-        self.assertIn("focus=splash.crop(",s)
-        self.assertIn("base.paste(focus,",s)
+        self.assertIn("ImageOps.contain(original_splash",s)
+        self.assertNotIn(".crop(",s)
+        self.assertNotIn("draw.text(",s)
+        self.assertNotIn("rounded_rectangle(",s)
+        self.assertIn("(430, 720)",s)
 
 
 if __name__=="__main__":

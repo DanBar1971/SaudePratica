@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.4.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.4.0-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.4.1**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.4.1-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.4.0-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.4.1-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.4.0-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.4.1-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -66,3 +66,11 @@ o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 - A versão Windows utiliza as imagens oficiais do repositório; os PNGs
   originais maiores enviados pelo utilizador podem substituir estes assets
   sem necessidade de refazer a interface.
+
+## Diagnóstico e prevenção de falhas de arranque
+
+O pipeline executa `python windows/tools/smoke_windows.py --script` e `python windows/tools/smoke_windows.py --exe`. O instalador só é publicado se a interface conseguir abrir e desenhar o primeiro ecrã. Os testes usam dados fictícios isolados, nunca dados clínicos do utilizador.
+
+Caso haja falha, a aplicação fecha o splash e regista um relatório em `%LOCALAPPDATA%\\SaudePraticaDesktop\\startup_error.log` na conta Windows; não é necessário partilhar perfis nem cópias DPAPI para diagnóstico.
+
+O splash `assets/saude_splash.png` agora aparece inteiro, sem qualquer recorte ou texto inventado, limitado proporcionalmente a 720 px de altura.

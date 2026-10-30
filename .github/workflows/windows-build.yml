@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 env:
-  WINDOWS_APP_VERSION: "0.4.0"
+  WINDOWS_APP_VERSION: "0.4.1"
 
 jobs:
   windows-preview:
@@ -40,6 +40,8 @@ jobs:
           python -m compileall -q windows shared
           python -m unittest discover -s shared/tests -v
           python -m unittest discover -s windows/tests -v
+      - name: Ensaiar o arranque real do interface Python
+        run: python windows/tools/smoke_windows.py --script
       - name: Criar identidade Windows oficial (ICO e splash)
         shell: pwsh
         run: |
@@ -54,6 +56,8 @@ jobs:
           if (!(Test-Path "dist/SaudePraticaDesktop/SaudePraticaDesktop.exe")) { throw "EXE em falta" }
           if (!(Test-Path "dist/SaudePraticaDesktop/_internal")) { throw "Bibliotecas da instalação rápida ausentes" }
           Get-FileHash "dist/SaudePraticaDesktop/SaudePraticaDesktop.exe" -Algorithm SHA256
+      - name: Testar executável Windows empacotado antes de publicar
+        run: python windows/tools/smoke_windows.py --exe
       - name: Instalar Inno Setup 6 no runner Windows
         shell: pwsh
         run: |

@@ -48,4 +48,18 @@ for term in ("Modo Sénior","Acessibilidade","Aspeto e Idioma","Atalhos Importan
     if p>=0:
         print("UI_ANCHOR",repr(term),"POSITION",p,"SOURCE",
               repr(main[max(0,p-280):p+550]))
+# One-time safe source introspection for migrating existing shortcuts/settings.
+for term in ("showOptionsGroup(","Aspeto","Aspecto","Idiomas","seniorMode",
+             "Acessibilidade · Modo Sénior","Atalhos Importantes · Apps e Web"):
+    positions=[m.start() for m in re.finditer(re.escape(term),main)]
+    for p in positions[:3]:
+        print("OPTION_SOURCE",repr(term),p,
+              repr(main[max(0,p-200):p+850]))
+legacy=(src/"ImportantShortcutsActivity.kt").read_text(encoding="utf-8")
+for term in ("getSharedPreferences(","class ImportantShortcutsActivity",
+             "private fun","loadShortcuts","JSONArray"):
+    positions=[m.start() for m in re.finditer(re.escape(term),legacy)]
+    for p in positions[:3]:
+        print("LEGACY_SHORTCUT_SOURCE",repr(term),p,
+              repr(legacy[max(0,p-100):p+400]))
 print("v140 static checks passed (not equivalent to Android compilation/device testing)")

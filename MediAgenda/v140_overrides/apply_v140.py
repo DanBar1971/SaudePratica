@@ -19,7 +19,7 @@ def replace_once(path, old, new, label):
         raise AssertionError(f"{label}: expected one anchor, got {n}")
     path.write_text(s.replace(old,new,1),encoding="utf-8")
 
-for filename in ("DiabetesActivity.kt","ImportantShortcutsActivity.kt"):
+for filename in ("DiabetesActivity.kt","ImportantShortcutsV2Activity.kt"):
     copyfile(PATCH/filename,SRC/filename)
 
 # Dashboard: move official SNS 24 and IPO Lisboa app launches to Atalhos
@@ -48,7 +48,7 @@ option_anchor='        box.addView(infoCard("💡", "Dicas e Informações",'
 assert s.count(option_anchor)==1,("options anchor",s.count(option_anchor))
 s=s.replace(option_anchor,'''        box.addView(infoCard("🔗", "Atalhos Importantes · Apps e Web",
             "Escolher aplicações instaladas ou endereços web") {
-            startActivity(Intent(this,ImportantShortcutsActivity::class.java))
+            startActivity(Intent(this,ImportantShortcutsV2Activity::class.java))
         })
         box.addView(infoCard("🌍", "Página oficial da SaúdePrática",
             "Abrir ou partilhar o link da aplicação") {
@@ -73,7 +73,7 @@ manifest=APP/"src/main/AndroidManifest.xml"
 m=manifest.read_text(encoding="utf-8")
 activities='''        <activity android:name="com.mediagenda.app.DiabetesActivity"
             android:exported="false" />
-        <activity android:name="com.mediagenda.app.ImportantShortcutsActivity"
+        <activity android:name="com.mediagenda.app.ImportantShortcutsV2Activity"
             android:exported="false" />
 '''
 assert m.count("</application>")==1
@@ -108,7 +108,7 @@ h=h.replace(help_anchor,'''        val diabetesGuide=panel()
             "Accueil → Diabète : saisissez glycémie ou HbA1c, unité, date et contexte. Graphique sur 30 jours et partage CSV. Appui long pour supprimer. Aucun dosage automatique d'insuline ni synchronisation.",
             "Start → Diabetes: Blutzucker oder Labor-HbA1c mit Einheit, Zeit und Kontext eingeben. 30-Tage-Grafik und CSV. Langes Tippen löscht. Keine automatische Insulindosis oder Synchronisierung.",
             "Inicio → Diabetes: registra glucosa o HbA1c, unidad, fecha y contexto. Gráfico de 30 días y CSV. Mantén pulsado para borrar. Sin cálculo de insulina ni sincronización."),13f))
-        body.addView(diabetesGuide)
+        addCard(parent,diabetesGuide)
         val linksGuide=panel()
         linksGuide.addView(text(tr(
             "🔗 Atalhos Importantes",
@@ -122,7 +122,7 @@ h=h.replace(help_anchor,'''        val diabetesGuide=panel()
             "Plus → Raccourcis importants : choisissez des applications ou sites, puis réorganisez-les. SNS 24 et IPO Lisboa sont proposés.",
             "Mehr → Wichtige Verknüpfungen: Apps oder Webseiten wählen und sortieren. SNS 24 und IPO Lisboa sind vorausgewählt.",
             "Más → Accesos importantes: elige apps o webs y ordénalos. SNS 24 e IPO Lisboa aparecen de inicio."),13f))
-        body.addView(linksGuide)
+        addCard(parent,linksGuide)
 '''+help_anchor,1)
 helpfile.write_text(h,encoding="utf-8")
 

@@ -1,0 +1,26 @@
+
+    /** Reanalyse the same photo after an explicit PT-PT user correction.
+     * Based on SnapCal's corrective multimodal workflow; no profile metadata.
+     */
+    fun correct(c:Context,jpeg:ByteArray,original:JSONObject,feedback:String):JSONObject {
+        val clean=feedback.trim()
+        require(clean.length in 4..500){"Descreve a correção em 4 a 500 caracteres."}
+        val key=PrivateGeminiKey.read(c)
+            ?:error("Para corrigir com Gemini, configura a tua chave privada na Nutrição.")
+        require(jpeg.size in 500..2_500_000){"A fotografia original já não está disponível."}
+        val instruction=PROMPT+"\nAnálise anterior (apenas informação alimentar): "+
+            original.toString().take(3500)+"\nCorreção explícita do utilizador: "+
+            clean+"\nCorrige o resultado sem inventar alimentos ou quantidades. "+
+            "Mantém todos os ingredientes que a fotografia suporta e aplica a correção. "+
+            "Responde EXCLUSIVAMENTE com JSON no mesmo formato de foods e total_kcal."
+        val parts=JSONArray().put(JSONObject().put("text",instruction))
+            .put(JSONObject().put("inlineData",JSONObject()
+                .put("mimeType","image/jpeg")
+                .put("data",Base64.encodeToString(jpeg,Base64.NO_WRAP))))
+        val body=JSONObject().put("contents",JSONArray().put(JSONObject()
+            .put("role","user").put("parts",parts)))
+            .put("generationConfig",JSONObject().put("temperature",0.1)
+                .put("responseMimeType","application/json").put("maxOutputTokens",2300))
+        return normalize(call(key,body)).put("correction",clean)
+    }
+

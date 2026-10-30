@@ -1,0 +1,331 @@
+diff -ruN base/src/main/java/com/mediagenda/app/HealthcareCatalog.kt src/main/java/com/mediagenda/app/HealthcareCatalog.kt
+--- base/src/main/java/com/mediagenda/app/HealthcareCatalog.kt	2026-10-24 08:36:43.123482513 +0000
++++ src/main/java/com/mediagenda/app/HealthcareCatalog.kt	2026-10-24 09:03:55.404375649 +0000
+@@ -1,27 +1,79 @@
+ package com.mediagenda.app
+ 
+-/** Sugestões iniciais, não catálogo nacional completo. A pesquisa oficial é da ERS. */
++import android.content.Context
++import org.json.JSONObject
++import java.text.Normalizer
++import java.util.Locale
++
++/** District / municipality filtered suggestions. This is not a full ERS establishment register. */
+ object HealthcareCatalog {
+-    const val ersUrl="https://www.ers.pt/pt/prestadores/servicos/pesquisa-de-prestadores/"
+-    val facilities=listOf(
+-        "Hospital de Santa Maria — Lisboa", "Hospital de São José — Lisboa",
+-        "Hospital de Dona Estefânia — Lisboa", "Hospital Curry Cabral — Lisboa",
+-        "Hospital de Santo António dos Capuchos — Lisboa", "Hospital São Francisco Xavier — Lisboa",
+-        "Hospital Egas Moniz — Lisboa", "IPO Lisboa", "IPO Porto", "IPO Coimbra",
+-        "Hospital da Luz Lisboa", "Hospital CUF Descobertas", "Hospital CUF Tejo",
+-        "Hospital Lusíadas Lisboa", "Hospital de Cascais", "Hospital Beatriz Ângelo — Loures",
+-        "Hospital Garcia de Orta — Almada", "Hospital de São Bernardo — Setúbal",
+-        "Hospital de São João — Porto", "Hospital de Santo António — Porto",
+-        "Hospital Pedro Hispano — Matosinhos", "Hospital de Braga",
+-        "Hospital de Guimarães", "Hospital de Aveiro", "Hospital de Leiria",
+-        "Hospitais da Universidade de Coimbra", "Hospital Pediátrico de Coimbra",
+-        "Hospital de Viseu", "Hospital de Castelo Branco", "Hospital de Évora",
+-        "Hospital de Beja", "Hospital de Faro", "Hospital de Portimão",
+-        "Hospital do Funchal", "Hospital de Ponta Delgada",
+-        "Centro de Saúde (escrever o nome)", "USF / UCSP (escrever o nome)",
+-        "Clínica (escrever o nome)", "Laboratório de análises (escrever o nome)",
+-        "Posto de colheitas (escrever o nome)", "Unidade de cuidados continuados (escrever o nome)"
+-    ).sorted()
++    const val ersUrl = "https://www.ers.pt/pt/prestadores/servicos/pesquisa-de-prestadores/"
++    data class Facility(val name:String,val district:String,val municipality:String)
++
++    private val known = listOf(
++        Facility("Hospital de Vila Franca de Xira (ULS Estuário do Tejo)","Lisboa","Vila Franca de Xira"),
++        Facility("USF Terras de Cira","Lisboa","Vila Franca de Xira"),
++        Facility("USF Gago Coutinho — Alverca do Ribatejo","Lisboa","Vila Franca de Xira"),
++        Facility("USF Reynaldo dos Santos — Póvoa de Santa Iria","Lisboa","Vila Franca de Xira"),
++        Facility("USF Villa Longa — Vialonga","Lisboa","Vila Franca de Xira"),
++        Facility("UCSP Alhandra","Lisboa","Vila Franca de Xira"),
++        Facility("Hospital de Santa Maria","Lisboa","Lisboa"),
++        Facility("Hospital de São José","Lisboa","Lisboa"),
++        Facility("Hospital Dona Estefânia","Lisboa","Lisboa"),
++        Facility("Hospital Curry Cabral","Lisboa","Lisboa"),
++        Facility("Hospital dos Capuchos","Lisboa","Lisboa"),
++        Facility("Hospital São Francisco Xavier","Lisboa","Lisboa"),
++        Facility("Hospital Egas Moniz","Lisboa","Lisboa"),
++        Facility("IPO Lisboa","Lisboa","Lisboa"),
++        Facility("Hospital da Luz Lisboa","Lisboa","Lisboa"),
++        Facility("Hospital CUF Descobertas","Lisboa","Lisboa"),
++        Facility("Hospital CUF Tejo","Lisboa","Lisboa"),
++        Facility("Hospital Lusíadas Lisboa","Lisboa","Lisboa"),
++        Facility("Hospital de Cascais","Lisboa","Cascais"),
++        Facility("Hospital Beatriz Ângelo","Lisboa","Loures"),
++        Facility("Hospital Garcia de Orta","Setúbal","Almada"),
++        Facility("Hospital de São Bernardo","Setúbal","Setúbal"),
++        Facility("Hospital São João","Porto","Porto"),
++        Facility("Hospital Santo António","Porto","Porto"),
++        Facility("IPO Porto","Porto","Porto"),
++        Facility("Hospital Pedro Hispano","Porto","Matosinhos"),
++        Facility("Hospital de Braga","Braga","Braga"),
++        Facility("Hospital de Guimarães","Braga","Guimarães"),
++        Facility("Hospital de Aveiro","Aveiro","Aveiro"),
++        Facility("Hospitais da Universidade de Coimbra","Coimbra","Coimbra"),
++        Facility("Hospital Pediátrico de Coimbra","Coimbra","Coimbra"),
++        Facility("IPO Coimbra","Coimbra","Coimbra"),
++        Facility("Hospital de Leiria","Leiria","Leiria"),
++        Facility("Hospital de Viseu","Viseu","Viseu"),
++        Facility("Hospital de Castelo Branco","Castelo Branco","Castelo Branco"),
++        Facility("Hospital de Évora","Évora","Évora"),
++        Facility("Hospital de Beja","Beja","Beja"),
++        Facility("Hospital de Faro","Faro","Faro"),
++        Facility("Hospital de Portimão","Faro","Portimão"),
++        Facility("Hospital Dr. Nélio Mendonça — Funchal","Madeira","Funchal"),
++        Facility("Hospital do Divino Espírito Santo","Açores","Ponta Delgada")
++    )
++
++    private fun regions(context:Context) = JSONObject(context.assets.open("portugal_distritos_concelhos.json")
++        .bufferedReader(Charsets.UTF_8).use { it.readText() }).getJSONObject("districts")
++
++    fun districts(context:Context):List<String> {
++        val d=regions(context)
++        return d.keys().asSequence().toList().sortedWith(String.CASE_INSENSITIVE_ORDER)
++    }
++    fun municipalities(context:Context,district:String):List<String> {
++        val array=regions(context).optJSONArray(district) ?: return emptyList()
++        return (0 until array.length()).map{array.optString(it)}.filter{it.isNotBlank()}
++            .sortedWith(String.CASE_INSENSITIVE_ORDER)
++    }
++    fun facilities(district:String,municipality:String):List<Facility> = known.filter{
++        same(it.district,district) && same(it.municipality,municipality)
++    }.sortedBy{it.name}
++    fun normalize(s:String):String = Normalizer.normalize(s,Normalizer.Form.NFD)
++        .replace(Regex("\\p{M}+"),"").lowercase(Locale.ROOT)
++        .replace(Regex("[^a-z0-9]+")," ").trim()
++    private fun same(a:String,b:String) = normalize(a)==normalize(b)
++
+     val types=listOf("Consulta", "Exame", "Exame complementar de diagnóstico",
+         "Tratamento", "Colheita", "Enfermagem", "Fisioterapia", "Cirurgia",
+         "Radioterapia", "Quimioterapia", "Atestado médico", "Outro")
+diff -ruN base/src/main/java/com/mediagenda/app/MainActivity.kt src/main/java/com/mediagenda/app/MainActivity.kt
+--- base/src/main/java/com/mediagenda/app/MainActivity.kt	2026-10-24 08:36:43.132200580 +0000
++++ src/main/java/com/mediagenda/app/MainActivity.kt	2026-10-24 09:04:56.715499248 +0000
+@@ -3,6 +3,7 @@
+ import android.Manifest
+ import android.app.AlarmManager
+ import android.app.DatePickerDialog
++import android.location.Geocoder
+ import android.content.ClipData
+ import android.content.ClipboardManager
+ import android.content.Context
+@@ -91,6 +92,7 @@
+     private lateinit var bottomNav: LinearLayout
+     private var currentScreen = "Início"
+ 
++    private var pendingFacilitySelection: ((String) -> Unit)? = null
+     private enum class PhotoMode { AGENDA, PRESCRIPTION, MEDICATION_BOX, MEDICATION_ATTACH, ID_CARD_BACK }
+     private var pendingPhotoMode: PhotoMode = PhotoMode.AGENDA
+     private var pendingPhotoUri: Uri? = null
+@@ -399,7 +401,17 @@
+         else Toast.makeText(this, "Sem permissão de câmara.", Toast.LENGTH_SHORT).show()
+     }
+     private val locationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+-        if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
++        val unitCallback = pendingFacilitySelection
++        pendingFacilitySelection = null
++        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
++            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
++        if (unitCallback != null) {
++            if (granted) chooseHealthcareByGps(unitCallback)
++            else {
++                Toast.makeText(this, "Sem acesso à localização. Seleciona o distrito manualmente.", Toast.LENGTH_LONG).show()
++                chooseHealthcareDistrict(unitCallback)
++            }
++        } else if (granted) {
+             openNearbyPharmaciesWithLocation()
+         } else {
+             Toast.makeText(this, "Sem localização. Vou abrir a pesquisa no mapa.", Toast.LENGTH_LONG).show()
+@@ -2736,6 +2748,127 @@
+             .show()
+     }
+ 
++    /** Pesquisa de unidades com Distrito → Concelho → Unidade, com localização opcional.
++     * A base local é uma lista inicial, não o inventário nacional da ERS.
++     */
++    private fun chooseHealthcareDistrict(onSelected: (String) -> Unit) {
++        val districts = HealthcareCatalog.districts(this)
++        val options = listOf("📍 Usar localização do telemóvel") + districts
++        MaterialAlertDialogBuilder(this).setTitle("1/3 · Escolher distrito ou região")
++            .setItems(options.toTypedArray()) { _, index ->
++                if (index == 0) requestHealthcareGps(onSelected)
++                else chooseHealthcareMunicipality(districts[index-1],onSelected)
++            }.setNegativeButton("Cancelar",null).show()
++    }
++
++    private fun chooseHealthcareMunicipality(district:String,onSelected:(String)->Unit) {
++        val municipalities=HealthcareCatalog.municipalities(this,district)
++        val options=municipalities + "✍️ Escrever concelho manualmente"
++        MaterialAlertDialogBuilder(this).setTitle("2/3 · Concelho de $district")
++            .setItems(options.toTypedArray()) { _, index ->
++                if (index<municipalities.size) chooseHealthcareFacility(district,municipalities[index],onSelected)
++                else {
++                    val field=android.widget.EditText(this).apply{hint="Concelho";setSingleLine(true)}
++                    MaterialAlertDialogBuilder(this).setTitle("Indicar concelho")
++                        .setView(field).setPositiveButton("Continuar") { _,_->
++                            val typed=field.text.toString().trim()
++                            if(typed.isNotBlank())chooseHealthcareFacility(district,typed,onSelected)
++                        }.setNegativeButton("Cancelar",null).show()
++                }
++            }.setNeutralButton("‹ Distrito") { _,_->chooseHealthcareDistrict(onSelected)}
++            .setNegativeButton("Cancelar",null).show()
++    }
++
++    private fun chooseHealthcareFacility(district:String,municipality:String,onSelected:(String)->Unit) {
++        val facilities=HealthcareCatalog.facilities(district,municipality)
++        val options=facilities.map{it.name} + listOf("✍️ Outra unidade (escrever)",
++            "🔎 Consultar registo nacional ERS")
++        val prefs=getSharedPreferences("saudepratica_facility_filter",MODE_PRIVATE)
++        prefs.edit().putString("district",district).putString("municipality",municipality).apply()
++        MaterialAlertDialogBuilder(this)
++            .setTitle("3/3 · $municipality ($district)")
++            .setItems(options.toTypedArray()) { _,index->
++                when(index){
++                    in 0 until facilities.size -> onSelected(facilities[index].name)
++                    facilities.size -> enterHealthcareFacility(municipality,onSelected)
++                    else -> {
++                        openUrl(HealthcareCatalog.ersUrl)
++                        // ERS pesquisa num navegador; a escolha manual continua disponível.
++                    }
++                }
++            }
++            .setNeutralButton("‹ Concelho") { _,_->chooseHealthcareMunicipality(district,onSelected)}
++            .setNegativeButton("Cancelar",null).show()
++    }
++
++    private fun enterHealthcareFacility(municipality:String,onSelected:(String)->Unit) {
++        val field=android.widget.EditText(this).apply {
++            hint="Nome do hospital, clínica, USF ou centro de saúde"
++            setSingleLine(false)
++            setPadding(dp(14),dp(12),dp(14),dp(12))
++        }
++        MaterialAlertDialogBuilder(this).setTitle("Unidade de $municipality")
++            .setView(field).setPositiveButton("Selecionar") { _,_->
++                val name=field.text.toString().trim()
++                if(name.isNotEmpty())onSelected(name)
++            }.setNegativeButton("Cancelar",null).show()
++    }
++
++    private fun requestHealthcareGps(onSelected:(String)->Unit) {
++        val fine=ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED
++        val coarse=ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED
++        if (fine || coarse) chooseHealthcareByGps(onSelected)
++        else {
++            pendingFacilitySelection=onSelected
++            locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
++                Manifest.permission.ACCESS_COARSE_LOCATION))
++        }
++    }
++
++    private fun chooseHealthcareByGps(onSelected:(String)->Unit) {
++        val fine=ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED
++        val coarse=ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED
++        if(!fine && !coarse){chooseHealthcareDistrict(onSelected);return}
++        val client=LocationServices.getFusedLocationProviderClient(this)
++        val cts=CancellationTokenSource()
++        client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY,cts.token)
++            .addOnSuccessListener { location ->
++                if(location==null){
++                    Toast.makeText(this,"GPS não conseguiu localizar. Seleciona o distrito manualmente.",Toast.LENGTH_LONG).show()
++                    chooseHealthcareDistrict(onSelected)
++                } else {
++                    Thread {
++                        val locationNames=runCatching {
++                            val addr=Geocoder(this,Locale("pt","PT"))
++                                .getFromLocation(location.latitude,location.longitude,1)?.firstOrNull()
++                            addr?.adminArea.orEmpty() to (addr?.subAdminArea ?: addr?.locality).orEmpty()
++                        }.getOrNull()
++                        runOnUiThread {
++                            val districts=HealthcareCatalog.districts(this)
++                            val district=districts.firstOrNull{
++                                HealthcareCatalog.normalize(it)==HealthcareCatalog.normalize(locationNames?.first.orEmpty()) }
++                            val municipalities=if(district!=null)HealthcareCatalog.municipalities(this,district) else emptyList()
++                            val municipality=municipalities.firstOrNull{
++                                HealthcareCatalog.normalize(it)==HealthcareCatalog.normalize(locationNames?.second.orEmpty()) }
++                            if(district!=null && municipality!=null){
++                                MaterialAlertDialogBuilder(this)
++                                    .setTitle("Localização encontrada")
++                                    .setMessage("Distrito: $district\nConcelho: $municipality\nContinuar para escolher a unidade de saúde?")
++                                    .setPositiveButton("Escolher unidade") { _,_->chooseHealthcareFacility(district,municipality,onSelected)}
++                                    .setNegativeButton("Alterar distrito") { _,_->chooseHealthcareDistrict(onSelected)}.show()
++                            } else {
++                                Toast.makeText(this,"Não foi possível obter distrito e concelho. Escolhe manualmente.",Toast.LENGTH_LONG).show()
++                                chooseHealthcareDistrict(onSelected)
++                            }
++                        }
++                    }.start()
++                }
++            }.addOnFailureListener {
++                Toast.makeText(this,"Erro de localização. Seleciona manualmente.",Toast.LENGTH_LONG).show()
++                chooseHealthcareDistrict(onSelected)
++            }
++    }
++
+     private fun editAppointment(existing: Appointment?, fromOcr: Appointment? = null) {
+         val a = existing?.copy(
+             remindersMinutes = existing.remindersMinutes.toMutableList(),
+@@ -2754,14 +2887,11 @@
+         val recUntil=input("Repetir até (YYYY-MM-DD)",a.recurrence.until)
+         val weekdays=input("Dias semana Mon=0...Sun=6 (ex.: 1 para terça)",a.recurrence.weekdays.joinToString(","))
+         val ocr=inputMulti("Texto reconhecido / notas",a.ocrText)
+-        box.addView(noteBox("Local, edifício e especialidade", "Escolhe primeiro o local e depois o " +
+-            "departamento / edifício e a especialidade. Podes escrever qualquer unidade, mesmo que não esteja na lista."))
++        box.addView(noteBox("Local, edifício e especialidade", "Pesquisa primeiro por distrito e concelho (ou usa GPS com autorização), depois escolhe a " +
++            "unidade, departamento / edifício e especialidade. Também podes escrever outro local."))
+         box.addView(location.container)
+-        box.addView(secondaryButton("🏥 Escolher hospital / clínica / centro de saúde"){
+-            MaterialAlertDialogBuilder(this).setTitle("Unidades sugeridas (não exaustivo)")
+-                .setItems(HealthcareCatalog.facilities.toTypedArray()){_,idx->
+-                    location.edit.setText(HealthcareCatalog.facilities[idx])
+-                }.setNegativeButton("Cancelar",null).show()
++        box.addView(secondaryButton("🏥 Pesquisar unidade · Distrito → Concelho") {
++            chooseHealthcareDistrict { chosen -> location.edit.setText(chosen) }
+         })
+         box.addView(secondaryButton("🔎 Consultar diretório oficial ERS"){
+             startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(HealthcareCatalog.ersUrl)))
+@@ -3031,15 +3161,13 @@
+             observationNumber).forEach { box.addView(it.container) }
+         box.addView(noteBox("Números de observação por hospital ou clínica",
+             "Guarda vários números: um por linha como «Hospital / Clínica | N.º». " +
+-            "A lista de unidades é inicial e não substitui a pesquisa oficial da ERS."))
++            "Escolhe distrito e concelho antes da unidade. O catálogo local é inicial e não substitui a ERS."))
+         box.addView(observationsByUnit.container)
+-        box.addView(secondaryButton("＋ Escolher hospital / clínica para associar número") {
+-            MaterialAlertDialogBuilder(this).setTitle("Selecionar unidade (lista inicial)")
+-                .setItems(HealthcareCatalog.facilities.toTypedArray()){_,idx->
+-                    val chosen=HealthcareCatalog.facilities[idx]
+-                    val before=observationsByUnit.edit.text.toString().trim()
+-                    observationsByUnit.edit.setText(if(before.isEmpty())"$chosen | " else "$before\n$chosen | ")
+-                }.setNegativeButton("Cancelar",null).show()
++        box.addView(secondaryButton("＋ Pesquisar unidade · Distrito → Concelho") {
++            chooseHealthcareDistrict { chosen ->
++                val before=observationsByUnit.edit.text.toString().trim()
++                observationsByUnit.edit.setText(if(before.isEmpty())"$chosen | " else "$before\n$chosen | ")
++            }
+         })
+         box.addView(secondaryButton("🔎 Ver diretório completo oficial ERS") {
+             startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(HealthcareCatalog.ersUrl)))
+diff -ruN base/src/main/java/com/mediagenda/app/SupportHelpActivity.kt src/main/java/com/mediagenda/app/SupportHelpActivity.kt
+--- base/src/main/java/com/mediagenda/app/SupportHelpActivity.kt	2026-10-24 08:37:48.680924849 +0000
++++ src/main/java/com/mediagenda/app/SupportHelpActivity.kt	2026-10-24 09:04:56.716785427 +0000
+@@ -114,11 +114,11 @@
+                     "En Medicación selecciona la pauta prescrita (4/6/12 horas, comidas o SOS) y las horas. Puedes suspender por fecha o reactivar. En Tomas elige un medicamento registrado y confirma la toma manual.")),
+             Step(R.drawable.guide_calendar,
+                 arrayOf("3. Consultas e exames","3. Appointments and tests","3. Rendez-vous et examens","3. Termine und Untersuchungen","3. Citas y pruebas"),
+-                arrayOf("Na Agenda escolhe primeiro o local (ou pesquisa na ERS), o edifício/departamento e a especialidade; depois o tipo, data e hora. Atestados médicos têm data de validade e aviso dois dias antes. Na ficha de Perfil podes associar vários números de observação a diferentes unidades.",
+-                    "In Agenda select the healthcare facility, building/department and specialty, then type, date and time. Medical certificates have an expiry date and a reminder two days before. Profiles can store multiple facility-specific observation numbers.",
+-                    "Dans Agenda, choisissez le lieu, bâtiment/service et spécialité, puis type, date et heure. Les attestations médicales ont une date de fin et un rappel deux jours avant. Le profil peut stocker plusieurs numéros par établissement.",
+-                    "In der Agenda erst Einrichtung, Abteilung/Gebäude und Fachgebiet wählen, dann Typ und Datum. Atteste erinnern zwei Tage vor Ablauf. Im Profil lassen sich mehrere Beobachtungsnummern je Einrichtung speichern.",
+-                    "En Agenda elige el centro, edificio/departamento y especialidad antes del tipo y fecha. Los certificados médicos avisan dos días antes del vencimiento. El perfil permite varios números de observación por centro.")),
++                arrayOf("Na Agenda pesquisa a unidade por Distrito → Concelho → Hospital/Clínica, ou usa GPS com autorização, e depois indica o edifício/departamento e a especialidade; por fim, tipo, data e hora. Atestados médicos têm data de validade e aviso dois dias antes. Na ficha de Perfil podes associar vários números de observação a diferentes unidades.",
++                    "In Agenda select District → Municipality → Healthcare facility (or use phone location with consent), then building/department and specialty, type, date and time. Medical certificates have an expiry date and a reminder two days before. Profiles can store multiple facility-specific observation numbers.",
++                    "Dans Agenda, choisissez District → Commune → Établissement (ou la localisation GPS avec autorisation), puis bâtiment/service, spécialité, type et date. Les attestations médicales ont une date de fin et un rappel deux jours avant. Le profil peut stocker plusieurs numéros par établissement.",
++                    "In der Agenda zuerst Bezirk → Gemeinde → Einrichtung auswählen (oder GPS mit Einwilligung), dann Abteilung, Fachgebiet, Typ und Datum. Atteste erinnern zwei Tage vor Ablauf. Im Profil lassen sich mehrere Beobachtungsnummern je Einrichtung speichern.",
++                    "En Agenda elige Distrito → Municipio → Centro (o GPS con permiso), después edificio/departamento, especialidad, tipo y fecha. Los certificados médicos avisan dos días antes del vencimiento. El perfil permite varios números de observación por centro.")),
+             Step(R.drawable.guide_docs,
+                 arrayOf("4. Fotografias e documentos","4. Photos and documents","4. Photos et documents","4. Fotos und Dokumente","4. Fotos y documentos"),
+                 arrayOf("Guarda documentos e exames no perfil certo. Podes fotografar ou escolher ficheiros já existentes.",

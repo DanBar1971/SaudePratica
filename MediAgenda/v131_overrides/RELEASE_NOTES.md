@@ -1,0 +1,7 @@
+# SaúdePrática v1.9.111 — Botões uniformizados e objetivo de água corrigido
+
+- **Novo estilo comum:** todos os grupos de 2 e 3 botões dos diálogos Material têm apresentação arredondada e horizontal, de acordo com a imagem de referência: vermelho escuro para ações destrutivas (Eliminar/Apagar), azul para Cancelar/Fechar e verde para Guardar/Criar ZIP/Confirmar. As cores seguem o significado dos botões, independentemente da sua nomenclatura ou posição.
+- **Ficha de perfil:** «Eliminar / Cancelar / Guardar» recebem o mesmo estilo, mantendo o rodapé fixo e o formulário deslocável.
+- **Água:** corrigido o diálogo «Adicionar novo objetivo hoje», em que no Xiaomi as quantidades desapareciam e só restava «Cancelar». Agora aparecem +250, +500, +750, +1000 e +1500 ml. O aviso sobre restrições de líquidos mantém-se no cartão. O armazenamento e o reagendamento dos avisos permanecem inalterados.
+- **Sem alterações** ao Gemini, nutrição, medicação ou dados guardados. Mesmo identificador Android (`com.mediagenda.app.stable`) e certificado original. `versionCode=121` / `versionName=1.9.111`.
+- **Verificações em dispositivo recomendadas:** diálogos de 2 e 3 ações, ficha de perfil com teclado aberto e acrescentar objetivo de água; instalar por cima da versão anterior sem desinstalar, depois de backup preventivo.

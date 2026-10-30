@@ -1,0 +1,238 @@
+"""SaúdePrática v1.9.101: card UX, default med images, secure leaflet PDF storage,
+compact agenda and profile-independent preservation of previous medication data.
+Patch runs after all v1.9.100 overrides have been applied.
+"""
+import base64
+from pathlib import Path
+R=Path('build-src/MediAgenda_Android_v1')
+APP=R/'app/src/main/java/com/mediagenda/app'
+
+def patch(path,old,new,label):
+    p=APP/path
+    s=p.read_text(encoding='utf-8')
+    count=s.count(old)
+    if label=='medication rounded card' and count==2:
+        p.write_text(s.replace(old,new,1),encoding='utf-8')
+        return
+    if count!=1:raise RuntimeError(f'{label}: anchor count {count}')
+    p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+patch(Path('model/Models.kt'),
+    '    var images: MutableList<String> = mutableListOf()\n)',
+    '''    var images: MutableList<String> = mutableListOf(),
+    // "photo" = user-supplied box image (or placeholder if none); "unboxed" = medicine without box;
+    // "missing" = physical packaging exists, but no photo was supplied.
+    var boxPhotoMode: String = "photo",
+    // Stable ID of a PDF in this profile's private Documentos Digitais vault.
+    var leafletDocumentId: String = ""
+)''','medication data model')
+
+
+# DataRepository uses explicit JSON: persist stable document linkage and mode on every edit/export.
+patch(Path('data/DataRepository.kt'),
+    '''                schedule = schedule,
+                images = images
+            )''',
+    '''                schedule = schedule,
+                images = images,
+                boxPhotoMode = o.optString("box_photo_mode", "photo").ifBlank { "photo" },
+                leafletDocumentId = o.optString("leaflet_document_id", "")
+            )''',
+    'medicine flags JSON load')
+patch(Path('data/DataRepository.kt'),
+    '''                .put("source_barcode", m.sourceBarcode)
+                .put("schedule", schedule)''',
+    '''                .put("source_barcode", m.sourceBarcode)
+                .put("box_photo_mode", m.boxPhotoMode)
+                .put("leaflet_document_id", m.leafletDocumentId)
+                .put("schedule", schedule)''',
+    'medicine flags JSON save')
+
+# View flags / file capture, profile-bound and separate from ordinary med photos.
+patch(Path('MainActivity.kt'),
+    '    private var pendingMedicationPhotoTargetId: String? = null\n',
+    '''    private var pendingMedicationPhotoTargetId: String? = null
+    private var leafletMedicineId:String?=null
+    private var leafletProfileId:String?=null
+    private var leafletPhotoFile:File?=null
+    private val leafletPdfPicker=registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if(uri!=null)saveMedicineLeaflet(uri)
+        else clearLeafletCapture()
+    }
+    private val leafletCamera=registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val source=leafletPhotoFile
+        if(ok && source!=null && source.length()>100){
+            var pdfFile:File?=null
+            try{
+                pdfFile=photoToLeafletPdf(source)
+                saveMedicineLeaflet(Uri.fromFile(pdfFile))
+            }catch(ex:Exception){
+                showError("Não foi possível digitalizar a bula: "+(ex.message?:"Erro desconhecido"))
+            }finally{
+                source.delete(); pdfFile?.delete();leafletPhotoFile=null
+            }
+        }else{source?.delete();clearLeafletCapture()}
+    }
+    private fun clearLeafletCapture(){
+        leafletMedicineId=null;leafletProfileId=null;leafletPhotoFile=null
+    }
+    private fun photoToLeafletPdf(source:File):File{
+        val options=android.graphics.BitmapFactory.Options().apply {inJustDecodeBounds=true}
+        android.graphics.BitmapFactory.decodeFile(source.absolutePath,options)
+        require(options.outWidth>0 && options.outHeight>0) {"Fotografia da bula inválida"}
+        val scale=(maxOf(options.outWidth,options.outHeight)/1800).coerceAtLeast(1)
+        val bitmap=android.graphics.BitmapFactory.decodeFile(source.absolutePath,
+            android.graphics.BitmapFactory.Options().apply {inSampleSize=scale})
+            ?:error("Não foi possível abrir a fotografia")
+        val pdf=android.graphics.pdf.PdfDocument()
+        val out=File.createTempFile("bula_digit_", ".pdf",cacheDir)
+        try{
+            val landscape=bitmap.width>bitmap.height
+            val w=if(landscape)842 else 595
+            val h=if(landscape)595 else 842
+            val page=pdf.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(w,h,1).create())
+            val usableW=(w-40).toFloat();val usableH=(h-40).toFloat()
+            val factor=minOf(usableW/bitmap.width,usableH/bitmap.height)
+            val target=android.graphics.RectF((w-bitmap.width*factor)/2f,
+                (h-bitmap.height*factor)/2f,(w+bitmap.width*factor)/2f,
+                (h+bitmap.height*factor)/2f)
+            page.canvas.drawColor(android.graphics.Color.WHITE)
+            page.canvas.drawBitmap(bitmap,null,target,android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+            pdf.finishPage(page)
+            out.outputStream().use{pdf.writeTo(it)}
+            require(out.length()>100){"O PDF da bula está vazio"}
+            return out
+        }finally{pdf.close();bitmap.recycle()}
+    }
+    private fun saveMedicineLeaflet(uri:Uri){
+        val id=leafletMedicineId;val profile=leafletProfileId
+        if(id.isNullOrBlank()||profile.isNullOrBlank())return
+        try{
+            val medicines=com.mediagenda.app.data.DataRepository(this,profile).loadMedications()
+            val idx=medicines.indexOfFirst{it.id==id}
+            require(idx>=0){"O medicamento já não existe neste perfil"}
+            val current=medicines[idx]
+            val item=com.mediagenda.app.data.HealthDocumentStore(this,profile)
+                .add(uri,"Bula · "+current.medication.ifBlank{"Medicamento"})
+            medicines[idx]=current.copy(leafletDocumentId=item.id)
+            com.mediagenda.app.data.DataRepository(this,profile).saveMedications(medicines)
+            Toast.makeText(this,"Bula guardada em PDF nos Documentos Digitais.",Toast.LENGTH_LONG).show()
+            if(activeProfileId==profile)showMedication()
+        }catch(ex:Exception){showError("Bula não guardada: "+(ex.message?:"Erro"))}
+        finally{clearLeafletCapture()}
+    }
+    private fun chooseLeaflet(id:String,camera:Boolean){
+        leafletMedicineId=id;leafletProfileId=activeProfileId
+        if(!camera){leafletPdfPicker.launch(arrayOf("application/pdf"));return}
+        try{
+            val folder=File(cacheDir,"saudepratica_document_scans").apply{mkdirs()}
+            val file=File.createTempFile("bula_", ".jpg",folder)
+            leafletPhotoFile=file
+            leafletCamera.launch(FileProvider.getUriForFile(this,"$packageName.documents",file))
+        }catch(ex:Exception){clearLeafletCapture();showError("Câmara indisponível: "+ex.message)}
+    }
+    private fun openMedicineLeaflet(med:Medication){
+        val doc=com.mediagenda.app.data.HealthDocumentStore(this,activeProfileId).all()
+            .firstOrNull{it.id==med.leafletDocumentId}
+        if(doc==null){showError("Bula não encontrada. Podes anexar o PDF novamente.");return}
+        startActivity(Intent(this,DocumentOrientationActivity::class.java)
+            .putExtra(DocumentOrientationActivity.PROFILE,activeProfileId)
+            .putExtra(DocumentOrientationActivity.GROUP,"documents")
+            .putExtra(DocumentOrientationActivity.FILENAME,doc.fileName)
+            .putExtra(DocumentOrientationActivity.TITLE,doc.name)
+            .putExtra(DocumentOrientationActivity.VIEW_ONLY,true))
+    }
+''','leaflet capture methods')
+
+# Edit flow: separate no-box medicine from packaging with no image.
+patch(Path('MainActivity.kt'),
+  '        val medicationNotes = inputMulti("Notas da medicação", m.notes)\n',
+  '''        val medicationNotes = inputMulti("Notas da medicação", m.notes)
+        val photoModes=listOf("Foto da embalagem (se disponível)" to "photo",
+            "Medicamento sem caixa" to "unboxed",
+            "Embalagem sem fotografia" to "missing")
+        var chosenPhotoMode=m.boxPhotoMode.takeIf {it in photoModes.map {p->p.second} } ?: "photo"
+        lateinit var photoModeButton: MaterialButton
+        photoModeButton=secondaryButton("Imagem: "+photoModes.first{it.second==chosenPhotoMode}.first){
+            MaterialAlertDialogBuilder(this).setTitle("Fotografia do medicamento")
+                .setSingleChoiceItems(photoModes.map {it.first}.toTypedArray(),
+                    photoModes.indexOfFirst{it.second==chosenPhotoMode}){dialog,which->
+                    chosenPhotoMode=photoModes[which].second
+                    photoModeButton.text="Imagem: "+photoModes[which].first
+                    dialog.dismiss()
+                }.setNegativeButton("Cancelar",null).show()
+        }
+        box.addView(noteBox("Fotografia da medicação",
+            "Sem caixa: mostra os comprimidos vermelhos e brancos. " +
+            "Sem fotografia: mostra a embalagem branca. Uma fotografia verdadeira tem prioridade apenas no modo Foto da embalagem."))
+        box.addView(photoModeButton)
+        if(existing==null)box.addView(noteBox("Bula do medicamento",
+            "Depois de guardar o medicamento, poderás anexar a bula em PDF ou fotografá-la para criar um PDF."))
+''','medication image mode chooser')
+patch(Path('MainActivity.kt'),
+  '            box.addView(secondaryButton("🖼️ Anexar foto existente da embalagem")',
+  '''            box.addView(noteBox("📄 Bula / Folheto informativo",
+                if(m.leafletDocumentId.isBlank())"Ainda não existe bula associada. " +
+                    "Escolhe um PDF ou fotografa a bula; ficará arquivada em Documentos Digitais." else
+                    "Bula guardada no perfil. Podes voltar a ver, substituir ou consultar o PDF nos Documentos Digitais."))
+            box.addView(secondaryButton("📎 Anexar bula em PDF") {
+                activeMedicationDialog?.dismiss();activeMedicationDialog=null
+                chooseLeaflet(existing.id,false)
+            })
+            box.addView(secondaryButton("📷 Digitalizar bula com a câmara → PDF") {
+                activeMedicationDialog?.dismiss();activeMedicationDialog=null
+                chooseLeaflet(existing.id,true)
+            })
+            if(m.leafletDocumentId.isNotBlank())
+                box.addView(secondaryButton("👁 Ver bula em PDF") {
+                    openMedicineLeaflet(m)
+                })
+            box.addView(secondaryButton("🖼️ Anexar foto existente da embalagem")''',
+  'medication leaflet buttons')
+patch(Path('MainActivity.kt'),
+  '                m.notes=medicationNotes.edit.text.toString().trim()\n',
+  '''                m.notes=medicationNotes.edit.text.toString().trim()
+                m.boxPhotoMode=chosenPhotoMode
+''','persist medication image mode')
+
+# Modern portrait-style cards with clear suspension banner and fallbacks.
+patch(Path('MainActivity.kt'),
+'''    class H(val card:MaterialCardView,val title:TextView,val detail:TextView,val code:TextView,val delete:TextView,
+        val timeBadge:TextView,val pill:TextView,val thumbnail:android.widget.ImageView,
+        val takeButton:com.google.android.material.button.MaterialButton,
+        val lastTakenText:TextView):RecyclerView.ViewHolder(card)''',
+'''    class H(val card:MaterialCardView,val title:TextView,val detail:TextView,val code:TextView,val delete:TextView,
+        val timeBadge:TextView,val pill:TextView,val thumbnail:android.widget.ImageView,
+        val takeButton:com.google.android.material.button.MaterialButton,
+        val lastTakenText:TextView,val suspendedBadge:TextView,
+        val leafletBadge:TextView):RecyclerView.ViewHolder(card)''',
+    'medication ViewHolder flags')
+patch(Path('MainActivity.kt'),
+    '''        val card=MaterialCardView(c).apply{radius=dp(18).toFloat();cardElevation=dp(1).toFloat();strokeWidth=dp(1);strokeColor=Color.parseColor("#E3E8EF");setCardBackgroundColor(Color.WHITE)}''',
+    '''        val card=MaterialCardView(c).apply{radius=dp(22).toFloat();cardElevation=dp(2).toFloat();strokeWidth=dp(1);strokeColor=Color.parseColor("#C7D7DC");setCardBackgroundColor(Color.WHITE)}''',
+    'medication rounded card')
+patch(Path('MainActivity.kt'),
+    '            layoutParams=LinearLayout.LayoutParams(dp(72),dp(72))',
+    '            layoutParams=LinearLayout.LayoutParams(dp(108),dp(132))',
+    'medication portrait box')
+patch(Path('MainActivity.kt'),
+    '''        val left=LinearLayout(c).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER_HORIZONTAL}
+        left.addView(icon);left.addView(image);left.addView(clock)''',
+    '''        val left=LinearLayout(c).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER_HORIZONTAL}
+        left.addView(image);left.addView(icon);left.addView(clock)
+        icon.visibility=View.GONE''',
+    'medication thumbnail left')
+patch(Path('MainActivity.kt'),
+    '''        val title=TextView(c).apply{textSize=16.5f;setTextColor(Color.parseColor("#132238"));setTypeface(typeface,Typeface.BOLD)}''',
+    '''        val title=TextView(c).apply{textSize=17.5f;setTextColor(Color.parseColor("#132238"));setTypeface(typeface,Typeface.BOLD)}''',
+    'medication title bold')
+patch(Path('MainActivity.kt'),
+    '''        val del=TextView(c).apply{text="✕";textSize=18f;gravity=Gravity.CENTER;setTextColor(Color.parseColor("#B42318"));setPadding(dp(10),dp(10),dp(10),dp(10))}
+        row.addView(left);row.addView(texts,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f));row.addView(del)
+        card.addView(row);return H(card,title,detail,code,del,clock,icon,image,take,taken)''',
+    '''        val leaflet=TextView(c).apply{
+            text="📄 Bula PDF";textSize=11f;setTextColor(Color.parseColor("#006A61"))
+            setPadding(0,dp(5),0,0);visibility=View.GONE
+        }
+        texts.addView(leaflet)
+        val del=TextView(c).apply{text="✕";textSize=18f;gravity=Gravity.

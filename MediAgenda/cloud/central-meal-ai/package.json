@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "name": "saudepratica-refeicoes-central",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put OPENAI_API_KEY",
+    "dev": "wrangler dev",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}

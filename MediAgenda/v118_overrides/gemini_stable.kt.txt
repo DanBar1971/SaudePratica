@@ -1,0 +1,82 @@
+    private class RetryableGeminiException(
+        message:String,val status:Int
+    ):Exception(message)
+
+    /** Use stable, low-cost image-capable Gemini models, not heavily loaded
+     * preview models. Each alternate has its own model-specific rate limits.
+     * 429 is NEVER proof that the user's API key is invalid; no hidden billing.
+     * Do not endlessly retry a project with no quota.
+     */
+    private fun call(key:String,body:JSONObject):JSONObject{
+        val models=listOf("gemini-3.5-flash-lite","gemini-3.1-flash-lite",
+            "gemini-2.5-flash-lite")
+        var last:Throwable?=null
+        var exhausted=false
+        var unavailable=false
+        for((index,model) in models.withIndex()){
+            try {
+                return sendOnce(key,body,model).put("model_used",model)
+            }catch(e:RetryableGeminiException){
+                last=e
+                if(e.status==429) exhausted=true else unavailable=true
+            }catch(e:java.net.SocketTimeoutException){
+                last=e;unavailable=true
+            }catch(e:java.net.SocketException){
+                last=e;unavailable=true
+            }
+            if(index<models.lastIndex){
+                try {Thread.sleep(950L)}
+                catch(e:InterruptedException){
+                    Thread.currentThread().interrupt()
+                    throw IllegalStateException("Análise Gemini interrompida.",e)
+                }
+            }
+        }
+        val diagnostic=when{
+            exhausted && unavailable -> "O Gemini devolveu erros HTTP 429 e indisponibilidade " +
+                "(HTTP 503/ligação). Foram verificados três modelos oficiais. "
+            exhausted -> "O projeto Google atingiu o limite de utilização Gemini " +
+                "(HTTP 429) nos modelos testados. "
+            else -> "O Gemini está temporariamente indisponível (HTTP 503 ou ligação). "
+        }
+        throw IllegalStateException(diagnostic+
+            "Consulta Quotas e utilização em aistudio.google.com/rate-limit. " +
+            "A chave e a fotografia foram preservadas; podes guardar manualmente.",last)
+    }
+
+    private fun sendOnce(key:String,body:JSONObject,model:String):JSONObject{
+        require(model=="gemini-3.5-flash-lite" || model=="gemini-3.1-flash-lite" ||
+            model=="gemini-2.5-flash-lite")
+        val endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+
+            model+":generateContent"
+        val connection=URL(endpoint).openConnection() as HttpURLConnection
+        connection.requestMethod="POST";connection.doOutput=true
+        connection.instanceFollowRedirects=false
+        connection.connectTimeout=12000;connection.readTimeout=36000
+        connection.setRequestProperty("Content-Type","application/json; charset=utf-8")
+        connection.setRequestProperty("Accept","application/json")
+        connection.setRequestProperty("Cache-Control","no-store")
+        connection.setRequestProperty("X-goog-api-key",key)
+        return try{
+            connection.outputStream.use{
+                it.write(body.toString().toByteArray(Charsets.UTF_8))
+            }
+            val status=connection.responseCode
+            if(status !in 200..299){
+                // Do not echo raw server errors: they may include account data.
+                when(status){
+                    408,429,500,502,503,504->throw RetryableGeminiException(
+                        "O serviço Gemini respondeu HTTP $status ($model).",status)
+                    400,401,403->error("O Google recusou o pedido (HTTP $status). " +
+                        "Verifica a autorização da chave e os modelos disponíveis.")
+                    404->throw RetryableGeminiException(
+                        "Modelo Gemini indisponível (HTTP 404, $model).",status)
+                    else->error("Falha Gemini HTTP $status.")
+                }
+            }
+            val response=connection.inputStream.bufferedReader(Charsets.UTF_8).use{
+                it.readText().take(120000)
+            }
+            JSONObject(response)
+        }finally{connection.disconnect()}
+    }

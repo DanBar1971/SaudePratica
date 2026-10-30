@@ -1,0 +1,227 @@
+    /** Full-height review with a sticky Save button: labels are never hidden
+     * by prefilled values and all ingredient cards remain scrollable.
+     * Saves directly to the existing private per-profile MealDiary once.
+     */
+    private fun reviewGeminiFoods(response:JSONObject) {
+        lastGeminiResult=JSONObject(response.toString())
+        val dialog=android.app.Dialog(this)
+        val background=if(isDark) Color.rgb(18,32,43) else Color.rgb(248,251,252)
+        val cardColor=if(isDark) Color.rgb(33,49,61) else Color.WHITE
+        val root=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            setBackgroundColor(background)
+            setPadding(dp(16),dp(10),dp(16),dp(12))
+        }
+        val heading=LinearLayout(this).apply {
+            orientation=LinearLayout.HORIZONTAL
+            gravity=Gravity.CENTER_VERTICAL
+        }
+        heading.addView(label("Rever refeição",22f,true),
+            LinearLayout.LayoutParams(0,-2,1f))
+        heading.addView(button("✕ Fechar"){dialog.dismiss()})
+        root.addView(heading)
+        root.addView(label("Corrige os alimentos e confirma as porções. Só serão guardados depois de tocares em Guardar refeição.",13f)
+            .apply{setTextColor(secondary)})
+        val scroll=ScrollView(this).apply{isFillViewport=false}
+        val content=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            setPadding(0,dp(5),0,dp(16))
+        }
+        scroll.addView(content)
+        root.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
+        val image=photo
+        if(image!=null){
+            content.addView(ImageView(this).apply{
+                adjustViewBounds=true
+                scaleType=ImageView.ScaleType.FIT_CENTER
+                setImageBitmap(BitmapFactory.decodeByteArray(image,0,image.size))
+                contentDescription="Fotografia da refeição a registar"
+            },LinearLayout.LayoutParams(-1,dp(126)).apply{bottomMargin=dp(8)})
+        }
+        val source=response.optString("source","Análise Gemini")
+        content.addView(label("✨ "+source+" · estimativas sujeitas a confirmação",13f)
+            .apply{setTextColor(secondary)})
+        val list=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
+        content.addView(list)
+        val summary=label("Total estimado",17f,true)
+        val portions=mutableListOf<Pair<LinearLayout,List<EditText>>>()
+        fun valueOf(field:EditText):Double {
+            return field.text.toString().trim().replace(',','.').toDoubleOrNull()
+                ?:Double.NaN
+        }
+        fun updateTotal(){
+            var sum=0.0
+            portions.forEach{(_,fields)->
+                if(fields[0].text.toString().isNotBlank()){
+                    val v=valueOf(fields[2])
+                    if(v.isFinite() && v>=0)sum+=v
+                }
+            }
+            summary.text="Total estimado: "+String.format(Locale("pt","PT"),"%.0f",sum)+" kcal"
+        }
+        fun editField(title:String,initial:Double):EditText{
+            return input(title,String.format(Locale.US,"%.1f",initial),true).apply {
+                textSize=16f
+                setSelectAllOnFocus(true)
+                addTextChangedListener(object:TextWatcher{
+                    override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int){}
+                    override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){
+                        updateTotal()
+                    }
+                    override fun afterTextChanged(s:Editable?){}
+                })
+            }
+        }
+        fun addIngredient(item:JSONObject){
+            val card=LinearLayout(this).apply{
+                orientation=LinearLayout.VERTICAL
+                this.background=GradientDrawable().apply{
+                    setColor(cardColor)
+                    cornerRadius=dp(16).toFloat()
+                    setStroke(dp(1),if(isDark)Color.rgb(64,85,96) else Color.rgb(214,229,230))
+                }
+                setPadding(dp(12),dp(9),dp(12),dp(12))
+            }
+            val name=input("Nome do alimento",item.optString("name")).apply{
+                textSize=17f
+            }
+            card.addView(label("Alimento",12f,true).apply{setTextColor(secondary)})
+            card.addView(name)
+            val grams=editField("Gramas",item.optDouble("grams",100.0))
+            val energy=editField("kcal",item.optDouble("kcal",0.0))
+            val protein=editField("Proteínas",item.optDouble("protein_g",0.0))
+            val carbs=editField("Hidratos",item.optDouble("carbs_g",0.0))
+            val fat=editField("Gorduras",item.optDouble("fat_g",0.0))
+            val basic=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
+            for((title,field) in listOf("Quantidade (g)" to grams,"Calorias (kcal)" to energy)){
+                val wrapper=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
+                wrapper.addView(label(title,12f,true).apply{setTextColor(secondary)})
+                wrapper.addView(field)
+                basic.addView(wrapper,LinearLayout.LayoutParams(0,-2,1f))
+            }
+            card.addView(basic)
+            val advanced=LinearLayout(this).apply{
+                orientation=LinearLayout.VERTICAL
+                visibility=android.view.View.GONE
+            }
+            for((title,field) in listOf("Proteínas (g)" to protein,
+                        "Hidratos de carbono (g)" to carbs,"Gorduras (g)" to fat)){
+                advanced.addView(label(title,12f,true).apply{setTextColor(secondary)})
+                advanced.addView(field)
+            }
+            val controls=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
+            controls.addView(button("Nutrientes ▾"){
+                advanced.visibility=if(advanced.visibility==android.view.View.GONE)
+                    android.view.View.VISIBLE else android.view.View.GONE
+            },LinearLayout.LayoutParams(0,-2,1f))
+            controls.addView(button("Retirar"){
+                list.removeView(card)
+                portions.removeAll{it.first===card}
+                updateTotal()
+            },LinearLayout.LayoutParams(0,-2,1f))
+            card.addView(controls)
+            card.addView(advanced)
+            list.addView(card,LinearLayout.LayoutParams(-1,-2).apply{
+                bottomMargin=dp(9)
+            })
+            portions.add(card to listOf(name,grams,energy,protein,carbs,fat))
+            updateTotal()
+        }
+        val incoming=response.optJSONArray("foods")?:JSONArray()
+        for(i in 0 until incoming.length()){
+            incoming.optJSONObject(i)?.let{addIngredient(it)}
+        }
+        content.addView(button("＋ Acrescentar alimento"){
+            addIngredient(JSONObject().put("name","").put("grams",100))
+            scroll.post{scroll.smoothScrollTo(0,list.bottom)}
+        })
+        val type=input("Tipo de refeição","Almoço")
+        val notes=input("Observações",response.optString("uncertainty_note","")).apply{
+            setSingleLine(false);minLines=2
+        }
+        content.addView(label("Tipo de refeição",13f,true))
+        content.addView(type)
+        content.addView(label("Observações (opcional)",13f,true))
+        content.addView(notes)
+        content.addView(label("Os valores são estimativas. Revisa óleo, molhos, bebidas e porções.",12f)
+            .apply{setTextColor(secondary)})
+        content.addView(button("✍ Pedir nova correção à IA"){
+            dialog.dismiss()
+            correctGemini(response)
+        })
+        val footer=LinearLayout(this).apply{
+            orientation=LinearLayout.VERTICAL
+            setPadding(0,dp(8),0,dp(6))
+        }
+        footer.addView(summary)
+        val save=button("✓ Guardar refeição no diário"){
+            try{
+                val foods=JSONArray()
+                var calories=0.0
+                var proteinTotal=0.0
+                var carbsTotal=0.0
+                var fatTotal=0.0
+                for((_,fields) in portions){
+                    val name=fields[0].text.toString().trim()
+                    if(name.isEmpty())continue
+                    val numbers=fields.drop(1).map{valueOf(it)}
+                    require(numbers[0].isFinite() && numbers[0] in 1.0..2500.0 &&
+                        numbers.drop(1).all{it.isFinite() && it in 0.0..5000.0}){
+                        "Revê gramas, calorias e nutrientes de "+name
+                    }
+                    foods.put(JSONObject().put("name",name.take(100))
+                        .put("grams",numbers[0]).put("kcal",numbers[1])
+                        .put("protein_g",numbers[2]).put("carbs_g",numbers[3])
+                        .put("fat_g",numbers[4]))
+                    calories+=numbers[1];proteinTotal+=numbers[2]
+                    carbsTotal+=numbers[3];fatTotal+=numbers[4]
+                }
+                require(foods.length()>0 && calories in 1.0..10000.0){
+                    "Confirma pelo menos um alimento e o total de calorias."
+                }
+                val lines=(0 until foods.length()).joinToString("\n"){i->
+                    val f=foods.getJSONObject(i)
+                    f.optString("name")+" · "+
+                        String.format(Locale("pt","PT"),"%.0f",f.optDouble("grams"))+
+                        " g (≈"+String.format(Locale("pt","PT"),"%.0f",f.optDouble("kcal"))+" kcal)"
+                }
+                val record=JSONObject().put("id",UUID.randomUUID().toString())
+                    .put("at",System.currentTimeMillis())
+                    .put("meal",type.text.toString().trim().ifBlank{"Refeição"}.take(80))
+                    .put("foods",lines.take(1200))
+                    .put("kcal",calories).put("protein_g",proteinTotal)
+                    .put("carbs_g",carbsTotal).put("fat_g",fatTotal)
+                    .put("note",notes.text.toString().take(500))
+                    .put("estimated",true)
+                    .put("source","Gemini · revisto pelo utilizador")
+                MealDiary(this,profileId).add(record,photo)
+                dialog.dismiss()
+                photo=null
+                lastGeminiResult=null
+                Toast.makeText(this,"Refeição e fotografia guardadas neste perfil.",Toast.LENGTH_LONG).show()
+                draw()
+            }catch(e:Exception){
+                MaterialAlertDialogBuilder(this).setTitle("Não foi possível guardar")
+                    .setMessage(e.message?:"Revê os valores dos alimentos.")
+                    .setPositiveButton("Voltar à revisão",null).show()
+            }
+        }.apply{
+            backgroundTintList=ColorStateList.valueOf(teal)
+            setTextColor(Color.rgb(0,27,31))
+            textSize=16f
+            minHeight=dp(54)
+        }
+        footer.addView(save,LinearLayout.LayoutParams(-1,-2))
+        root.addView(footer)
+        dialog.setContentView(root)
+        dialog.show()
+        dialog.window?.apply{
+            setBackgroundDrawable(ColorDrawable(background))
+            setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT)
+            setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            navigationBarColor=background
+            statusBarColor=background
+        }
+        updateTotal()
+    }

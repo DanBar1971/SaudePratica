@@ -1,0 +1,8 @@
+{
+  "tag": "v1.9.85",
+  "base_tag": "v1.9.84",
+  "asset": "SaudePratica.apk",
+  "base_sha256": "f8cecd25797198a81354550eb1678834daf51b6e57c7b0bcda675672681ec3b5",
+  "apk_sha256": "ab67294085443af0af389f26bb643cef8e146384923502060b1d126a7f18b77b",
+  "delta_sha256": "7be92cc1ca3c32dcb26531d8e538f766b962c32b06efe55dde32e2825705a9aa"
+}

@@ -1,0 +1,14 @@
+{
+  "tag": "v1.9.104",
+  "base_tag": "v1.9.103",
+  "asset": "SaudePratica.apk",
+  "unsigned_run_id": 40655616890,
+  "unsigned_artifact": "SaudePratica-v1.9.104-UNSIGNED",
+  "unsigned_sha256": "51e73833571c5fb3063f59a88c82ba8d163f2e84743b2b43d74092e52827959f",
+  "apk_sha256": "192d9d1853afa60d6c70828c253e7dec3ea7518975b51e59bd75d70f8a5b2f81",
+  "delta_sha256": "f53464b8956ec911013ceeb031995a825ebb3ab6c8a912da7f52d744ff4b0c27",
+  "parts": 15,
+  "encrypted_key_sha256": "d0d52878a090ead7d7f103c106d410df79ca1cce55691dec3ecbc3c0d38f02b8",
+  "certificate_sha256": "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a",
+  "note": "Private signing key is not published. The key recovery token remains offline, and the key asset is AES-256-GCM ciphertext only."
+}

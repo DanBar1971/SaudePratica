@@ -1,0 +1,10 @@
+{
+  "tag": "v1.9.89",
+  "asset": "SaudePratica.apk",
+  "base_tag": "v1.9.88",
+  "unsigned_run_id": 40473396519,
+  "unsigned_artifact": "SaudePratica-v1.9.89-UNSIGNED",
+  "unsigned_sha256": "938016c6ae0b54eb07070dd426efb301ab9086b89205bc796f32a74bc1f8491e",
+  "delta_sha256": "49425a1e5f0c7fff8b3ac6c16e631c528dd76bd8433600fb0995357ccc1f1196",
+  "apk_sha256": "0e6e2cfa9a97de0cd35a26d055b211800748e7b136ca028f822c96775f150161"
+}

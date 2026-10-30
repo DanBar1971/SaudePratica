@@ -1,0 +1,11 @@
+{
+  "tag": "v1.9.77",
+  "base_tag": "v1.9.76",
+  "asset": "SaudePratica.apk",
+  "base_sha256": "aa5d38f879631f0f00938be069029defa94b20951d90d53fb8a0344261cdf7c5",
+  "delta_sha256": "bf7837adb9030fb6018bb85839c9c3d9861de7e84156db21a7217a5971d59aca",
+  "apk_sha256": "1dfb2e927d4c1d6f4cb738991caae438bf4309d1e27e4c31e1ebf0222f6b4b7f",
+  "parts": 17,
+  "description": "Rebuild the exact signed v1.9.77 APK from public signed v1.9.76 using an integrity-verified binary delta. No keystore is stored in this repository.",
+  "publish_attempt": 2
+}

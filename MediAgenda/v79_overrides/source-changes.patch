@@ -1,0 +1,521 @@
+diff -ruN baseline/src/main/java/com/mediagenda/app/HealthRecordsActivity.kt src/main/java/com/mediagenda/app/HealthRecordsActivity.kt
+--- baseline/src/main/java/com/mediagenda/app/HealthRecordsActivity.kt	2026-10-23 17:46:20.000000000 +0000
++++ src/main/java/com/mediagenda/app/HealthRecordsActivity.kt	2026-10-24 08:34:40.239270912 +0000
+@@ -34,6 +34,10 @@
+ import com.mediagenda.app.data.PersonalHealthRecord
+ import com.mediagenda.app.data.PersonalHealthStore
+ import com.mediagenda.app.data.ProfileStore
++import com.mediagenda.app.data.DataRepository
++import java.time.LocalDateTime
++import java.time.LocalTime
++import java.time.ZoneId
+ import java.text.SimpleDateFormat
+ import java.time.LocalDate
+ import java.time.format.DateTimeFormatter
+@@ -230,7 +234,41 @@
+             setPadding(dp(8),dp(18),dp(8),dp(25))
+         })
+     }
++    private fun manualIntake(){
++        val meds=DataRepository(this,profileId).loadMedications().sortedBy{it.medication.lowercase()}
++        if(meds.isEmpty()){alert("Regista primeiro o medicamento em Medicação.");return}
++        MaterialAlertDialogBuilder(this).setTitle("Escolher medicamento")
++            .setItems(meds.map{it.medication+" — "+it.dose}.toTypedArray()){_,idx->
++                val med=meds[idx]
++                val fields=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL
++                    setPadding(dp(15),dp(5),dp(15),dp(8))}
++                fields.addView(label("Deixa os campos vazios para registar o momento em que carregas em TOMEI.",13f,color=muted))
++                val day=EditText(this).apply{hint="Data opcional (AAAA-MM-DD)";textSize=16f}
++                val hour=EditText(this).apply{hint="Hora opcional (HH:mm)";textSize=16f}
++                fields.addView(day);fields.addView(hour)
++                val dlg=MaterialAlertDialogBuilder(this).setTitle("Registar "+med.medication)
++                    .setView(fields).setNegativeButton("Cancelar",null)
++                    .setPositiveButton("✓ TOMEI",null).show()
++                dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
++                    val d=day.text.toString().trim();val t=hour.text.toString().trim()
++                    val timestamp=if(d.isEmpty()&&t.isEmpty())System.currentTimeMillis() else
++                        if(d.isEmpty()||t.isEmpty())null else runCatching{
++                            LocalDateTime.of(LocalDate.parse(d),LocalTime.parse(t))
++                                .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
++                        }.getOrNull()
++                    if(timestamp==null||timestamp>System.currentTimeMillis()+60000L){
++                        alert("Indica uma data/hora válida não futura, ou deixa ambos os campos vazios.")
++                    }else runCatching{
++                        store.add("intakes",med.medication,mapOf("medication_id" to med.id,
++                            "source" to "registo_manual"),timestamp)
++                    }.onSuccess{dlg.dismiss();refresh()}
++                        .onFailure{alert(it.message?:"Não foi possível guardar a toma.")}
++                }
++            }.setNegativeButton("Cancelar",null).show()
++    }
++
+     private fun showIntakeHistory(){
++        body.addView(button("＋ Registar toma manualmente") { manualIntake() })
+         val confirmed=runCatching{store.list("intakes")}.getOrElse{
+             alert("Erro ao ler tomas confirmadas: "+it.message);emptyList()
+         }
+diff -ruN baseline/src/main/java/com/mediagenda/app/HealthcareCatalog.kt src/main/java/com/mediagenda/app/HealthcareCatalog.kt
+--- baseline/src/main/java/com/mediagenda/app/HealthcareCatalog.kt	1970-01-01 00:00:00.000000000 +0000
++++ src/main/java/com/mediagenda/app/HealthcareCatalog.kt	2026-10-24 08:36:43.123482513 +0000
+@@ -0,0 +1,53 @@
++package com.mediagenda.app
++
++/** Sugestões iniciais, não catálogo nacional completo. A pesquisa oficial é da ERS. */
++object HealthcareCatalog {
++    const val ersUrl="https://www.ers.pt/pt/prestadores/servicos/pesquisa-de-prestadores/"
++    val facilities=listOf(
++        "Hospital de Santa Maria — Lisboa", "Hospital de São José — Lisboa",
++        "Hospital de Dona Estefânia — Lisboa", "Hospital Curry Cabral — Lisboa",
++        "Hospital de Santo António dos Capuchos — Lisboa", "Hospital São Francisco Xavier — Lisboa",
++        "Hospital Egas Moniz — Lisboa", "IPO Lisboa", "IPO Porto", "IPO Coimbra",
++        "Hospital da Luz Lisboa", "Hospital CUF Descobertas", "Hospital CUF Tejo",
++        "Hospital Lusíadas Lisboa", "Hospital de Cascais", "Hospital Beatriz Ângelo — Loures",
++        "Hospital Garcia de Orta — Almada", "Hospital de São Bernardo — Setúbal",
++        "Hospital de São João — Porto", "Hospital de Santo António — Porto",
++        "Hospital Pedro Hispano — Matosinhos", "Hospital de Braga",
++        "Hospital de Guimarães", "Hospital de Aveiro", "Hospital de Leiria",
++        "Hospitais da Universidade de Coimbra", "Hospital Pediátrico de Coimbra",
++        "Hospital de Viseu", "Hospital de Castelo Branco", "Hospital de Évora",
++        "Hospital de Beja", "Hospital de Faro", "Hospital de Portimão",
++        "Hospital do Funchal", "Hospital de Ponta Delgada",
++        "Centro de Saúde (escrever o nome)", "USF / UCSP (escrever o nome)",
++        "Clínica (escrever o nome)", "Laboratório de análises (escrever o nome)",
++        "Posto de colheitas (escrever o nome)", "Unidade de cuidados continuados (escrever o nome)"
++    ).sorted()
++    val types=listOf("Consulta", "Exame", "Exame complementar de diagnóstico",
++        "Tratamento", "Colheita", "Enfermagem", "Fisioterapia", "Cirurgia",
++        "Radioterapia", "Quimioterapia", "Atestado médico", "Outro")
++    fun typeCode(label:String)=if(label=="Atestado médico")"atestado" else when(label){
++        "Consulta"->"consulta";"Exame"->"exame";"Tratamento"->"tratamento"
++        "Colheita"->"colheita";else->label.lowercase()
++    }
++    val specialties=listOf(
++        "Alergologia", "Análises Clínicas", "Anatomia Patológica", "Anestesiologia",
++        "Cardiologia", "Cirurgia Geral", "Cirurgia Pediátrica", "Cirurgia Plástica",
++        "Cirurgia Vascular", "Consulta de Enfermagem", "Dermatologia", "Diabetologia",
++        "Endocrinologia", "Estomatologia", "Gastroenterologia", "Genética Médica",
++        "Ginecologia", "Hematologia", "Imagiologia", "Imunoalergologia",
++        "Medicina Física e Reabilitação", "Medicina Geral e Familiar",
++        "Medicina Interna", "Medicina Nuclear", "Medicina do Trabalho", "Nefrologia",
++        "Neonatologia", "Neurologia", "Neurocirurgia", "Obstetrícia", "Oftalmologia",
++        "Oncologia", "Ortopedia", "Otorrinolaringologia", "Pediatria", "Pneumologia",
++        "Psiquiatria", "Psicologia", "Reumatologia", "Urologia", "Radioterapia",
++        "Cuidados Paliativos", "Colheita de Sangue", "Colheita de Urina",
++        "Colheita de Fezes", "Eletrocardiograma (ECG)", "Ecocardiograma",
++        "Holter", "MAPA (tensão 24 h)", "Eletroencefalograma (EEG)",
++        "Electromiografia (EMG)", "Ecografia", "Mamografia", "Radiografia (RX)",
++        "Tomografia Computorizada (TAC/TC)", "Ressonância Magnética (RM)",
++        "PET/CT", "Cintigrafia", "Densitometria Óssea", "Colonoscopia",
++        "Endoscopia Digestiva", "Gastroscopia", "Espirometria", "Provas Funcionais Respiratórias",
++        "Testes de alergia", "Biopsia", "Citologia", "Teste Ergométrico",
++        "Tratamento de Feridas", "Fisioterapia", "Terapia da Fala", "Terapia Ocupacional"
++    ).distinct().sorted()
++}
+diff -ruN baseline/src/main/java/com/mediagenda/app/MainActivity.kt src/main/java/com/mediagenda/app/MainActivity.kt
+--- baseline/src/main/java/com/mediagenda/app/MainActivity.kt	2026-10-23 17:46:22.000000000 +0000
++++ src/main/java/com/mediagenda/app/MainActivity.kt	2026-10-24 08:36:43.132200580 +0000
+@@ -2296,14 +2296,39 @@
+         val dose = input("Dose", m.dose)
+         val indication = input("Posologia / indicação", m.indication)
+         val timeText = input("Momento da toma (ex.: Jejum / Deitar)", m.time)
+-        val reminder = input("Hora do aviso (HH:mm)", m.reminderTime)
++        val reminder = input("Hora inicial do aviso (HH:mm)", m.reminderTime)
++        val doseTimes = input("Horas às refeições (HH:mm, HH:mm, HH:mm)", m.doseTimes)
++        val patterns = listOf("Uma vez à hora indicada" to "single",
++            "12 em 12 horas" to "h12", "6 em 6 horas" to "h6", "4 em 4 horas" to "h4",
++            "Jejum" to "fasting", "Almoço" to "lunch", "Jantar" to "dinner",
++            "Às refeições" to "meals", "Ao deitar" to "bedtime", "SOS (sem alarmes)" to "sos")
++        var chosenPattern=patterns.firstOrNull{it.second==m.dosePattern}?.second?:"single"
++        lateinit var dosePatternButton:MaterialButton
++        dosePatternButton=secondaryButton("Tipo de toma: "+patterns.first{it.second==chosenPattern}.first){
++            MaterialAlertDialogBuilder(this).setTitle("Tipo de toma prescrito")
++                .setItems(patterns.map{it.first}.toTypedArray()){_,index->
++                    chosenPattern=patterns[index].second
++                    dosePatternButton.text="Tipo de toma: "+patterns[index].first
++                    doseTimes.container.visibility=if(chosenPattern=="meals")View.VISIBLE else View.GONE
++                    reminder.container.visibility=if(chosenPattern=="sos")View.GONE else View.VISIBLE
++                }.setNegativeButton("Cancelar",null).show()
++        }
++        doseTimes.container.visibility=if(chosenPattern=="meals")View.VISIBLE else View.GONE
++        reminder.container.visibility=if(chosenPattern=="sos")View.GONE else View.VISIBLE
+         val prescription = input("N.º da prescrição", m.prescriptionCode)
+         val prescriptionDate = input("Data da prescrição (YYYY-MM-DD)", m.prescriptionDate)
+         val dispense = input("Código de acesso e dispensa", m.dispenseCode)
+         val option = input("Código de opção", m.optionCode)
+         val validUntil = input("Validade da prescrição (YYYY-MM-DD)", m.validUntil)
+         val dates = inputMulti("Datas da medicação (YYYY-MM-DD, uma por linha)", scheduleToDates(m.schedule).joinToString("\n"))
+-        listOf(name,dose,indication,timeText,reminder,prescription,prescriptionDate,dispense,option,validUntil,dates).forEach { box.addView(it.container) }
++        listOf(name,dose,indication,timeText).forEach{box.addView(it.container)}
++        box.addView(dosePatternButton)
++        box.addView(noteBox("Horário prescrito", "Confirma com a prescrição a hora inicial. " +
++            "4/6/12 horas calculam avisos consecutivos. Jejum, almoço, jantar e deitar " +
++            "usam a hora indicada; às refeições é preciso indicar todas as horas. " +
++            "SOS não cria alarmes: regista a toma quando acontecer."))
++        box.addView(reminder.container);box.addView(doseTimes.container)
++        listOf(prescription,prescriptionDate,dispense,option,validUntil,dates).forEach{box.addView(it.container)}
+         // Easy recurring schedules. No need to enter every date for a daily dose.
+         val repeatNames = arrayOf("Todos os dias", "Dias da semana",
+             "Entre duas datas", "Datas individuais")
+@@ -2373,6 +2398,33 @@
+             else medicineMoreInfo(currentName,dose.edit.text.toString().trim(),existing?.id)
+         })
+         if(existing!=null){
++            box.addView(noteBox("Suspensão da terapêutica",
++                if(m.suspendedFrom.isBlank())"Ativa: pode suspender a partir de uma data." else
++                    "Suspensa desde ${m.suspendedFrom}. Sem avisos a partir dessa data."))
++            box.addView(secondaryButton("⏸ Suspender / alterar data de suspensão"){
++                val cal=Calendar.getInstance()
++                DatePickerDialog(this,{_,year,month,day->
++                    val date="%04d-%02d-%02d".format(year,month+1,day)
++                    val all=repo.loadMedications();val index=all.indexOfFirst{it.id==existing.id}
++                    if(index>=0){all[index]=all[index].copy(suspendedFrom=date)
++                        repo.saveMedications(all);reschedule()}
++                    activeMedicationDialog?.dismiss();activeMedicationDialog=null;showMedication()
++                },cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH)).show()
++            })
++            if(m.suspendedFrom.isNotBlank())box.addView(secondaryButton("▶ Retirar suspensão / retomar"){
++                val all=repo.loadMedications();val index=all.indexOfFirst{it.id==existing.id}
++                if(index>=0){all[index]=all[index].copy(suspendedFrom="")
++                    repo.saveMedications(all);reschedule()}
++                activeMedicationDialog?.dismiss();activeMedicationDialog=null;showMedication()
++            })
++            if(m.dosePattern=="sos")box.addView(secondaryButton("✓ Registar toma SOS agora"){
++                MaterialAlertDialogBuilder(this).setTitle("Toma SOS")
++                    .setMessage("Confirmas que tomaste ${m.medication} agora?")
++                    .setPositiveButton("✓ TOMEI"){_,_->
++                        PersonalHealthStore(this,activeProfileId).confirmIntake(m.id,m.medication)
++                        activeMedicationDialog?.dismiss();activeMedicationDialog=null;showMedication()
++                    }.setNegativeButton("Cancelar",null).show()
++            })
+             box.addView(secondaryButton("🖼️ Anexar foto existente da embalagem"){
+                 pendingMedicineGalleryId=existing.id
+                 activeMedicationDialog?.dismiss()
+@@ -2442,7 +2494,10 @@
+             .setPositiveButton("Guardar") { _, _ ->
+                 m.medication=name.edit.text.toString().trim(); m.dose=dose.edit.text.toString().trim()
+                 m.indication=indication.edit.text.toString().trim(); m.time=timeText.edit.text.toString().trim()
+-                m.reminderTime=reminder.edit.text.toString().trim(); m.prescriptionCode=prescription.edit.text.toString().trim()
++                m.reminderTime=reminder.edit.text.toString().trim()
++                m.dosePattern=chosenPattern
++                m.doseTimes=doseTimes.edit.text.toString().trim()
++                m.prescriptionCode=prescription.edit.text.toString().trim()
+                 m.prescriptionDate=prescriptionDate.edit.text.toString().trim(); m.dispenseCode=dispense.edit.text.toString().trim(); m.optionCode=option.edit.text.toString().trim(); m.validUntil=validUntil.edit.text.toString().trim()
+                 m.repeatMode = selectedRepeat
+                 m.repeatStart = repeatStart.edit.text.toString().trim()
+@@ -2689,14 +2744,50 @@
+         val box=formBox()
+         if (fromOcr != null) box.addView(noteBox("Confirme os dados lidos", "A fotografia é apenas uma ajuda. Confirme data, hora e local antes de guardar."))
+         val date=input("Data (YYYY-MM-DD)",a.date); val time=input("Hora (HH:mm)",a.time)
+-        val dep=input("Departamento",a.department); val activity=input("Atividade / descrição",a.activity)
++        val dep=input("Departamento / Edifício",a.department)
++        val specialty=input("Especialidade / exame / tratamento",a.specialty)
++        val activity=input("Atividade / descrição",a.activity)
++        val expiry=input("Fim de validade do atestado (AAAA-MM-DD)",a.expiryDate)
+         val resource=input("Médico / recurso",a.resource); val location=input("Local",a.location)
+         val type=input("Tipo (consulta/exame/tratamento/colheita/enfermagem)",a.type)
+         val recMode=input("Repetição (none/weekdays/weekly)",a.recurrence.mode)
+         val recUntil=input("Repetir até (YYYY-MM-DD)",a.recurrence.until)
+         val weekdays=input("Dias semana Mon=0...Sun=6 (ex.: 1 para terça)",a.recurrence.weekdays.joinToString(","))
+         val ocr=inputMulti("Texto reconhecido / notas",a.ocrText)
+-        listOf(date,time,dep,activity,resource,location,type,recMode,recUntil,weekdays,ocr).forEach{box.addView(it.container)}
++        box.addView(noteBox("Local, edifício e especialidade", "Escolhe primeiro o local e depois o " +
++            "departamento / edifício e a especialidade. Podes escrever qualquer unidade, mesmo que não esteja na lista."))
++        box.addView(location.container)
++        box.addView(secondaryButton("🏥 Escolher hospital / clínica / centro de saúde"){
++            MaterialAlertDialogBuilder(this).setTitle("Unidades sugeridas (não exaustivo)")
++                .setItems(HealthcareCatalog.facilities.toTypedArray()){_,idx->
++                    location.edit.setText(HealthcareCatalog.facilities[idx])
++                }.setNegativeButton("Cancelar",null).show()
++        })
++        box.addView(secondaryButton("🔎 Consultar diretório oficial ERS"){
++            startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(HealthcareCatalog.ersUrl)))
++        })
++        box.addView(dep.container);box.addView(specialty.container)
++        box.addView(secondaryButton("🩺 Selecionar especialidade / exame / colheita"){
++            MaterialAlertDialogBuilder(this).setTitle("Especialidades e procedimentos")
++                .setItems(HealthcareCatalog.specialties.toTypedArray()){_,idx->
++                    specialty.edit.setText(HealthcareCatalog.specialties[idx])
++                }.setNegativeButton("Cancelar",null).show()
++        })
++        box.addView(type.container)
++        box.addView(secondaryButton("📋 Tipo de agendamento"){
++            MaterialAlertDialogBuilder(this).setTitle("Tipo de registo")
++                .setItems(HealthcareCatalog.types.toTypedArray()){_,idx->
++                    type.edit.setText(HealthcareCatalog.typeCode(HealthcareCatalog.types[idx]))
++                    expiry.container.visibility=if(type.edit.text.toString()=="atestado")
++                        View.VISIBLE else View.GONE
++                }.setNegativeButton("Cancelar",null).show()
++        })
++        expiry.container.visibility=if(a.type=="atestado")View.VISIBLE else View.GONE
++        box.addView(expiry.container)
++        box.addView(noteBox("Atestados médicos", "Apenas para o tipo Atestado médico, " +
++            "indica o último dia de validade. O lembrete é enviado dois dias antes, às 09:00."))
++        listOf(date,time,activity,resource,recMode,recUntil,weekdays,ocr)
++            .forEach{box.addView(it.container)}
+         if(existing!=null)
+             box.addView(secondaryButton("📤 Enviar lembrete · WhatsApp / email"){
+                 shareAppointment(existing)
+@@ -2705,7 +2796,10 @@
+         MaterialAlertDialogBuilder(this).setTitle(title).setView(scroll(box))
+             .setPositiveButton("Guardar") { _, _ ->
+                 a.date=date.edit.text.toString().trim(); a.time=time.edit.text.toString().trim(); a.department=dep.edit.text.toString().trim()
+-                a.activity=activity.edit.text.toString().trim(); a.resource=resource.edit.text.toString().trim(); a.location=location.edit.text.toString().trim()
++                a.activity=activity.edit.text.toString().trim()
++                a.specialty=specialty.edit.text.toString().trim()
++                a.expiryDate=expiry.edit.text.toString().trim()
++                a.resource=resource.edit.text.toString().trim(); a.location=location.edit.text.toString().trim()
+                 a.type=type.edit.text.toString().trim().ifBlank{"consulta"}; a.recurrence.mode=recMode.edit.text.toString().trim().ifBlank{"none"}
+                 a.recurrence.until=recUntil.edit.text.toString().trim(); a.recurrence.weekdays=weekdays.edit.text.toString().split(",").mapNotNull{it.trim().toIntOrNull()}.toMutableList()
+                 a.ocrText=ocr.edit.text.toString()
+@@ -2877,7 +2971,10 @@
+             ?: prefs.getString("address", "").orEmpty())
+         val postalCode = input("Código postal (0000-000)", extendedProfileDraft?.get("postal_code")
+             ?: prefs.getString("postal_code", "").orEmpty())
+-        val observationNumber = input("N.º de observação (opcional)",
++        val observationsByUnit=inputMulti("N.º de observação por unidade (Unidade | Número, uma por linha)",
++            extendedProfileDraft?.get("observations_by_unit")
++                ?: prefs.getString("observations_by_unit", "").orEmpty())
++        val observationNumber = input("N.º de observação antigo (opcional)",
+             extendedProfileDraft?.get("observation_number")
+                 ?: prefs.getString("observation_number","").orEmpty())
+         val healthUnit = input("Unidade de saúde", extendedProfileDraft?.get("health_unit")
+@@ -2932,6 +3029,21 @@
+             father, mother, nif, sns, adse, niss, ccNumber,
+             ccValidity, address, postalCode, healthUnit,
+             observationNumber).forEach { box.addView(it.container) }
++        box.addView(noteBox("Números de observação por hospital ou clínica",
++            "Guarda vários números: um por linha como «Hospital / Clínica | N.º». " +
++            "A lista de unidades é inicial e não substitui a pesquisa oficial da ERS."))
++        box.addView(observationsByUnit.container)
++        box.addView(secondaryButton("＋ Escolher hospital / clínica para associar número") {
++            MaterialAlertDialogBuilder(this).setTitle("Selecionar unidade (lista inicial)")
++                .setItems(HealthcareCatalog.facilities.toTypedArray()){_,idx->
++                    val chosen=HealthcareCatalog.facilities[idx]
++                    val before=observationsByUnit.edit.text.toString().trim()
++                    observationsByUnit.edit.setText(if(before.isEmpty())"$chosen | " else "$before\n$chosen | ")
++                }.setNegativeButton("Cancelar",null).show()
++        })
++        box.addView(secondaryButton("🔎 Ver diretório completo oficial ERS") {
++            startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(HealthcareCatalog.ersUrl)))
++        })
+         box.addView(noteBox("Contactos e responsável",
+             "Permite encontrar rapidamente um familiar ou pessoa de referência."))
+         listOf(phone, email, familyRole, contactName, contactPhone)
+@@ -2957,6 +3069,7 @@
+                 "postal_code" to postalCode.edit.text.toString().trim(),
+                 "health_unit" to healthUnit.edit.text.toString().trim(),
+                 "observation_number" to observationNumber.edit.text.toString().trim(),
++                "observations_by_unit" to observationsByUnit.edit.text.toString().trim(),
+                 "phone" to phone.edit.text.toString().trim(),
+                 "email" to email.edit.text.toString().trim(),
+                 "cc_number" to ccNumber.edit.text.toString().trim(),
+@@ -3167,6 +3280,8 @@
+                 .putString("health_unit", healthUnit.edit.text.toString().trim())
+                 .putString("observation_number",
+                     observationNumber.edit.text.toString().trim().take(100))
++                .putString("observations_by_unit",
++                    observationsByUnit.edit.text.toString().trim().take(8000))
+                 .putString("phone", phone.edit.text.toString().trim().take(120))
+                 .putString("email", mail.take(200))
+                 .putString("cc_number", ccNumber.edit.text.toString().trim().take(60))
+diff -ruN baseline/src/main/java/com/mediagenda/app/SupportHelpActivity.kt src/main/java/com/mediagenda/app/SupportHelpActivity.kt
+--- baseline/src/main/java/com/mediagenda/app/SupportHelpActivity.kt	2026-10-23 17:46:22.000000000 +0000
++++ src/main/java/com/mediagenda/app/SupportHelpActivity.kt	2026-10-24 08:37:48.680924849 +0000
+@@ -107,18 +107,18 @@
+                     "Abre Medicación, Agenda o Documentos. En Opciones → Aspecto e idioma puedes elegir los módulos.")),
+             Step(R.drawable.guide_med,
+                 arrayOf("2. Medicação e tomas","2. Medication and doses","2. Médicaments et prises","2. Medikamente und Einnahmen","2. Medicación y tomas"),
+-                arrayOf("Toca em + Adicionar, preenche o medicamento e a hora. Anexa a foto da embalagem. No aviso, toca em TOMEI só depois de tomares.",
+-                    "Tap + Add, enter the medicine and time, and add a package photo. Tap TAKEN after taking your dose.",
+-                    "Touchez + Ajouter, saisissez le médicament et l’heure, puis sa photo. Confirmez après la prise.",
+-                    "Tippen Sie auf + Hinzufügen, geben Sie Medikament und Uhrzeit ein und fügen Sie ein Packungsfoto hinzu. Erst nach der Einnahme bestätigen.",
+-                    "Pulsa + Añadir, indica el medicamento y la hora y añade la foto de la caja. Confirma solo después de tomarlo.")),
++                arrayOf("Em Medicação escolhe o tipo de toma (4/6/12 horas, refeições ou SOS), confirma as horas prescritas e anexa fotos. A ficha permite suspender com data e reativar. Em Tomas podes registar uma toma manual de um medicamento existente; confirma TOMEI apenas depois da toma.",
++                    "In Medication choose the prescribed dose pattern (4/6/12 hours, meals or SOS), enter exact times, suspend by date or resume. In Doses select a saved medicine to log a manual intake after taking it.",
++                    "Choisissez le rythme prescrit (4/6/12 heures, repas ou SOS) et les horaires. Suspendez ou reprenez dans la fiche. Dans Prises, choisissez un médicament pour confirmer manuellement la prise.",
++                    "Medikament und verordnetes Schema (4/6/12 Stunden, Mahlzeiten oder SOS) auswählen. In der Karte datiert pausieren oder fortsetzen. Unter Einnahmen Medikamente auswählen und Einnahme manuell bestätigen.",
++                    "En Medicación selecciona la pauta prescrita (4/6/12 horas, comidas o SOS) y las horas. Puedes suspender por fecha o reactivar. En Tomas elige un medicamento registrado y confirma la toma manual.")),
+             Step(R.drawable.guide_calendar,
+                 arrayOf("3. Consultas e exames","3. Appointments and tests","3. Rendez-vous et examens","3. Termine und Untersuchungen","3. Citas y pruebas"),
+-                arrayOf("Na Agenda adiciona consultas, datas e horas. Vê todas as marcações no Calendário e recebe lembretes.",
+-                    "Add appointments, dates and times in Agenda. See them in Calendar and receive reminders.",
+-                    "Ajoutez les rendez-vous et les heures dans l’Agenda. Retrouvez-les dans le Calendrier.",
+-                    "Erfassen Sie Termine und Uhrzeiten. Alle Termine finden Sie im Kalender.",
+-                    "Añade citas, fechas y horas en Agenda. Consúltalas en Calendario y recibe avisos.")),
++                arrayOf("Na Agenda escolhe primeiro o local (ou pesquisa na ERS), o edifício/departamento e a especialidade; depois o tipo, data e hora. Atestados médicos têm data de validade e aviso dois dias antes. Na ficha de Perfil podes associar vários números de observação a diferentes unidades.",
++                    "In Agenda select the healthcare facility, building/department and specialty, then type, date and time. Medical certificates have an expiry date and a reminder two days before. Profiles can store multiple facility-specific observation numbers.",
++                    "Dans Agenda, choisissez le lieu, bâtiment/service et spécialité, puis type, date et heure. Les attestations médicales ont une date de fin et un rappel deux jours avant. Le profil peut stocker plusieurs numéros par établissement.",
++                    "In der Agenda erst Einrichtung, Abteilung/Gebäude und Fachgebiet wählen, dann Typ und Datum. Atteste erinnern zwei Tage vor Ablauf. Im Profil lassen sich mehrere Beobachtungsnummern je Einrichtung speichern.",
++                    "En Agenda elige el centro, edificio/departamento y especialidad antes del tipo y fecha. Los certificados médicos avisan dos días antes del vencimiento. El perfil permite varios números de observación por centro.")),
+             Step(R.drawable.guide_docs,
+                 arrayOf("4. Fotografias e documentos","4. Photos and documents","4. Photos et documents","4. Fotos und Dokumente","4. Fotos y documentos"),
+                 arrayOf("Guarda documentos e exames no perfil certo. Podes fotografar ou escolher ficheiros já existentes.",
+diff -ruN baseline/src/main/java/com/mediagenda/app/data/DataRepository.kt src/main/java/com/mediagenda/app/data/DataRepository.kt
+--- baseline/src/main/java/com/mediagenda/app/data/DataRepository.kt	2026-10-23 17:46:18.000000000 +0000
++++ src/main/java/com/mediagenda/app/data/DataRepository.kt	2026-10-24 08:36:43.122512398 +0000
+@@ -52,6 +52,9 @@
+                 indication = o.optString("indication"),
+                 time = o.optString("time"),
+                 reminderTime = o.optString("reminder_time"),
++                dosePattern = o.optString("dose_pattern", "single"),
++                doseTimes = o.optString("dose_times"),
++                suspendedFrom = o.optString("suspended_from"),
+                 prescriptionCode = o.optString("prescription_code"),
+                 prescriptionDate = o.optString("prescription_date"),
+                 dispenseCode = o.optString("dispense_code"),
+@@ -87,6 +90,9 @@
+                 .put("indication", m.indication)
+                 .put("time", m.time)
+                 .put("reminder_time", m.reminderTime)
++                .put("dose_pattern", m.dosePattern)
++                .put("dose_times", m.doseTimes)
++                .put("suspended_from", m.suspendedFrom)
+                 .put("repeat_mode", m.repeatMode)
+                 .put("repeat_start", m.repeatStart)
+                 .put("repeat_until", m.repeatUntil)
+@@ -127,6 +133,8 @@
+                 date = o.optString("date"),
+                 time = o.optString("time"),
+                 department = o.optString("department"),
++                specialty = o.optString("specialty"),
++                expiryDate = o.optString("expiry_date"),
+                 activity = o.optString("activity"),
+                 resource = o.optString("resource"),
+                 location = o.optString("location"),
+@@ -153,6 +161,8 @@
+                 .put("date", a.date)
+                 .put("time", a.time)
+                 .put("department", a.department)
++                .put("specialty", a.specialty)
++                .put("expiry_date", a.expiryDate)
+                 .put("activity", a.activity)
+                 .put("resource", a.resource)
+                 .put("location", a.location)
+diff -ruN baseline/src/main/java/com/mediagenda/app/model/Models.kt src/main/java/com/mediagenda/app/model/Models.kt
+--- baseline/src/main/java/com/mediagenda/app/model/Models.kt	2026-10-23 17:46:18.000000000 +0000
++++ src/main/java/com/mediagenda/app/model/Models.kt	2026-10-24 08:36:43.121755403 +0000
+@@ -7,6 +7,9 @@
+     var indication: String = "",
+     var time: String = "",
+     var reminderTime: String = "",
++    var dosePattern: String = "single",
++    var doseTimes: String = "",
++    var suspendedFrom: String = "",
+     var prescriptionCode: String = "",
+     var prescriptionDate: String = "",
+     var dispenseCode: String = "",
+@@ -32,6 +35,8 @@
+     var date: String = "",
+     var time: String = "",
+     var department: String = "",
++    var specialty: String = "",
++    var expiryDate: String = "",
+     var activity: String = "",
+     var resource: String = "",
+     var location: String = "",
+diff -ruN baseline/src/main/java/com/mediagenda/app/notifications/NotificationScheduler.kt src/main/java/com/mediagenda/app/notifications/NotificationScheduler.kt
+--- baseline/src/main/java/com/mediagenda/app/notifications/NotificationScheduler.kt	2026-10-23 17:46:22.000000000 +0000
++++ src/main/java/com/mediagenda/app/notifications/NotificationScheduler.kt	2026-10-24 08:36:43.122936745 +0000
+@@ -92,49 +92,65 @@
+             profileId=profileId,kind="pill")
+     }
+ 
++    /** Do not schedule SOS. Interval alarms use the patient-defined anchor time;
++     * never invent mealtimes or change prescribed quantities. */
+     private fun scheduleNextMedication(m: Medication, profileId: String, profileName: String, multiple: Boolean) {
+-        val reminder = when {
+-            Regex("""^\d{2}:\d{2}$""").matches(m.reminderTime) -> m.reminderTime
+-            Regex("""^\d{2}:\d{2}$""").matches(m.time) -> m.time
+-            else -> return
+-        }
+-        val t = runCatching { LocalTime.parse(reminder) }.getOrNull() ?: return
+-        val now = LocalDateTime.now(zone)
+-        val start = runCatching { LocalDate.parse(m.repeatStart) }.getOrNull()
+-        val until = runCatching { LocalDate.parse(m.repeatUntil) }.getOrNull()
+-        val mode = m.repeatMode.ifBlank { if (m.schedule.values.any { it.isNotEmpty() }) "dates" else "daily" }
+-        val dateSet = m.schedule.flatMap { (month, days) ->
+-            days.mapNotNull { day ->
+-                runCatching { LocalDate.parse("$month-${day.toString().padStart(2, '0')}") }.getOrNull()
+-            }
+-        }.toSet()
+-        val next = (0..366).asSequence()
+-            .map { now.toLocalDate().plusDays(it.toLong()) }
+-            .filter { start == null || !it.isBefore(start) }
+-            .filter { until == null || !it.isAfter(until) }
+-            .filter { d ->
+-                when (mode) {
+-                    "daily" -> true
+-                    "weekly" -> m.repeatWeekdays.contains(d.dayOfWeek.value - 1)
+-                    "range" -> start != null && until != null
+-                    "dates" -> dateSet.contains(d)
+-                    else -> dateSet.contains(d)
++        if (m.dosePattern == "sos") return
++        val now=LocalDateTime.now(zone)
++        val start=runCatching{LocalDate.parse(m.repeatStart)}.getOrNull()
++        val until=runCatching{LocalDate.parse(m.repeatUntil)}.getOrNull()
++        val paused=runCatching{LocalDate.parse(m.suspendedFrom)}.getOrNull()
++        val first=runCatching{LocalTime.parse(m.reminderTime.ifBlank{m.time})}.getOrNull()
++        val interval=when(m.dosePattern){"h4"->4L;"h6"->6L;"h12"->12L;else->0L}
++        val next:LocalDateTime=if(interval>0L){
++            if(first==null)null else {
++                val zero=LocalDateTime.of(start?:now.toLocalDate(),first)
++                val elapsed=java.time.Duration.between(zero,now.plusSeconds(2)).toMinutes()
++                val slot=interval*60L
++                val steps=if(elapsed<0)0L else elapsed/slot+1
++                zero.plusMinutes(steps*slot).takeIf{
++                    (until==null||!it.toLocalDate().isAfter(until)) &&
++                    (paused==null||it.toLocalDate().isBefore(paused))
+                 }
+             }
+-            .map { LocalDateTime.of(it, t) }
+-            .firstOrNull { it.isAfter(now.plusSeconds(2)) } ?: return
+-
+-        val dose = if (m.dose.isBlank()) "" else " — ${m.dose}"
+-        val indication = if (m.indication.isBlank()) "" else " — ${m.indication}"
+-        schedule(
+-            "med|$profileId|${m.id}", next,
+-            "💊 " + m.medication,
+-            "Hora da medicação$dose$indication", m.id, profileId
+-        )
++        }else{
++            val clocks=if(m.dosePattern=="meals")m.doseTimes.split(',', ';', '\n')
++                .mapNotNull{runCatching{LocalTime.parse(it.trim())}.getOrNull()}
++                .distinct().sorted() else listOfNotNull(first)
++            val days=m.schedule.flatMap{(month,nums)->nums.mapNotNull{n->
++                runCatching{LocalDate.parse("$month-${n.toString().padStart(2,'0')}")}.getOrNull()
++            }}.toSet()
++            val mode=m.repeatMode.ifBlank{if(days.isEmpty())"daily" else "dates"}
++            (0..366).asSequence().map{now.toLocalDate().plusDays(it.toLong())}
++                .filter{(start==null||!it.isBefore(start))&&(until==null||!it.isAfter(until))&&
++                    (paused==null||it.isBefore(paused))}
++                .filter{d->when(mode){"daily"->true
++                    "weekly"->m.repeatWeekdays.contains(d.dayOfWeek.value-1)
++                    "range"->start!=null&&until!=null
++                    else->days.contains(d)}}
++                .flatMap{date->clocks.asSequence().map{LocalDateTime.of(date,it)}}
++                .firstOrNull{it.isAfter(now.plusSeconds(2))}
++        }?:return
++        val dose=if(m.dose.isBlank())"" else " — ${m.dose}"
++        val indication=if(m.indication.isBlank())"" else " — ${m.indication}"
++        schedule("med|$profileId|${m.id}",next,"💊 "+m.medication,
++            "Hora da medicação$dose$indication",m.id,profileId)
+     }
+ 
+     private fun scheduleAppointment(a: Appointment, profileId: String, profileName: String, multiple: Boolean) {
+-        if (a.done || a.date.isBlank() || a.time.isBlank()) return
++        if (a.done) return
++        if (a.type == "atestado") {
++            val expiry=runCatching{LocalDate.parse(a.expiryDate)}.getOrNull()?:return
++            // For medical certificates, only remind two calendar days before expiry.
++            val at=expiry.minusDays(2).atTime(9,0)
++            schedule("atestado|$profileId|${a.id}|$expiry",at,
++                "📃 Atestado médico a terminar",
++                "O atestado ${a.activity.ifBlank{a.department.ifBlank{"médico"}}} termina em $expiry. " +
++                "Confirma a renovação junto dos serviços de saúde.",
++                profileId=profileId,kind="appointment")
++            return
++        }
++        if (a.date.isBlank() || a.time.isBlank()) return
+         expandOccurrences(a).forEach { event ->
+             // Every appointment gets a reminder at 18:00 on the previous day.
+             val previousEvening=event.toLocalDate().minusDays(1).atTime(18,0)

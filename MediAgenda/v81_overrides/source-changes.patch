@@ -1,0 +1,425 @@
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -82,6 +82,7 @@
+         <receiver android:name=".notifications.WaterActionReceiver" android:exported="false" />
+         <receiver android:name=".notifications.IntakeActionReceiver"
+             android:exported="false" />
++        <receiver android:name=".notifications.MissedIntakeBadgeReceiver" android:exported="false" />
+         <receiver android:name=".notifications.BootReceiver" android:enabled="true" android:exported="false">
+             <intent-filter>
+                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+--- a/java/com/mediagenda/app/SupportHelpActivity.kt
++++ b/java/com/mediagenda/app/SupportHelpActivity.kt
+@@ -107,11 +107,11 @@
+                     "Abre Medicación, Agenda o Documentos. En Opciones → Aspecto e idioma puedes elegir los módulos.")),
+             Step(R.drawable.guide_med,
+                 arrayOf("2. Medicação e tomas","2. Medication and doses","2. Médicaments et prises","2. Medikamente und Einnahmen","2. Medicación y tomas"),
+-                arrayOf("Em Medicação escolhe o tipo de toma (4/6/12 horas, refeições ou SOS), confirma as horas prescritas e anexa fotos. A ficha permite suspender com data e reativar. Em Tomas podes registar uma toma manual de um medicamento existente; confirma TOMEI apenas depois da toma.",
+-                    "In Medication choose the prescribed dose pattern (4/6/12 hours, meals or SOS), enter exact times, suspend by date or resume. In Doses select a saved medicine to log a manual intake after taking it.",
+-                    "Choisissez le rythme prescrit (4/6/12 heures, repas ou SOS) et les horaires. Suspendez ou reprenez dans la fiche. Dans Prises, choisissez un médicament pour confirmer manuellement la prise.",
+-                    "Medikament und verordnetes Schema (4/6/12 Stunden, Mahlzeiten oder SOS) auswählen. In der Karte datiert pausieren oder fortsetzen. Unter Einnahmen Medikamente auswählen und Einnahme manuell bestätigen.",
+-                    "En Medicación selecciona la pauta prescrita (4/6/12 horas, comidas o SOS) y las horas. Puedes suspender por fecha o reactivar. En Tomas elige un medicamento registrado y confirma la toma manual.")),
++                arrayOf("Em Medicação escolhe o tipo de toma (4/6/12 horas, refeições ou SOS), confirma as horas prescritas e anexa fotos. A ficha permite suspender com data e reativar. Em Tomas podes registar uma toma manual de um medicamento existente; confirma TOMEI apenas depois da toma. Em Início → Tomas o indicador vermelho mostra avisos com mais de 15 minutos sem confirmação; abre Tomas para os verificar e podes apagar uma toma realizada.",
++                    "In Medication choose the prescribed dose pattern (4/6/12 hours, meals or SOS), enter exact times, suspend by date or resume. In Doses select a saved medicine to log a manual intake after taking it. The red Doses badge shows reminders unconfirmed after 15 minutes; open Doses to check them or delete completed entries.",
++                    "Choisissez le rythme prescrit (4/6/12 heures, repas ou SOS) et les horaires. Suspendez ou reprenez dans la fiche. Dans Prises, choisissez un médicament pour confirmer manuellement la prise. Le compteur rouge indique les prises non confirmées après 15 minutes; ouvrez Prises pour vérifier ou supprimer un enregistrement.",
++                    "Medikament und verordnetes Schema (4/6/12 Stunden, Mahlzeiten oder SOS) auswählen. In der Karte datiert pausieren oder fortsetzen. Unter Einnahmen Medikamente auswählen und Einnahme manuell bestätigen. Die rote Anzeige zeigt nach 15 Minuten unbestätigte Erinnerungen; unter Einnahmen kann man sie prüfen oder Einträge löschen.",
++                    "En Medicación selecciona la pauta prescrita (4/6/12 horas, comidas o SOS) y las horas. Puedes suspender por fecha o reactivar. En Tomas elige un medicamento registrado y confirma la toma manual. La insignia roja indica avisos sin confirmar tras 15 minutos; abre Tomas para revisarlos o borrar tomas registradas.")),
+             Step(R.drawable.guide_calendar,
+                 arrayOf("3. Consultas e exames","3. Appointments and tests","3. Rendez-vous et examens","3. Termine und Untersuchungen","3. Citas y pruebas"),
+                 arrayOf("Na Agenda pesquisa a unidade por Distrito → Concelho → Hospital/Clínica, ou usa GPS com autorização, e depois indica o edifício/departamento e a especialidade; por fim, tipo, data e hora. Atestados médicos têm data de validade e aviso dois dias antes. Na ficha de Perfil podes associar vários números de observação a diferentes unidades.",
+@@ -128,7 +128,7 @@
+                     "Guarda documentos en el perfil adecuado. Haz una foto o selecciona un archivo.")),
+             Step(R.drawable.guide_sync,
+                 arrayOf("5. Sincronizar dois telemóveis","5. Sync two phones","5. Synchroniser deux téléphones","5. Zwei Handys synchronisieren","5. Sincronizar dos móviles"),
+-                arrayOf("Em Opções → Backups e sincronização → Sincronização familiar, escolhe Partilhar num telemóvel e Procurar no outro. Compara e confirma os códigos antes da transferência. Faz backup antes da primeira vez.",
++                arrayOf("Em Opções → Backups e sincronização → Sincronização familiar, escolhe Partilhar num telemóvel e Procurar no outro. Compara e confirma os códigos antes da transferência. Faz backup antes da primeira vez. Por segurança, perfis com o mesmo nome em telemóveis diferentes não são associados automaticamente: confirma sempre a identidade e os dados de cada perfil após sincronizar.",
+                     "In Options → Backups and sync → Family sync, tap Share on one phone and Search on the other. Compare the security codes. Back up first.",
+                     "Dans Options → Sauvegardes et synchronisation → Synchronisation familiale, choisissez Partager et Rechercher. Comparez les codes. Sauvegardez d’abord.",
+                     "Unter Optionen → Sicherung und Synchronisierung → Familiensynchronisierung auf einem Handy Teilen, auf dem anderen Suchen wählen. Codes vergleichen. Zuvor sichern.",
+--- a/java/com/mediagenda/app/HealthRecordsActivity.kt
++++ b/java/com/mediagenda/app/HealthRecordsActivity.kt
+@@ -268,6 +268,7 @@
+     }
+ 
+     private fun showIntakeHistory(){
++        com.mediagenda.app.notifications.IntakeBadgeManager.refresh(this,profileId)
+         body.addView(button("＋ Registar toma manualmente") { manualIntake() })
+         val confirmed=runCatching{store.list("intakes")}.getOrElse{
+             alert("Erro ao ler tomas confirmadas: "+it.message);emptyList()
+@@ -284,6 +285,12 @@
+                 it.fields["scheduled_at"].orEmpty()) !in checked
+         }
+         val format=SimpleDateFormat("dd/MM/yyyy · HH:mm",Locale("pt","PT"))
++        val overdue=store.overdueIntakes().map{it.id}.toSet()
++        body.addView(label("⚠️ Tomas atrasadas · "+overdue.size,19f,true).apply{
++            setPadding(dp(4),dp(10),0,dp(4))
++        })
++        body.addView(label("Avisos há mais de 15 minutos sem confirmação. Isto não prova que a dose foi esquecida.",
++            12f,color=muted).apply{setPadding(dp(5),0,0,dp(10))})
+         body.addView(label("⏳ Tomas por confirmar",19f,true).apply{
+             setPadding(dp(4),dp(18),0,dp(8))
+         })
+@@ -303,8 +310,10 @@
+             val whenDue=item.fields["scheduled_at"]?.toLongOrNull()?:item.timestamp
+             column.addView(label("Aviso: "+format.format(Date(whenDue)),12f,
+                 color=muted))
+-            column.addView(label("Aguardando confirmação da toma",12f,
+-                color=muted).apply{setPadding(0,dp(5),0,dp(8))})
++            column.addView(label(if(item.id in overdue) "⚠️ Atrasada · por confirmar"
++                else "Aguardando confirmação da toma",12f,
++                color=if(item.id in overdue) Color.rgb(255,171,105) else muted).apply{
++                setPadding(0,dp(5),0,dp(8))})
+             column.addView(button("✓ TOMEI — confirmar agora"){
+                 MaterialAlertDialogBuilder(this)
+                     .setTitle("Confirmar toma")
+@@ -349,6 +358,16 @@
+             row.addView(label("›",28f,color=teal))
+             shell.addView(row)
+             shell.setOnClickListener{actions(item)}
++            col.addView(button("🗑 Apagar esta toma") {
++                MaterialAlertDialogBuilder(this).setTitle("Apagar toma confirmada?")
++                    .setMessage("Este registo será eliminado do histórico. Não altera os horários dos medicamentos.")
++                    .setPositiveButton("Apagar") { _,_->
++                        runCatching{store.remove(item)}.onSuccess{
++                            com.mediagenda.app.notifications.IntakeBadgeManager.refresh(this,profileId)
++                            refresh()
++                        }.onFailure{alert(it.message?:"Não foi possível apagar")}
++                    }.setNegativeButton("Cancelar",null).show()
++            })
+             addCard(shell)
+         }
+         body.addView(label("Os avisos ficam por confirmar até registares "+
+--- a/java/com/mediagenda/app/MainActivity.kt
++++ b/java/com/mediagenda/app/MainActivity.kt
+@@ -480,6 +480,12 @@
+                 }
+             }
+         }
++        if (::content.isInitialized && currentScreen == "Início" &&
++            profiles.all().any{it.id==activeProfileId}) {
++            window.decorView.post {
++                if(!isFinishing && !isDestroyed && currentScreen=="Início")showHome()
++            }
++        }
+         // Fallback for camera apps that do not deliver a reliable ActivityResult.
+         // If image bytes are really present, the same private capture is shown.
+         window.decorView.postDelayed({
+@@ -735,6 +741,7 @@
+     }
+ 
+     private fun showHome() {
++        com.mediagenda.app.notifications.IntakeBadgeManager.refresh(this,activeProfileId)
+         optionsGroup=null
+         content.removeAllViews()
+         screenHeader("⌂", "Início", "")
+@@ -798,6 +805,8 @@
+             box.addView(secondaryButton(if(seniorExpanded) "Mostrar módulos essenciais" else
+                 "☰ Ver todos os módulos") {seniorExpanded=!seniorExpanded;showHome()})
+         }
++        val lateTomas=runCatching { PersonalHealthStore(this,activeProfileId)
++            .overdueIntakes().size }.getOrDefault(0)
+         visibleModules.chunked(if(seniorMode)1 else 2).forEach { pair ->
+             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+             pair.forEach { module ->
+@@ -813,6 +822,20 @@
+                         scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                         contentDescription = "Atividade e Saúde"
+                     }, LinearLayout.LayoutParams(dp(if(seniorMode)44 else 38), dp(if(seniorMode)44 else 38)))
++                } else if(module.title=="Tomas" && lateTomas>0){
++                    val iconRow=android.widget.FrameLayout(this)
++                    iconRow.addView(TextView(this).apply{
++                        text=module.icon;textSize=if(seniorMode)35f else 29f
++                    },android.widget.FrameLayout.LayoutParams(dp(48),dp(46)))
++                    iconRow.addView(TextView(this).apply{
++                        text=if(lateTomas>99)"99+" else lateTomas.toString()
++                        setTextColor(Color.WHITE);textSize=12f
++                        setTypeface(typeface,Typeface.BOLD);gravity=Gravity.CENTER
++                        background=android.graphics.drawable.GradientDrawable().apply{
++                            setColor(Color.rgb(207,43,55));cornerRadius=dp(14).toFloat()
++                        }
++                    },android.widget.FrameLayout.LayoutParams(dp(27),dp(25),Gravity.TOP or Gravity.END))
++                    inside.addView(iconRow,LinearLayout.LayoutParams(dp(57),dp(48)))
+                 } else {
+                     inside.addView(TextView(this).apply {
+                         text = module.icon
+@@ -827,7 +850,8 @@
+                     setPadding(0, dp(8), 0, 0)
+                 })
+                 inside.addView(TextView(this).apply {
+-                    text = module.subtitle
++                    text = if(module.title=="Tomas" && lateTomas>0)
++                        "$lateTomas toma(s) atrasada(s) por confirmar" else module.subtitle
+                     textSize = if(seniorMode) 16f else 12f
+                     setTextColor(muted)
+                     maxLines = 2
+@@ -1223,6 +1247,7 @@
+ 
+     private fun activateProfile(profile: HealthProfile) {
+         activeProfileId = profile.id
++        com.mediagenda.app.notifications.IntakeBadgeManager.selectProfile(this,profile.id)
+         repo = DataRepository(this, profile.id)
+         repo.ensureFiles()
+         profileDraft = null
+--- a/java/com/mediagenda/app/notifications/NotificationReceiver.kt
++++ b/java/com/mediagenda/app/notifications/NotificationReceiver.kt
+@@ -245,8 +245,11 @@
+                 runCatching{
+                     val med=DataRepository(context,profileId).loadMedications()
+                         .firstOrNull{it.id==medicationId}
+-                    if(med!=null)PersonalHealthStore(context,profileId)
+-                        .noteReminder(med.id,med.medication.ifBlank{"Medicação"},scheduledAt)
++                    if(med!=null){
++                        PersonalHealthStore(context,profileId)
++                            .noteReminder(med.id,med.medication.ifBlank{"Medicação"},scheduledAt)
++                        IntakeBadgeManager.scheduleCheck(context,profileId,med.id,scheduledAt)
++                    }
+                 }.onFailure{
+                     android.util.Log.e("SaudePratica","Failed to save pending dose",it)
+                 }
+--- a/java/com/mediagenda/app/notifications/IntakeBadgeManager.kt
++++ b/java/com/mediagenda/app/notifications/IntakeBadgeManager.kt
+@@ -0,0 +1,86 @@
++package com.mediagenda.app.notifications
++
++import android.Manifest
++import android.app.AlarmManager
++import android.app.NotificationChannel
++import android.app.NotificationManager
++import android.app.PendingIntent
++import android.content.BroadcastReceiver
++import android.content.Context
++import android.content.Intent
++import android.content.pm.PackageManager
++import android.os.Build
++import androidx.core.app.NotificationCompat
++import androidx.core.content.ContextCompat
++import com.mediagenda.app.data.PersonalHealthStore
++import com.mediagenda.app.data.ProfileStore
++
++/** Notification number requests an OS icon badge; Xiaomi launcher may show a dot instead.
++ * No patient name or drug is placed in this aggregate notification.
++ */
++object IntakeBadgeManager {
++    private const val CHANNEL="saudepratica_intake_counter_v1"
++    private const val NOTIFICATION=0x502145
++    private const val GRACE=15L*60_000L
++    private fun prefs(context:Context)=context.getSharedPreferences("saudepratica_intake_badge_v1",Context.MODE_PRIVATE)
++    fun selectProfile(context:Context,id:String){
++        prefs(context).edit().putString("current_profile",id).apply()
++        refresh(context,id)
++    }
++    fun scheduleCheck(context:Context,profileId:String,medId:String,at:Long){
++        val whenTime=at+GRACE+1000L
++        if(whenTime<=System.currentTimeMillis()){
++            refresh(context,profileId);return
++        }
++        val intent=Intent(context,MissedIntakeBadgeReceiver::class.java).apply{
++            action="com.mediagenda.app.INTAKE_BADGE_CHECK"
++            putExtra("profile_id",profileId)
++            data=android.net.Uri.parse("saudepratica-badge://dose/$profileId/$medId/$at")
++        }
++        val pi=PendingIntent.getBroadcast(context,("$profileId|$medId|$at").hashCode(),intent,
++            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
++        val alarm=context.getSystemService(AlarmManager::class.java)
++        if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.S && !alarm.canScheduleExactAlarms())
++            alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,whenTime,pi)
++        else alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,whenTime,pi)
++    }
++    fun refresh(context:Context,profileId:String?=null){
++        val selected=prefs(context).getString("current_profile",null)
++            ?:profileId?:return
++        if(profileId!=null && selected!=profileId)return
++        val manager=context.getSystemService(NotificationManager::class.java)
++        val count=runCatching{
++            if(ProfileStore(context).all().none{it.id==selected})0
++            else PersonalHealthStore(context,selected).overdueIntakes().size
++        }.getOrDefault(0)
++        if(count<=0){manager.cancel(NOTIFICATION);return}
++        if(Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,
++            Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
++        manager.createNotificationChannel(NotificationChannel(CHANNEL,"Tomas por confirmar",
++            NotificationManager.IMPORTANCE_LOW).apply{
++            description="Contador de lembretes de medicação sem confirmação"
++            setShowBadge(true);enableVibration(false);setSound(null,null)
++            lockscreenVisibility=android.app.Notification.VISIBILITY_PRIVATE
++        })
++        val start=context.packageManager.getLaunchIntentForPackage(context.packageName)
++        val open=start?.let{PendingIntent.getActivity(context,NOTIFICATION,it,
++            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)}
++        val notification=NotificationCompat.Builder(context,CHANNEL)
++            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
++            .setContentTitle("SaúdePrática · Tomas por confirmar")
++            .setContentText("$count aviso(s) de toma atrasado(s). Confirmar na aplicação.")
++            .setNumber(count).setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
++            .setPriority(NotificationCompat.PRIORITY_LOW)
++            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
++            .setOngoing(false).setOnlyAlertOnce(true)
++        if(open!=null)notification.setContentIntent(open)
++        manager.notify(NOTIFICATION,notification.build())
++    }
++}
++
++class MissedIntakeBadgeReceiver:BroadcastReceiver(){
++    override fun onReceive(context:Context,intent:Intent){
++        if(intent.action!="com.mediagenda.app.INTAKE_BADGE_CHECK")return
++        IntakeBadgeManager.refresh(context,intent.getStringExtra("profile_id"))
++    }
++}
+--- a/java/com/mediagenda/app/notifications/IntakeActionReceiver.kt
++++ b/java/com/mediagenda/app/notifications/IntakeActionReceiver.kt
+@@ -69,6 +69,7 @@
+             android.util.Log.e("SaudePratica","Could not confirm dose",e)
+             return
+         }
++        IntakeBadgeManager.refresh(context,profileId)
+         val manager=context.getSystemService(NotificationManager::class.java)
+         val channelId="saudepratica_intake_confirmation_v1"
+         if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.O){
+--- a/java/com/mediagenda/app/data/PersonalHealthStore.kt
++++ b/java/com/mediagenda/app/data/PersonalHealthStore.kt
+@@ -26,7 +26,7 @@
+     private val file = File(folder, "records.json")
+     private val emergency = context.getSharedPreferences("saudepratica_emergency_$id", Context.MODE_PRIVATE)
+     private val allowed = setOf("symptoms", "measurements", "vaccines",
+-        "intakes", "pending_intakes")
++        "intakes", "pending_intakes", "deleted_intakes")
+     companion object { private val intakeLock=Any() }
+ 
+     fun list(kind: String): List<PersonalHealthRecord> {
+@@ -87,7 +87,40 @@
+ 
+     fun remove(item: PersonalHealthRecord) {
+         require(item.kind in allowed)
+-        write(all().filterNot { it.id == item.id })
++        synchronized(intakeLock) {
++            val previous=all()
++            val remaining=previous.filterNot{it.id==item.id}
++            if(item.kind=="intakes" && previous.any{it.id==item.id}){
++                // Sync tombstone: a deleted confirmation must not reappear after
++                // an additive family sync from another device.
++                val fields=mutableMapOf("deleted_intake_id" to item.id)
++                item.fields["medication_id"]?.let{fields["medication_id"]=it}
++                item.fields["scheduled_at"]?.let{fields["scheduled_at"]=it}
++                val tombstone=PersonalHealthRecord(UUID.randomUUID().toString(),
++                    "deleted_intakes", "Registo removido",System.currentTimeMillis(),fields)
++                write(remaining+tombstone)
++            }else write(remaining)
++        }
++    }
++
++    /** An unconfirmed reminder becomes overdue after a 15-minute grace period.
++     * 'Overdue' is not proof the medication was not actually taken.
++     */
++    fun overdueIntakes(now:Long=System.currentTimeMillis()):List<PersonalHealthRecord> {
++        val completed=list("intakes").mapNotNull{
++            val scheduled=it.fields["scheduled_at"].orEmpty()
++            if(scheduled.isNotBlank())it.fields["medication_id"].orEmpty()+"|"+scheduled else null
++        }.toSet()
++        val deleted=list("deleted_intakes").mapNotNull{
++            val scheduled=it.fields["scheduled_at"].orEmpty()
++            if(scheduled.isNotBlank())it.fields["medication_id"].orEmpty()+"|"+scheduled else null
++        }.toSet()
++        return list("pending_intakes").filter{
++            val time=it.fields["scheduled_at"]?.toLongOrNull()?:it.timestamp
++            time>0L && time<=now-15L*60_000L &&
++                (it.fields["medication_id"].orEmpty()+"|"+time) !in completed &&
++                (it.fields["medication_id"].orEmpty()+"|"+time) !in deleted
++        }
+     }
+ 
+     fun emergencyValue(key: String) = emergency.getString(key, "").orEmpty()
+--- a/java/com/mediagenda/app/sync/NearbySyncStore.kt
++++ b/java/com/mediagenda/app/sync/NearbySyncStore.kt
+@@ -31,6 +31,37 @@
+     private var copied=0
+     private var conflicts=0
+     private val prefs=context.getSharedPreferences("saudepratica_nearby_sync_v1",Context.MODE_PRIVATE)
++    private val identityPrefs=context.getSharedPreferences("saudepratica_nearby_profile_identity_v2",Context.MODE_PRIVATE)
++    /** Remote peer+profile identifier, never a display name, is the association key.
++     * An unknown same-name profile MUST be isolated rather than mapped silently.
++     */
++    private fun receiverProfile(device:String,remote:String,name:String,store:ProfileStore):String {
++        val key="$device|$remote"
++        val existingMapping=identityPrefs.getString(key,null)
++        if(existingMapping!=null){
++            require(store.all().any{it.id==existingMapping}){
++                "A associação anterior deste perfil já não existe. Verifica os perfis antes de sincronizar."
++            }
++            return existingMapping
++        }
++        val exact=store.all().firstOrNull{it.id==remote && remote!="legacy"}
++        // UUIDs are stable identities; names can be changed independently.
++        val localId=if(exact!=null)exact.id else {
++            var label=name
++            if(store.all().any{it.name.equals(label,true)}){
++                label="$name (recebido de ${device.take(6)})"
++            }
++            var count=2
++            while(store.all().any{it.name.equals(label,true)}){
++                label="$name (recebido ${device.take(6)}-$count)";count++
++            }
++            store.create(label).id
++        }
++        check(identityPrefs.edit().putString(key,localId).commit()){
++            "Não foi possível guardar a identidade do perfil recebido."
++        }
++        return localId
++    }
+ 
+     fun deviceId():String=synchronized(NearbySyncStore::class.java){
+         val id=prefs.getString("device_id","").orEmpty()
+@@ -88,7 +119,9 @@
+             val f=File(root,rel)
+             if(f.isFile && f.canonicalFile.parentFile==f.parentFile.canonicalFile)found[rel]=f
+         }
+-        include("medicacao.json");include("agenda.json")
++        if (ProfileStore(context).all().any{it.id=="legacy"}) {
++            include("medicacao.json");include("agenda.json")
++        }
+         for(p in ProfileStore(context).all()){
+             val id=p.id
+             if(id!="legacy"){
+@@ -247,6 +280,16 @@
+             }else if(existing.toString()!=item.toString())conflict(path,source,device)
+         }
+         if(name=="records.json"){
++            val deletedIds=mutableSetOf<String>()
++            val deletedScheduled=mutableSetOf<String>()
++            for(i in 0 until current.length()){
++                val item=current.optJSONObject(i)?:continue
++                if(item.optString("kind")!="deleted_intakes")continue
++                val fields=item.optJSONObject("fields")?:continue
++                fields.optString("deleted_intake_id").takeIf{it.isNotBlank()}?.let{deletedIds.add(it)}
++                if(fields.optString("scheduled_at").isNotBlank())deletedScheduled.add(
++                    fields.optString("medication_id")+"|"+fields.optString("scheduled_at"))
++            }
+             val taken=mutableSetOf<String>()
+             for(i in 0 until current.length()){
+                 val item=current.optJSONObject(i)?:continue
+@@ -260,8 +303,12 @@
+             for(i in 0 until current.length()){
+                 val item=current.optJSONObject(i)?:continue
+                 val f=item.optJSONObject("fields")
+-                if(item.optString("kind")=="pending_intakes"&&f!=null&&
+-                    (f.optString("medication_id")+"|"+f.optString("scheduled_at")) in taken){
++                val doseKey=f?.optString("medication_id").orEmpty()+"|"+
++                    f?.optString("scheduled_at").orEmpty()
++                if((item.optString("kind")=="pending_intakes" &&
++                    (doseKey in taken || doseKey in deletedScheduled)) ||
++                    (item.optString("kind")=="intakes" &&
++                        (item.optString("id") in deletedIds || doseKey in deletedScheduled))){
+                     changed=true;continue
+                 }
+                 filtered.put(item)
+@@ -341,8 +388,9 @@
+                 val remote=person.getString("id")
+                 val name=person.getString("name").trim()
+                 require(profileIds.matches(remote)&&name.length in 1..120&&!ids.containsKey(remote))
+-                val existing=store.all().firstOrNull{it.name.equals(name,ignoreCase=true)}
+-                val localId=(existing?:store.create(name)).id
++                val localId=receiverProfile(device,remote,name,store)
++                // Avoid combining two distinct remote patients in one local profile.
++                require(localId !in ids.values){"Perfis remotos diferentes não podem ser associados à mesma pessoa."}
+                 ids[remote]=localId
+                 mergePreferences(localId,person.optJSONObject("prefs")?:JSONObject())
+             }

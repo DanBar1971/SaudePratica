@@ -1,0 +1,13 @@
+{
+  "tag": "v1.9.103",
+  "base_tag": "v1.9.102",
+  "asset": "SaudePratica.apk",
+  "unsigned_run_id": 40653603165,
+  "unsigned_artifact": "SaudePratica-v1.9.103-UNSIGNED",
+  "unsigned_sha256": "601f490942c87613a6d0bbb0197f6e5cd1534a6d269fe8f43eb5390f9f526136",
+  "apk_sha256": "56930fb2655b6becb3cf4d39bc5e848e7a8de96c9f220c57aa57326da593f946",
+  "delta_sha256": "f27763d68f22f98b4c5246f7d7a888e6f3cd42bca74cb9c83b04c4f1b00fd971",
+  "encrypted_key_sha256": "d0d52878a090ead7d7f103c106d410df79ca1cce55691dec3ecbc3c0d38f02b8",
+  "certificate_sha256": "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a",
+  "note": "Signed with original key; private signing key and recovery token remain offline; only encrypted backup in Release."
+}

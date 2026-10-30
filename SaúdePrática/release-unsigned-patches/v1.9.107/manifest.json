@@ -1,0 +1,11 @@
+{
+  "tag": "v1.9.107",
+  "base_tag": "v1.9.106",
+  "asset": "SaudePratica.apk",
+  "base_sha256": "ab6b55941970806d1a6013dc455722944859ebfa919e0a7e875e23070d580586",
+  "delta_sha256": "88d275efecc725efc08bf9814a86565f8e87c88c0a911237f5654f183134e9d4",
+  "apk_sha256": "71589b86074163e76d08812b2de5366f05d056c1f99f84b05aa2614da50b8cf5",
+  "certificate_sha256": "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a",
+  "parts": 38,
+  "note": "Signed locally with original Android key. No private key/recovery token published."
+}

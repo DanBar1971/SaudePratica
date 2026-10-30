@@ -1,0 +1,10 @@
+{
+  "tag": "v1.9.81",
+  "base_tag": "v1.9.80",
+  "asset": "SaudePratica.apk",
+  "base_sha256": "1f523d51ef8168dcc6c864e049f7914f6d0e1abb0e3c7a62437c2a30803cba9f",
+  "delta_sha256": "fb346be7f4a711acd6060f9383b7cba28a115ae93f5ec9efeecf11cec05d4f6f",
+  "apk_sha256": "bceb404f9a71ff417a89b5eb9abc1e66fac87e12bec6561810e7b13739566f04",
+  "parts": 19,
+  "description": "Signed APK patch for improved offline meal diary UI, profile-safe meal photos and Portuguese food search. Certificate unchanged; no signing secrets or personal images in public repository."
+}

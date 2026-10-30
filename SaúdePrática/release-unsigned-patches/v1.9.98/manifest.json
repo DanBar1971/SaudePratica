@@ -1,0 +1,13 @@
+{
+  "tag": "v1.9.98",
+  "base_tag": "v1.9.97",
+  "asset": "SaudePratica.apk",
+  "unsigned_run_id": 40526181566,
+  "unsigned_artifact": "SaudePratica-v1.9.98-UNSIGNED",
+  "unsigned_sha256": "01f7f11fc22533239482d0db20f21365a8f332d6c53abaae45f89d3fb1b96a7f",
+  "apk_sha256": "df457c054f6e4caf712e8aa8c4059325b026b94534c670b610b491883b971f19",
+  "delta_sha256": "02886d83f5236084489d4449e74d121afd2419f850a2146bcd0bec970229e429",
+  "encrypted_key_sha256": "d0d52878a090ead7d7f103c106d410df79ca1cce55691dec3ecbc3c0d38f02b8",
+  "certificate_sha256": "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a",
+  "signing_key_note": "The private signing key is NOT committed to this public repository. Only AES-256-GCM encrypted backup ciphertext is included. The separate 256-bit recovery key must be stored offline."
+}

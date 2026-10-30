@@ -1,0 +1,10 @@
+{
+  "tag": "v1.9.78",
+  "base_tag": "v1.9.77",
+  "asset": "SaudePratica.apk",
+  "base_sha256": "1dfb2e927d4c1d6f4cb738991caae438bf4309d1e27e4c31e1ebf0222f6b4b7f",
+  "delta_sha256": "101a61a92fbd71cbf8991f9a92a310552396bcb840330ec462a617cd07b5af0a",
+  "apk_sha256": "71c453cfa1acf55a7038edbb18d007e9f2e257854374c7599851c848fccd1969",
+  "parts": 18,
+  "description": "Integrity-verified binary delta reconstructs exact original-key-signed SaúdePrática 1.9.78 APK from v1.9.77. No private signing keys in public repository."
+}

@@ -1,0 +1,474 @@
+--- MainActivity.kt
++++ MainActivity.kt
+@@ -421,7 +421,8 @@
+         super.onCreate(savedInstanceState)
+         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+             override fun handleOnBackPressed() {
+-                if (currentScreen != "Início") showHome()
++                if (optionsGroup != null) showDataTools()
++                else if (currentScreen != "Início") showHome()
+                 else {
+                     isEnabled = false
+                     onBackPressedDispatcher.onBackPressed()
+@@ -575,7 +576,7 @@
+         column.addView(TextView(this).apply{
+             text="Marca os módulos que queres ver no Início. "+
+                 "Os dados dos módulos ocultos não são apagados. "+
+-                "O módulo Mais fica sempre disponível."
++                "O módulo Opções fica sempre disponível."
+             textSize=13f
+             setTextColor(mainTextColor)
+             setPadding(0,0,0,dp(12))
+@@ -722,6 +723,7 @@
+     }
+ 
+     private fun showHome() {
++        optionsGroup=null
+         content.removeAllViews()
+         screenHeader("⌂", "Início", "")
+ 
+@@ -769,16 +771,22 @@
+             DashboardModule("✚", "Farmácias", "Perto de mim e serviço") { showPharmacies() },
+             DashboardModule("🏥", "SNS 24", "Aplicação oficial de saúde") { openSns24() },
+             DashboardModule("🏨", "IPO Lisboa", "Abrir aplicação IPO Lisboa") { openIpoLisboa() },
+-            DashboardModule("⚙", "Mais", "Utilizadores e opções") { showDataTools() }
++            DashboardModule("⚙", "Opções", "Perfis, backups e acessibilidade") { showDataTools() }
+         )
+         val hiddenModules=dashboardPrefs().getStringSet("hidden",emptySet())
+             .orEmpty()
+         val visibleModules=options.filter {
+-            it.title=="Mais" || (it.title !in hiddenModules &&
++            it.title=="Opções" || (it.title !in hiddenModules &&
+                 !(it.title=="Situação Clínica" &&
+-                    "Saúde Ocupacional" in hiddenModules))
+-        }
+-        visibleModules.chunked(2).forEach { pair ->
++                    "Saúde Ocupacional" in hiddenModules) &&
++                (!seniorMode || seniorExpanded || it.title in setOf(
++                    "Medicação","Tomas","Agenda","Atividade e Saúde","Emergência")))
++        }
++        if(seniorMode){
++            box.addView(secondaryButton(if(seniorExpanded) "Mostrar módulos essenciais" else
++                "☰ Ver todos os módulos") {seniorExpanded=!seniorExpanded;showHome()})
++        }
++        visibleModules.chunked(if(seniorMode)1 else 2).forEach { pair ->
+             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+             pair.forEach { module ->
+                 val card = materialCard(stroke = border, bg = surface, radius = 19f, elevation = 1f)
+@@ -792,30 +800,30 @@
+                         setImageResource(R.drawable.saude_activity_icon)
+                         scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                         contentDescription = "Atividade e Saúde"
+-                    }, LinearLayout.LayoutParams(dp(38), dp(38)))
++                    }, LinearLayout.LayoutParams(dp(if(seniorMode)44 else 38), dp(if(seniorMode)44 else 38)))
+                 } else {
+                     inside.addView(TextView(this).apply {
+                         text = module.icon
+-                        textSize = 29f
++                        textSize = if(seniorMode) 35f else 29f
+                     })
+                 }
+                 inside.addView(TextView(this).apply {
+                     text = module.title
+-                    textSize = 16f
++                    textSize = if(seniorMode) 21f else 16f
+                     setTypeface(typeface, Typeface.BOLD)
+                     setTextColor(mainTextColor)
+                     setPadding(0, dp(8), 0, 0)
+                 })
+                 inside.addView(TextView(this).apply {
+                     text = module.subtitle
+-                    textSize = 12f
++                    textSize = if(seniorMode) 16f else 12f
+                     setTextColor(muted)
+                     maxLines = 2
+                 })
+                 card.addView(inside)
+                 card.setOnClickListener { module.action() }
+                 row.addView(card, LinearLayout.LayoutParams(
+-                    0, dp(145), 1f).apply {
++                    0, dp(if(seniorMode) 138 else 145), 1f).apply {
+                     marginStart = dp(3)
+                     marginEnd = dp(3)
+                     bottomMargin = dp(9)
+@@ -824,7 +832,7 @@
+             box.addView(row)
+         }
+         box.addView(TextView(this).apply {
+-            text = "As informações e os documentos são organizados por utilizador."
++            text = "As informações e os documentos são organizados por perfil."
+             textSize = 12f
+             setTextColor(muted)
+             setPadding(dp(6), dp(10), dp(6), dp(20))
+@@ -1212,7 +1220,7 @@
+     }
+ 
+     private fun showProfileSelection() {
+-        currentScreen = "Escolher utilizador"
++        currentScreen = "Escolher perfil"
+         val available = profiles.all()
+         if (available.size == 1) {
+             activateProfile(available.first())
+@@ -1273,7 +1281,7 @@
+             val fullName=getSharedPreferences(profiles.preferencesFor(profile.id),MODE_PRIVATE)
+                 .getString("full_name","").orEmpty()
+             words.addView(TextView(this).apply{
+-                text=fullName.ifBlank{"Abrir este utilizador"}
++                text=fullName.ifBlank{"Abrir este perfil"}
+                 textSize=13f
+                 setTextColor(muted)
+                 maxLines=2
+@@ -1294,11 +1302,11 @@
+ 
+     private fun showCreateProfileDialog() {
+         val box = formBox()
+-        val name = input("Nome do novo utilizador", "")
++        val name = input("Nome do novo perfil", "")
+         box.addView(name.container)
+         val dialog = MaterialAlertDialogBuilder(this)
+-            .setTitle("Adicionar utilizador")
+-            .setMessage("Cada utilizador terá medicamentos, consultas e dados separados. Não é necessária palavra-passe.")
++            .setTitle("Adicionar perfil")
++            .setMessage("Cada perfil terá medicação, consultas e dados separados. Não é necessária palavra-passe.")
+             .setView(scroll(box))
+             .setNegativeButton("Cancelar", null)
+             .setPositiveButton("Criar", null)
+@@ -1311,7 +1319,7 @@
+             } catch (e: IllegalArgumentException) {
+                 name.edit.error = e.message
+             } catch (e: Exception) {
+-                showError(e.message ?: "Não foi possível criar o utilizador.")
++                showError(e.message ?: "Não foi possível criar o perfil.")
+             }
+         }
+     }
+@@ -1321,9 +1329,9 @@
+         form.addView(noteBox("Ação irreversível — " + profile.name,
+             "Serão apagados DESTE telemóvel os dados de identificação, " +
+             "medicação, tomas, consultas, documentos, exames, despesas, " +
+-            "fotografias exclusivas e definições deste utilizador. " +
++            "fotografias exclusivas e definições deste perfil. " +
+             "Os outros perfis serão preservados. " +
+-            "Faz primeiro um backup em Mais → Backup completo da família. " +
++            "Faz primeiro um backup em Opções → Backups e sincronização → Backup completo da família. " +
+             "ATENÇÃO: a sincronização não propaga eliminações; o perfil " +
+             "pode regressar se existir no outro telemóvel."))
+         val phrase=input("Para confirmar, escreve: " + profile.name, "")
+@@ -1345,7 +1353,7 @@
+             .setTextColor(Color.parseColor("#B42318"))
+         dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener{
+             if(phrase.edit.text.toString().trim()!=profile.name){
+-                phrase.edit.error="Escreve exatamente o nome do utilizador."
++                phrase.edit.error="Escreve exatamente o nome do perfil."
+                 return@setOnClickListener
+             }
+             if(pin!=null&&!pinStore.verify(pin.edit.text.toString())){
+@@ -1367,7 +1375,7 @@
+                         showCreateProfileDialog()
+                     }
+                 } else showDataTools()
+-                Toast.makeText(this,"Utilizador $removed eliminado deste telemóvel.",
++                Toast.makeText(this,"Perfil $removed eliminado deste telemóvel.",
+                     Toast.LENGTH_LONG).show()
+             }catch(error:Exception){
+                 showError("Não foi possível concluir a eliminação: " +
+@@ -1465,20 +1473,88 @@
+         }
+     }
+ 
++    private fun seniorPrefs()=getSharedPreferences("saudepratica_senior_mode",MODE_PRIVATE)
++    private val seniorMode get()=seniorPrefs().getBoolean("enabled",false)
++    private var seniorExpanded=false
++    private var optionsGroup:String?=null
++
+     private fun showDataTools() {
++        optionsGroup=null
+         content.removeAllViews()
+-        screenHeader("⚙", "Mais", "Perfil, cópias de segurança e exportação")
+-
+-        val scroll = ScrollView(this).apply { overScrollMode = View.OVER_SCROLL_NEVER }
+-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
++        screenHeader("⚙", "Opções", "Configurar a aplicação e gerir os perfis")
++        val scroll=ScrollView(this).apply{overScrollMode=View.OVER_SCROLL_NEVER}
++        val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
++        box.addView(infoCard("👤", "Perfis", "Perfil atual, escolher perfil e adicionar perfil") {
++            showOptionsGroup("perfis")
++        })
++        box.addView(infoCard("🎨", "Aspeto e idioma", "Tema, idioma e módulos do ecrã inicial") {
++            showOptionsGroup("personalizacao")
++        })
++        box.addView(infoCard("🧓", "Acessibilidade · Modo Sénior",
++            if(seniorMode) "Ativo · letras e botões maiores no ecrã inicial" else "Ativar uma utilização mais simples e legível") {
++            showOptionsGroup("acessibilidade")
++        })
++        box.addView(infoCard("🔐", "Segurança e notificações",
++            "PIN, Health Connect e avisos de medicação ou consultas") {
++            showOptionsGroup("saude")
++        })
++        box.addView(infoCard("📦", "Backups e sincronização",
++            "Sincronizar, guardar, restaurar e importar/exportar dados") {
++            showOptionsGroup("backup")
++        })
++        box.addView(infoCard("📖", "Ajuda e informações",
++            "Assistente offline, guia, suporte, autor e versão") {
++            showOptionsGroup("apoio")
++        })
++        scroll.addView(box)
++        content.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
++        renderBottomNav(4)
++    }
++
++    private fun showSeniorSettings() {
++        MaterialAlertDialogBuilder(this)
++            .setTitle("🧓 Modo Sénior / Terceira Idade")
++            .setMessage("Simplifica o ecrã inicial: apresenta primeiro Medicação, Tomas, Agenda, " +
++                "Atividade e Saúde, Emergência e Opções. Usa cartões maiores e texto mais legível. " +
++                "Podes escolher «Ver todos os módulos» quando precisares. " +
++                "Não altera os dados, lembretes nem as permissões de segurança.")
++            .setSingleChoiceItems(arrayOf("Modo normal", "Modo Sénior"),
++                if(seniorMode) 1 else 0) { dialog,which ->
++                seniorPrefs().edit().putBoolean("enabled",which==1).apply()
++                seniorExpanded=false
++                dialog.dismiss()
++                showOptionsGroup("acessibilidade")
++            }
++            .setNegativeButton("Cancelar",null).show()
++    }
++
++    private fun showOptionsGroup(group:String) {
++        optionsGroup=group
++        content.removeAllViews()
++        val details=when(group){
++            "perfis" -> Triple("👤","Perfis","Gerir perfis de saúde independentes")
++            "personalizacao" -> Triple("🎨","Aspeto e idioma","Personalizar o ecrã e a linguagem")
++            "acessibilidade" -> Triple("🧓","Acessibilidade","Modo Sénior e ajuda para utilizar a aplicação")
++            "saude" -> Triple("🔐","Segurança e notificações","Autorizações e alertas")
++            "backup" -> Triple("📦","Backups e sincronização","Guardar, transferir e recuperar registos")
++            else -> Triple("📖","Ajuda e informações","Suporte e informações da SaúdePrática")
++        }
++        screenHeader(details.first,details.second,details.third)
++        val scroll=ScrollView(this).apply{overScrollMode=View.OVER_SCROLL_NEVER}
++        val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
++        box.addView(secondaryButton("‹ Voltar a Opções"){showDataTools()})
++        when(group){
++            "perfis" -> {
+         box.addView(infoCard("👤", "Perfil atual", profileName().ifBlank { "Definir nome do perfil" }) { showProfileDialog(false) })
+-        box.addView(infoCard("👥", "Escolher utilizador", profiles.all().size.toString() + " utilizador(es) registado(s)") {
++        box.addView(infoCard("👥", "Escolher perfil", profiles.all().size.toString() + " perfil(is) registado(s)") {
+             showProfileSelection()
+         })
+-        box.addView(infoCard("➕", "Adicionar utilizador", "Criar um perfil com medicação e agenda próprias, sem palavra-passe") {
++        box.addView(infoCard("➕", "Adicionar perfil", "Criar um novo perfil de saúde, sem palavra-passe") {
+             showCreateProfileDialog()
+         })
+-        box.addView(infoCard("☑", "Escolher módulos do Início",
++            }
++            "personalizacao" -> {
++        box.addView(infoCard("☑", "Módulos do ecrã inicial",
+             "Selecionar com checklist o que aparece no menu principal") {
+             showDashboardChecklist()
+         })
+@@ -1503,6 +1579,8 @@
+                 }
+                 .setNegativeButton("Cancelar",null).show()
+         })
++            }
++            "saude" -> {
+         box.addView(infoCard("🔒", "PIN de acesso",
+             if(AppPinStore(this).enabled())"Ativado · PIN de 4 dígitos"
+             else "Desativado · a aplicação abre sem pedir PIN") {
+@@ -1519,6 +1597,8 @@
+             "Testar avisos de agendamentos e alarmes de medicação") {
+             showNotificationsMenu()
+         })
++            }
++            "backup" -> {
+         box.addView(infoCard("🔄", "Sincronização familiar (Bluetooth / Wi-Fi)",
+             "Trocar dados com outro telemóvel SaúdePrática, sem apagar registos") {
+             startActivity(Intent(this,com.mediagenda.app.sync.NearbySyncActivity::class.java))
+@@ -1545,12 +1625,14 @@
+         box.addView(infoCard("⇧", "Exportar JSON", "Guarde os ficheiros de medicação e agenda separadamente.") {
+             showExportJsonDialog()
+         })
+-        box.addView(infoCard("🛡", "Backup do utilizador atual", "Cria um JSON com medicação e agenda deste perfil.") {
++        box.addView(infoCard("🛡", "Backup do perfil atual", "Cria um JSON com medicação e agenda deste perfil.") {
+             exportBackupJson.launch("mediagenda_backup.json")
+         })
+         box.addView(infoCard("▦", "Exportar para Excel", "Gera CSV UTF-8 com separador ';' para abrir no Excel.") {
+             showExportCsvDialog()
+         })
++            }
++            "apoio" -> {
+         box.addView(infoCard("✨", "Assistente de ajuda offline",
+             "Faz perguntas sobre medicamentos, tomas, consultas e sincronização") {
+             startActivity(Intent(this,SmartHelpActivity::class.java))
+@@ -1582,8 +1664,24 @@
+         box.addView(infoCard("ℹ️", "Acerca", "SaúdePrática — versão, autor e contacto") {
+             showAboutSaudePratica()
+         })
++            }
++            "acessibilidade" -> {
++                box.addView(infoCard("🧓", "Modo Sénior",
++                    if(seniorMode) "Ativo · cartões grandes e módulos essenciais" else
++                        "Desativado · tocar para ativar modo simplificado") {
++                    showSeniorSettings()
++                })
++                box.addView(infoCard("🆘", "Acesso rápido à Emergência",
++                    "Alergias, contactos e informações úteis") {healthRecords("emergency")})
++                box.addView(infoCard("📖", "Ajuda passo a passo",
++                    "Guia ilustrado para utilizadores e cuidadores") {
++                    startActivity(Intent(this,SupportHelpActivity::class.java)
++                        .putExtra(SupportHelpActivity.MODE,SupportHelpActivity.HELP))
++                })
++            }
++        }
+         scroll.addView(box)
+-        content.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
++        content.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
+         renderBottomNav(4)
+     }
+ 
+@@ -1601,7 +1699,7 @@
+                 gravity = Gravity.CENTER
+                 setTextColor(primaryDark)
+                 contentDescription = "Voltar ao Início"
+-                setOnClickListener { showHome() }
++                setOnClickListener { if(optionsGroup!=null) showDataTools() else showHome() }
+             }, LinearLayout.LayoutParams(dp(34), dp(60)))
+         }
+         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+@@ -1651,7 +1749,7 @@
+             })
+             if (profiles.all().size>1){
+                 profileBadge.setOnClickListener{showProfileSelection()}
+-                profileBadge.contentDescription="Mudar utilizador: $profile"
++                profileBadge.contentDescription="Mudar perfil: $profile"
+             }
+             top.addView(profileBadge)
+         }
+@@ -1708,15 +1806,15 @@
+         val row = LinearLayout(this).apply {
+             orientation = LinearLayout.HORIZONTAL
+             gravity = Gravity.CENTER_VERTICAL
+-            setPadding(dp(16), dp(16), dp(14), dp(16))
++            setPadding(dp(16), dp(if(seniorMode) 20 else 16), dp(14), dp(if(seniorMode) 20 else 16))
+         }
+         row.addView(TextView(this).apply {
+-            text = icon; textSize = 25f; gravity = Gravity.CENTER
++            text = icon; textSize = if(seniorMode) 30f else 25f; gravity = Gravity.CENTER
+             setPadding(0, 0, dp(14), 0)
+         })
+         val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+-        texts.addView(TextView(this).apply { text = title; textSize = 16f; setTextColor(mainTextColor); setTypeface(typeface, Typeface.BOLD) })
+-        texts.addView(TextView(this).apply { this.text = body; textSize = 13f; setTextColor(muted); setPadding(0, dp(4), 0, 0) })
++        texts.addView(TextView(this).apply { text = title; textSize = if(seniorMode) 19f else 16f; setTextColor(mainTextColor); setTypeface(typeface, Typeface.BOLD) })
++        texts.addView(TextView(this).apply { this.text = body; textSize = if(seniorMode) 15f else 13f; setTextColor(muted); setPadding(0, dp(4), 0, 0) })
+         row.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+         row.addView(TextView(this).apply { text = "›"; textSize = 28f; setTextColor(primary) })
+         card.addView(row)
+@@ -1746,7 +1844,7 @@
+             Triple("💊", "Medicação") { showMedication() },
+             Triple("📅", "Agenda") { showAgenda() },
+             Triple("📂", "Docs") { showDocuments() },
+-            Triple("⚙", "Mais") { showDataTools() }
++            Triple("⚙", "Opções") { showDataTools() }
+         )
+         tabs.forEachIndexed { index, tab ->
+             val v = TextView(this).apply {
+@@ -2890,7 +2988,7 @@
+         }
+         box.addView(secondaryButton("📷 Foto de perfil e fotografias do Cartão de Cidadão") {
+             if(profiles.all().none{it.id==activeProfileId}){
+-                Toast.makeText(this,"Guarde primeiro o novo utilizador.",Toast.LENGTH_LONG).show()
++                Toast.makeText(this,"Guarde primeiro o novo perfil.",Toast.LENGTH_LONG).show()
+             }else{
+                 rememberDraft()
+                 dialog?.dismiss()
+@@ -2974,7 +3072,7 @@
+             // Resolve by stable ID; deletion is gated by name and optional PIN.
+             val selected=profiles.all().firstOrNull { it.id==activeProfileId }
+             if(selected==null){
+-                showError("Este utilizador já não existe.")
++                showError("Este perfil já não existe.")
+             }else{
+                 dialog.dismiss()
+                 confirmDeleteSelectedProfile(selected)
+--- SupportHelpActivity.kt
++++ SupportHelpActivity.kt
+@@ -92,19 +92,19 @@
+         parent.addView(heading(tr("📖 Ajuda — como usar a aplicação",
+             "📖 Help — how to use the app","📖 Aide — utiliser l’application",
+             "📖 Hilfe — so funktioniert die App","📖 Ayuda — cómo usar la aplicación")))
+-        parent.addView(text(tr("Aprende em oito passos, com imagens simples.",
+-            "Learn in eight illustrated steps.","Apprenez en huit étapes illustrées.",
+-            "Lernen Sie in acht bebilderten Schritten.",
+-            "Aprende en ocho pasos con imágenes sencillas."),14f,muted))
++        parent.addView(text(tr("Aprende em nove passos, com imagens simples.",
++            "Learn in nine illustrated steps.","Apprenez en neuf étapes illustrées.",
++            "Lernen Sie in neun bebilderten Schritten.",
++            "Aprende en nueve pasos con imágenes sencillas."),14f,muted))
+         data class Step(val icon:Int,val title:Array<String>,val description:Array<String>)
+         val steps=listOf(
+             Step(R.drawable.guide_home,
+                 arrayOf("1. Ecrã inicial","1. Home screen","1. Accueil","1. Startseite","1. Inicio"),
+-                arrayOf("Escolhe um módulo, como Medicação, Agenda ou Documentos. Em Mais podes ocultar ou mostrar módulos.",
+-                    "Tap Medication, Appointments or Documents. Use More to show or hide modules.",
+-                    "Ouvrez Médicaments, Rendez-vous ou Documents. Dans Plus, choisissez les modules.",
+-                    "Tippen Sie auf Medikamente, Termine oder Dokumente. Unter Mehr können Sie Module ein- und ausblenden.",
+-                    "Abre Medicación, Agenda o Documentos. En Más puedes mostrar u ocultar módulos.")),
++                arrayOf("Escolhe um módulo, como Medicação, Agenda ou Documentos. Em Opções → Aspeto e idioma podes escolher os módulos visíveis.",
++                    "Tap Medication, Appointments or Documents. Use Options → Appearance and language to show or hide modules.",
++                    "Ouvrez Médicaments, Rendez-vous ou Documents. Dans Options → Apparence et langue, choisissez les modules.",
++                    "Tippen Sie auf Medikamente, Termine oder Dokumente. Unter Optionen → Darstellung und Sprache lassen sich Module ein- und ausblenden.",
++                    "Abre Medicación, Agenda o Documentos. En Opciones → Aspecto e idioma puedes elegir los módulos.")),
+             Step(R.drawable.guide_med,
+                 arrayOf("2. Medicação e tomas","2. Medication and doses","2. Médicaments et prises","2. Medikamente und Einnahmen","2. Medicación y tomas"),
+                 arrayOf("Toca em + Adicionar, preenche o medicamento e a hora. Anexa a foto da embalagem. No aviso, toca em TOMEI só depois de tomares.",
+@@ -128,18 +128,18 @@
+                     "Guarda documentos en el perfil adecuado. Haz una foto o selecciona un archivo.")),
+             Step(R.drawable.guide_sync,
+                 arrayOf("5. Sincronizar dois telemóveis","5. Sync two phones","5. Synchroniser deux téléphones","5. Zwei Handys synchronisieren","5. Sincronizar dos móviles"),
+-                arrayOf("Em Mais → Sincronização familiar, escolhe Partilhar num telemóvel e Procurar no outro. Compara e confirma os códigos antes da transferência. Faz backup antes da primeira vez.",
+-                    "In More → Family sync, tap Share on one phone and Search on the other. Compare the security codes. Back up first.",
+-                    "Dans Plus → Synchronisation familiale, choisissez Partager et Rechercher. Comparez les codes. Sauvegardez d’abord.",
+-                    "Unter Mehr → Familiensynchronisierung auf einem Handy Teilen, auf dem anderen Suchen wählen. Codes vergleichen. Zuvor sichern.",
+-                    "En Más → Sincronización familiar, pulsa Compartir en un móvil y Buscar en el otro. Compara códigos. Haz copia antes.")),
++                arrayOf("Em Opções → Backups e sincronização → Sincronização familiar, escolhe Partilhar num telemóvel e Procurar no outro. Compara e confirma os códigos antes da transferência. Faz backup antes da primeira vez.",
++                    "In Options → Backups and sync → Family sync, tap Share on one phone and Search on the other. Compare the security codes. Back up first.",
++                    "Dans Options → Sauvegardes et synchronisation → Synchronisation familiale, choisissez Partager et Rechercher. Comparez les codes. Sauvegardez d’abord.",
++                    "Unter Optionen → Sicherung und Synchronisierung → Familiensynchronisierung auf einem Handy Teilen, auf dem anderen Suchen wählen. Codes vergleichen. Zuvor sichern.",
++                    "En Opciones → Copias y sincronización → Sincronización familiar, pulsa Compartir en un móvil y Buscar en el otro. Compara códigos. Haz copia antes.")),
+             Step(R.drawable.guide_home,
+                 arrayOf("6. Atividade e Saúde","6. Activity and Health","6. Activité et santé","6. Aktivität und Gesundheit","6. Actividad y salud"),
+-                arrayOf("No Início, abre Atividade e Saúde para consultar passos, sono e energia. Em Medições manuais podes ver e registar tensão, glicemia, peso e mais. Autoriza ou revoga o Health Connect em Mais → Health Connect; sem autorização continuas a poder usar as medições manuais.",
+-                    "Open Activity and Health to see steps, sleep and energy. Use Manual measurements for blood pressure, glucose and weight. Manage Health Connect in More.",
+-                    "Ouvrez Activité et santé pour les pas et le sommeil. Les mesures manuelles comprennent tension, glycémie et poids. Gérez Health Connect dans Plus.",
+-                    "Unter Aktivität und Gesundheit findest du Schritte, Schlaf und manuelle Werte wie Blutdruck, Blutzucker und Gewicht. Berechtigungen: Mehr → Health Connect.",
+-                    "Abre Actividad y salud para ver pasos y sueño, además de tensión, glucosa y peso en Mediciones manuales. Gestiona Health Connect en Más.")),
++                arrayOf("No Início, abre Atividade e Saúde para consultar passos, sono e energia. Em Medições manuais podes ver e registar tensão, glicemia, peso e mais. Autoriza ou revoga o Health Connect em Opções → Segurança e notificações → Health Connect; sem autorização continuas a poder usar as medições manuais.",
++                    "Open Activity and Health to see steps, sleep and energy. Use Manual measurements for blood pressure, glucose and weight. Manage Health Connect in Options → Security and notifications.",
++                    "Ouvrez Activité et santé pour les pas et le sommeil. Les mesures manuelles comprennent tension, glycémie et poids. Gérez Health Connect dans Options → Sécurité et notifications.",
++                    "Unter Aktivität und Gesundheit findest du Schritte, Schlaf und manuelle Werte wie Blutdruck, Blutzucker und Gewicht. Berechtigungen: Optionen → Sicherheit und Benachrichtigungen → Health Connect.",
++                    "Abre Actividad y salud para ver pasos y sueño, además de tensión, glucosa y peso en Mediciones manuales. Gestiona Health Connect en Opciones → Seguridad y notificaciones.")),
+             Step(R.drawable.guide_home,
+                 arrayOf("7. Nutrição e refeições", "7. Nutrition and meals", "7. Nutrition et repas", "7. Ernährung und Mahlzeiten", "7. Nutrición y comidas"),
+                 arrayOf("Em Nutrição, consulta o plano alimentar e abre Fotografar ou registar refeição. Podes fotografar, escolher uma imagem ou introduzir dados manualmente. O reconhecimento de alimentos funciona offline no telemóvel com o ML Kit, sem API, contas ou envio de fotografias. O modelo pode não distinguir todos os ingredientes: escolhe os alimentos, indica os gramas e confirma a estimativa de calorias antes de guardar.",
+@@ -147,8 +147,17 @@
+                     "Dans Nutrition, photographiez un repas ou saisissez-le manuellement. ML Kit fonctionne hors ligne sur le téléphone, sans compte ni API. Sélectionnez les aliments, indiquez les grammes et vérifiez les calories estimées. Aucune photo n'est envoyée.",
+                     "Unter Ernährung kannst du Mahlzeiten fotografieren oder manuell eintragen. ML Kit erkennt Lebensmittel offline auf dem Telefon, ohne Konto oder API. Bitte Lebensmittel und Portionsgrößen auswählen und die geschätzten Kalorien prüfen. Fotos werden nicht hochgeladen.",
+                     "En Nutrición puedes fotografiar comidas o registrarlas manualmente. ML Kit identifica posibles alimentos sin conexión ni claves API. Selecciona ingredientes, indica los gramos y revisa las calorías estimadas. Las fotos no se envían.")),
++            Step(R.drawable.guide_home,
++                arrayOf("8. Opções e Modo Sénior","8. Options and Senior mode",
++                    "8. Options et mode senior","8. Optionen und Seniorenmodus",
++                    "8. Opciones y modo sénior"),
++                arrayOf("Abre Opções para gerir Perfis, Aspeto e idioma, Segurança, Backups e Ajuda. Em Acessibilidade ativa Modo Sénior para mostrar primeiro os módulos essenciais, com cartões e letras maiores. «Ver todos os módulos» mostra os restantes. A Emergência fica acessível no ecrã inicial e na Acessibilidade.",
++                    "Open Options for Profiles, Appearance and language, Security, Backups and Help. Accessibility → Senior mode shows essential modules first with larger cards and text. Use View all modules to access everything else.",
++                    "Dans Options, gérez Profils, Apparence, Sécurité, Sauvegardes et Aide. Accessibilité → Mode senior agrandit les cartes et le texte et affiche les modules essentiels en premier.",
++                    "Unter Optionen findest du Profile, Darstellung, Sicherheit, Sicherungen und Hilfe. Barrierefreiheit → Seniorenmodus zeigt wichtige Module und größere Schaltflächen; alle Module bleiben erreichbar.",
++                    "En Opciones se agrupan Perfiles, Aspecto, Seguridad, Copias y Ayuda. Accesibilidad → Modo sénior muestra los módulos esenciales con texto y botones más grandes. Se pueden mostrar todos los módulos.")),
+             Step(R.drawable.guide_support,
+-                arrayOf("8. Ajuda e segurança","8. Help and security","8. Aide et sécurité","8. Hilfe und Sicherheit","8. Ayuda y seguridad"),
++                arrayOf("9. Ajuda e segurança","9. Help and security","9. Aide et sécurité","9. Hilfe und Sicherheit","9. Ayuda y seguridad"),
+                 arrayOf("Usa PIN ou impressão digital para proteger a app. Em Contactar suporte podes enviar dúvidas, sugestões e erros.",
+                     "Protect the app with a PIN or fingerprint. Contact Support for questions, ideas and bugs.",
+                     "Protégez l’application avec un PIN ou une empreinte. Contactez le support pour vos questions et erreurs.",

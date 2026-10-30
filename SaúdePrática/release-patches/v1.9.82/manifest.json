@@ -1,0 +1,10 @@
+{
+  "tag": "v1.9.82",
+  "base_tag": "v1.9.81",
+  "asset": "SaudePratica.apk",
+  "base_sha256": "bceb404f9a71ff417a89b5eb9abc1e66fac87e12bec6561810e7b13739566f04",
+  "delta_sha256": "be446dc10cd32e174ef57aa93dae637c86e242cbda7e61dd9268933399e81bca",
+  "apk_sha256": "c152e31e9bfe10391671cff8e2992041fb90f3a9010627d44c384c0a073a237f",
+  "parts": 19,
+  "description": "Signed APK with Gemini-ready optional client and offline meal diary; Gemini backend not activated."
+}

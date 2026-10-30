@@ -1,0 +1,10 @@
+{
+  "tag": "v1.9.80",
+  "base_tag": "v1.9.79",
+  "asset": "SaudePratica.apk",
+  "base_sha256": "2129fda4148cac8e669262caa0393cd03119832830046a155d54d0aefa4e2d3a",
+  "delta_sha256": "eea303f861bf1a376f91ee36dbf0c0dbc6dbaa4d11bdb8b805469fd493bce481",
+  "apk_sha256": "1f523d51ef8168dcc6c864e049f7914f6d0e1abb0e3c7a62437c2a30803cba9f",
+  "parts": 21,
+  "description": "Verified original-certificate signed v1.9.80 Android APK with shared care-home residents, ordered shortcuts, short dashboard labels and restored original branding."
+}

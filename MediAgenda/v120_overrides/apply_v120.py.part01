@@ -1,0 +1,96 @@
+CENTER;setTextColor(Color.parseColor("#B42318"));setPadding(dp(6),dp(8),dp(6),dp(8));contentDescription="Apagar medicamento"}
+        row.addView(left);row.addView(texts,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f));row.addView(del)
+        val suspended=TextView(c).apply{
+            text="⏸ SUSPENSA";textSize=13f;setTypeface(typeface,Typeface.BOLD)
+            gravity=Gravity.CENTER;setTextColor(Color.WHITE);setBackgroundColor(Color.parseColor("#A95117"))
+            setPadding(dp(10),dp(8),dp(10),dp(8));visibility=View.GONE
+        }
+        val stack=LinearLayout(c).apply{orientation=LinearLayout.VERTICAL}
+        stack.addView(suspended,LinearLayout.LayoutParams(-1,-2));stack.addView(row)
+        card.addView(stack)
+        return H(card,title,detail,code,del,clock,icon,image,take,taken,suspended,leaflet)''',
+    'medication cards banner and leaflet')
+patch(Path('MainActivity.kt'),
+    '''        h.pill.visibility=View.VISIBLE
+        h.thumbnail.visibility=View.GONE
+        h.thumbnail.setImageDrawable(null)
+        h.thumbnail.tag=m.id
+        if(m.images.isNotEmpty()){''',
+    '''        h.pill.visibility=View.GONE
+        h.thumbnail.visibility=View.VISIBLE
+        h.thumbnail.setImageResource(if(m.boxPhotoMode=="unboxed")R.drawable.medicine_no_box
+            else R.drawable.medicine_no_photo)
+        h.thumbnail.contentDescription=if(m.boxPhotoMode=="unboxed")
+            "Medicamento sem caixa" else "Fotografia da embalagem indisponível"
+        h.thumbnail.tag=m.id
+        val suspended=m.suspendedFrom.isNotBlank() &&
+            runCatching{!java.time.LocalDate.parse(m.suspendedFrom).isAfter(java.time.LocalDate.now())}
+                .getOrDefault(true)
+        h.suspendedBadge.visibility=if(suspended)View.VISIBLE else View.GONE
+        h.takeButton.isEnabled=!suspended
+        h.takeButton.alpha=if(suspended)0.4f else 1f
+        h.card.strokeColor=if(suspended)Color.parseColor("#D9A16F") else Color.parseColor("#C7D7DC")
+        h.leafletBadge.visibility=if(m.leafletDocumentId.isNotBlank())View.VISIBLE else View.GONE
+        h.card.contentDescription=m.medication+(if(suspended)" — SUSPENSA" else "")+
+            if(m.leafletDocumentId.isNotBlank())" — Bula PDF disponível" else ""
+        if(m.boxPhotoMode=="photo" && m.images.isNotEmpty()){''',
+    'medication default images and suspension logic')
+
+# Compact agenda cards + visual status of completed entries, never infer completion from past dates.
+patch(Path('MainActivity.kt'),
+    '''        content.addView(infoCard("🏥", "Pesquisar unidades de saúde",
+            "Pesquisar por nome, distrito, concelho ou GPS (opcional)."){
+            showHealthcareSearchHelp()
+        })
+        content.addView(infoCard("📎", "Importar guia PDF ou fotografia",
+            "Os originais são guardados automaticamente nos Documentos Digitais."){
+            pickHealthDocument("agenda")
+        })''',
+    '''        val quickActions=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL}
+        quickActions.addView(secondaryButton("🏥 Procurar unidade") { showHealthcareSearchHelp() },
+            LinearLayout.LayoutParams(0,dp(44),1f).apply {marginEnd=dp(5)})
+        quickActions.addView(secondaryButton("📎 Importar guia") { pickHealthDocument("agenda") },
+            LinearLayout.LayoutParams(0,dp(44),1f).apply {marginStart=dp(5)})
+        content.addView(quickActions,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(14)})''',
+    'agenda compact actions')
+patch(Path('MainActivity.kt'),
+    '''        h.dateBox.text=formatDate(a.date)
+        h.timeBadge.text=a.time.ifBlank{"--:--"}''',
+    '''        h.dateBox.text=formatDate(a.date)
+        h.timeBadge.text=a.time.ifBlank{"--:--"}
+        // Completed is a recorded state; merely being in the past never implies performed.
+        val expired=runCatching{java.time.LocalDate.parse(a.date).isBefore(java.time.LocalDate.now())}
+            .getOrDefault(false)
+        val completed=a.done
+        h.card.alpha=if(completed)0.67f else 1f
+        h.card.setCardBackgroundColor(if(completed)Color.parseColor("#E8F1EF") else Color.WHITE)
+        h.card.strokeColor=if(completed)Color.parseColor("#89B5A9") else
+            if(expired)Color.parseColor("#E0B88B") else Color.parseColor("#E3E8EF")
+        h.dateBox.text=if(completed)"✓\\n"+formatDate(a.date).replace("\\n"," ") else formatDate(a.date)''',
+    'agenda completed state')
+
+# Avoid hardcoded untranslated labels on newly added UI elements.
+patch(Path('i18n/AppLanguage.kt'),
+    '    private val source="""\n',
+    '''    private val source="""
+Medicamento sem caixa	Medicine without a box	Médicament sans boîte	Medikament ohne Verpackung	Medicamento sin caja
+Embalagem sem fotografia	Packaging without a photo	Boîte sans photo	Verpackung ohne Foto	Envase sin fotografía
+Fotografia do medicamento	Medicine photograph	Photo du médicament	Medikamentenfoto	Foto del medicamento
+Bula do medicamento	Medicine leaflet	Notice du médicament	Packungsbeilage	Prospecto del medicamento
+Anexar bula em PDF	Attach PDF leaflet	Joindre la notice PDF	PDF-Packungsbeilage anhängen	Adjuntar prospecto PDF
+Digitalizar bula com a câmara → PDF	Scan leaflet with camera → PDF	Scanner la notice avec l’appareil → PDF	Beipackzettel fotografieren → PDF	Escanear prospecto con cámara → PDF
+Ver bula em PDF	View PDF leaflet	Voir la notice PDF	PDF-Beipackzettel ansehen	Ver prospecto PDF
+SUSPENSA	SUSPENDED	SUSPENDU	AUSGESETZT	SUSPENDIDA
+Bula PDF	PDF leaflet	Notice PDF	PDF-Beipackzettel	Prospecto PDF
+Procurar unidade	Find healthcare centre	Chercher un établissement	Einrichtung suchen	Buscar centro sanitario
+Importar guia	Import document	Importer un document	Dokument importieren	Importar documento
+''',
+    'language labels for v120')
+
+# Restore image bytes from user-provided photos, unchanged in content, simply optimized.
+for src,dst in [('medicine_no_box','medicine_no_box'),('medicine_no_photo','medicine_no_photo')]:
+    b64=''.join(part.read_text(encoding='ascii').strip() for part in sorted((Path(__file__).parent/'assets').glob(f'{src}.jpg.b64.part*')))
+    out=R/'app/src/main/res/drawable-nodpi'/f'{dst}.jpg'
+    out.parent.mkdir(parents=True,exist_ok=True)
+    out.write_bytes(base64.b64decode(b64))
+print('v1.9.101 medication cards, safety + PDF leaflet + compact agenda patch applied')

@@ -1,0 +1,13 @@
+{
+  "tag": "v1.9.101",
+  "base_tag": "v1.9.100",
+  "asset": "SaudePratica.apk",
+  "unsigned_run_id": 40648297532,
+  "unsigned_artifact": "SaudePratica-v1.9.101-UNSIGNED",
+  "unsigned_sha256": "1c276961c8d05f345ae2d3b39b0cad0f85587717bf950f3d0a468bfe09744014",
+  "apk_sha256": "b7836832dc4ee1356108652cbeec877732cd4b522e386e0775423c4cacae002e",
+  "delta_sha256": "32f799b90a4776ccf25e2543ef05f18d568362e5bad9824e0ca2cfcaea1f328f",
+  "encrypted_key_sha256": "d0d52878a090ead7d7f103c106d410df79ca1cce55691dec3ecbc3c0d38f02b8",
+  "certificate_sha256": "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a",
+  "note": "Release public cannot include plaintext signing key or recovery password. Signed APK reconstructed exactly from GitHub CI artifact and verified patch."
+}

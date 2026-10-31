@@ -7,6 +7,7 @@ Agenda, attachments, live Android syncing and alarms are explicitly not built.
 from __future__ import annotations
 
 import base64
+import json
 from io import BytesIO
 import os
 from datetime import datetime

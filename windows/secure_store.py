@@ -264,6 +264,146 @@ class SecureStore:
             raise
         return new
 
+    def imported_assets(self, profile_id: str):
+        return [dict(i) for i in self.data.get("imported_files",[])
+                if i.get("profile_id")==profile_id]
+
+    def import_local_document(self,profile_id:str,source_path:Path):
+        from hashlib import sha256
+        path=Path(source_path)
+        if path.suffix.lower() not in {".pdf",".jpg",".jpeg",".png",".webp"}:
+            raise LocalStoreError("Só PDF e imagens são aceites.")
+        if not path.is_file() or path.stat().st_size>16*1024*1024:
+            raise LocalStoreError("Documento inexistente ou superior a 16 MB.")
+        if self.get_profile(profile_id) is None:
+            raise LocalStoreError("Perfil de destino inválido.")
+        raw=path.read_bytes()
+        digest=sha256(raw).hexdigest()
+        entries=self.data.get("imported_files",[])
+        if any(x.get("profile_id")==profile_id and
+               x.get("sha256")==digest for x in entries):
+            return False
+        descriptor={"profile_id":profile_id,"path":"manual/"+digest+"/"+path.name,
+                    "filename":path.name,"display_name":path.stem,
+                    "category":"documento manual","sha256":digest,"bytes":len(raw)}
+        created=self._write_assets([(digest,raw)])
+        self.data["imported_files"]=entries+[descriptor]
+        try:self.save()
+        except Exception:
+            self.data["imported_files"]=entries
+            for file in created:
+                try:file.unlink()
+                except OSError:pass
+            raise
+        return True
+
+    def _asset_path(self, digest):
+        import re
+        if not isinstance(digest,str) or not re.fullmatch(r"[a-f0-9]{64}",digest):
+            raise LocalStoreError("Identificador do documento inválido.")
+        root=self.path.parent/"protected_assets"
+        root.mkdir(parents=True,exist_ok=True)
+        return root/(digest+".dpapi")
+
+    def read_imported_asset(self, entry):
+        from hashlib import sha256
+        digest=entry["sha256"]
+        path=self._asset_path(digest)
+        data=_decrypt(path.read_bytes())
+        if sha256(data).hexdigest()!=digest:
+            raise LocalStoreError("O documento guardado falhou a verificação de integridade.")
+        return data
+
+    def _write_assets(self, assets):
+        """Validated (hash, data) pairs -> encrypted DPAPI files (atomic writes)."""
+        from hashlib import sha256
+        newly=[]
+        try:
+            for digest,data in assets:
+                if sha256(data).hexdigest()!=digest:
+                    raise LocalStoreError("Integridade da fotografia/documento inválida.")
+                path=self._asset_path(digest)
+                if path.exists():continue
+                fd,tmp=tempfile.mkstemp(prefix=".asset_",suffix=".tmp",dir=path.parent)
+                try:
+                    with os.fdopen(fd,"wb") as stream:
+                        stream.write(_encrypt(data))
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    # A single Windows user owns the storage; no plain temporary files.
+                    os.replace(tmp,path)
+                    newly.append(path)
+                finally:
+                    if os.path.exists(tmp):os.unlink(tmp)
+        except Exception:
+            for p in newly:
+                try:p.unlink()
+                except OSError:pass
+            raise
+        return newly
+
+    def import_android_archive(self, plan):
+        """All-or-nothing metadata+clinical commit, with encrypted attachments."""
+        from windows.android_import_v062 import _existing_map,AndroidImportError
+        import copy
+        from pathlib import PurePosixPath
+        p=self.get_profile(plan.profile_id)
+        if p is None:raise AndroidImportError("Perfil Windows de destino inexistente.")
+        if p.get("android_zip_source_id") not in (None,"",plan.source.identifier):
+            raise AndroidImportError("O perfil Windows está ligado a outra origem Android.")
+        for cat,part in (("medications",plan.medications),("appointments",plan.appointments)):
+            existing=_existing_map(p.get(cat,[]),cat)
+            if any(item["android_source_key"] in existing for item in part.new):
+                raise AndroidImportError("Registos alterados desde a pré-visualização. Importa novamente.")
+        previous_med=p.get("medications",[])
+        previous_apt=p.get("appointments",[])
+        previous_files=self.data.get("imported_files",[])
+        old_source=p.get("android_zip_source_id")
+        old_source_name=p.get("android_zip_source_name")
+        old_avatar=p.get("photo_b64")
+        descriptors=list(previous_files)
+        known={(x.get("profile_id"),x.get("path"),x.get("sha256"))
+               for x in previous_files}
+        assets=[]
+        for name,data,category,digest,display_name in plan.attachments:
+            key=(p["id"],name,digest)
+            if key in known:continue
+            if any(x.get("profile_id")==p["id"] and x.get("path")==name and
+                   x.get("sha256")!=digest for x in descriptors):
+                raise AndroidImportError("Um anexo existente foi alterado. Importação interrompida.")
+            filename=PurePosixPath(name).name
+            descriptors.append({"profile_id":p["id"],"path":name,"filename":filename,
+                                "category":category,"sha256":digest,"bytes":len(data), "display_name":display_name,
+                                "android_source":plan.source.identifier})
+            assets.append((digest,data))
+        created=self._write_assets(assets)
+        try:
+            p["medications"]=previous_med+list(plan.medications.new)
+            p["appointments"]=previous_apt+list(plan.appointments.new)
+            p["android_zip_source_id"]=plan.source.identifier
+            p["android_zip_source_name"]=plan.source.name
+            if plan.avatar_b64 and not p.get("photo_b64"):
+                p["photo_b64"]=plan.avatar_b64
+            self.data["imported_files"]=descriptors
+            self.save()
+        except Exception:
+            p["medications"]=previous_med
+            p["appointments"]=previous_apt
+            if old_source is None:p.pop("android_zip_source_id",None)
+            else:p["android_zip_source_id"]=old_source
+            if old_source_name is None:p.pop("android_zip_source_name",None)
+            else:p["android_zip_source_name"]=old_source_name
+            self.data["imported_files"]=previous_files
+            if old_avatar is None:p.pop("photo_b64",None)
+            else:p["photo_b64"]=old_avatar
+            for path in created:
+                try:path.unlink()
+                except OSError:pass
+            raise
+        return {"medications":len(plan.medications.new),
+                "appointments":len(plan.appointments.new),
+                "attachments":len(assets)}
+
     def export_backup(self, password: str) -> bytes:
         files = {}
         for p in self.profiles():
@@ -280,6 +420,14 @@ class SecureStore:
                 {"medications":p.get("medications",[])}, ensure_ascii=False).encode("utf-8")
             files[prefix+"agenda.json"] = json.dumps(
                 {"appointments":p.get("appointments",[])}, ensure_ascii=False).encode("utf-8")
+            entries=self.imported_assets(pid)
+            files[prefix+"attachments.json"]=json.dumps(entries,
+                ensure_ascii=False).encode("utf-8")
+            for entry in entries:
+                digest=entry["sha256"]
+                archive_path="attachments/"+digest[:2]+"/"+digest+".bin"
+                if archive_path not in files:
+                    files[archive_path]=self.read_imported_asset(entry)
         if not files:
             raise LocalStoreError("Cria pelo menos um perfil antes de fazer backup.")
         return create_backup(files, password)
@@ -329,10 +477,37 @@ class SecureStore:
             raise BackupError("Sem perfis para importar.")
         if len({p["id"] for p in added}) != len(added):
             raise BackupError("Perfis duplicados no ficheiro.")
+        # Portable backup can include DPAPI-protected source attachments,
+        # but all plaintext bytes are inside the encrypted .spbackup only.
+        from hashlib import sha256
+        attachment_meta=[]
+        encrypted_assets=[]
+        for person in added:
+            pid=person["id"]
+            key=f"profiles/{pid}/attachments.json"
+            if key not in verified_files:continue
+            entries=json.loads(verified_files[key])
+            if not isinstance(entries,list):raise BackupError("Índice de anexos inválido.")
+            for entry in entries:
+                if not isinstance(entry,dict) or entry.get("profile_id")!=pid:
+                    raise BackupError("Anexo com perfil de destino inválido.")
+                digest=entry.get("sha256","")
+                path="attachments/"+digest[:2]+"/"+digest+".bin"
+                if path not in verified_files or sha256(verified_files[path]).hexdigest()!=digest:
+                    raise BackupError("Anexo ausente ou com hash inválido.")
+                attachment_meta.append(entry)
+                encrypted_assets.append((digest,verified_files[path]))
+        created=self._write_assets(encrypted_assets)
+        old_files=self.data.get("imported_files",[])
+        self.data["imported_files"]=old_files+attachment_meta
         self.data["profiles"].extend(added)
         try:
             self.save()
         except Exception:
             del self.data["profiles"][-len(added):]
+            self.data["imported_files"]=old_files
+            for path in created:
+                try:path.unlink()
+                except OSError:pass
             raise
         return len(added)

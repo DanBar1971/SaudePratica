@@ -40,7 +40,7 @@ class MedicationEditorTests(unittest.TestCase):
         self.assertEqual(len(SecureStore().profiles()[0]["medications"]),1)
         backup=self.store.export_backup("Frase de teste secreta 2026")
         decoded=read_backup(backup,"Frase de teste secreta 2026")
-        self.assertIn(b'"injection_type": "sc"',list(decoded.values())[1])
+        self.assertTrue(any(b'"injection_type": "sc"' in v for k,v in decoded.items() if k.endswith("medicacao.json")))
 
     def test_invalid_time_does_not_change_store(self):
         old=self.store.add_medication(self.profile,"Medicamento fictício","20 mg","07:00","oral")

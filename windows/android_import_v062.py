@@ -40,37 +40,64 @@ def _fingerprint(item):
 
 def _field_name(item,kind):
     if kind=="medications":
-        return _text(item.get("name") or item.get("nome") or item.get("medication"),160)
-    return _text(item.get("title") or item.get("name") or item.get("titulo") or item.get("description"),160)
+        return _text(item.get("medication") or item.get("name") or item.get("nome"),160)
+    # Real Android Agenda records use activity/department, not title/name.
+    return _text(item.get("title") or item.get("name") or item.get("activity") or
+                 item.get("department") or item.get("specialty") or
+                 item.get("type") or item.get("description"),160)
+
+def _identity(item,kind):
+    """Android appointment ID is NOT unique: combine its ID with event fields."""
+    if kind=="medications":
+        return "med:"+(_text(item.get("id"),120) or _fingerprint(item))
+    fields=("id","date","time","activity","department","resource","location",
+            "type","specialty")
+    return "apt:"+_fingerprint({k:item.get(k) for k in fields})
 
 def _converted(item,kind,profile_id):
     source_id=_text(item.get("id"),120)
     digest=_fingerprint(item)
     name=_field_name(item,kind)
-    if not name:raise AndroidImportError("Há registos sem nome/título. Nada foi importado.")
-    # Deterministic UUIDs for repeat imports; independent per target profile.
-    uid=str(uuid.uuid5(uuid.NAMESPACE_URL,"saudepratica-android:"+profile_id+":"+kind+":"+(source_id or digest)))
-    record=dict(item)  # keep ALL original fields, including future Android metadata
+    if not name:raise AndroidImportError("Há registos sem nome/título reconhecível. Nada foi importado.")
+    unique=_identity(item,kind)
+    uid=str(uuid.uuid5(uuid.NAMESPACE_URL,
+         "saudepratica-android:"+profile_id+":"+kind+":"+unique))
+    record=dict(item)
     record["id"]=uid
     record["android_source_id"]=source_id
+    record["android_source_key"]=unique
     record["android_source_hash"]=digest
     record["android_origin"]="android-json-experimental"
-    record["android_original"]=item   # exact source record survives normalisation
+    record["android_original"]=item
     if kind=="medications":
         record["name"]=name
         record["dose"]=_text(item.get("dose") or item.get("dosage") or item.get("strength"),90)
-        time=_text(item.get("time") or item.get("alarmTime") or item.get("hour"),32)
-        if not time and isinstance(item.get("times"),list):
-            time=next((_text(t,32) for t in item["times"] if _text(t,32)),"")
-        record["time"]=time
-        if not isinstance(record.get("notes"),str): record["notes"]=""
-        # No Windows alarm is scheduled by this import.
+        time_value=item.get("reminder_time") or item.get("alarmTime") or item.get("time") or item.get("hour")
+        if not time_value and isinstance(item.get("times"),list):
+            time_value=next((v for v in item["times"] if isinstance(v,str) and v),"")
+        record["time"]=_text(time_value,40)
+        record["suspended"]=bool(item.get("suspended") or item.get("suspended_from"))
+        # Preserve Android medication alarm preferences without scheduling desktop alarms.
         record["no_alarm"]=bool(item.get("no_alarm",item.get("noAlarm",False)))
+        if not isinstance(record.get("notes"),str):record["notes"]=""
     else:
         record["title"]=name
         record["date"]=_text(item.get("date") or item.get("day") or item.get("appointmentDate"),40)
         record["time"]=_text(item.get("time") or item.get("hour") or item.get("appointmentTime"),40)
     return record
+
+def _existing_map(target,kind):
+    found={}
+    for item in target:
+        if not isinstance(item,dict):continue
+        original=item.get("android_original")
+        key=item.get("android_source_key")
+        if not key and isinstance(original,dict):
+            key=_identity(original,kind)
+        if key:
+            found[str(key)]=item.get("android_source_hash") or (
+                _fingerprint(original) if isinstance(original,dict) else "")
+    return found
 
 def plan_json(blob:bytes,kind:str,profile:dict)->ImportPlan:
     if kind not in DATA_KEYS:raise AndroidImportError("Categoria de importação desconhecida.")
@@ -91,48 +118,42 @@ def plan_json(blob:bytes,kind:str,profile:dict)->ImportPlan:
         raise AndroidImportError("Há registos com estrutura inválida.")
     target=profile.get(kind,[])
     if not isinstance(target,list):raise AndroidImportError("O destino contém dados inválidos.")
-    hashes={str(x.get("android_source_hash","")) for x in target if isinstance(x,dict)}
-    ids={str(x.get("id","")) for x in target if isinstance(x,dict)}
-    sources={str(x.get("android_source_id","")):str(x.get("android_source_hash",""))
-             for x in target if isinstance(x,dict) and x.get("android_source_id")}
+    existing=_existing_map(target,kind)
     names=[]
     pending=[]
     repeated=0
-    seen=set()
+    seen={}
     for raw in incoming:
         record=_converted(raw,kind,profile["id"])
         h=record["android_source_hash"]
-        source=record["android_source_id"]
-        # Duplicate identifiers inside the same export are rejected rather than
-        # selecting an arbitrary version of a clinical record.
-        key=("id",source) if source else ("hash",h)
-        if key in seen:raise AndroidImportError("O JSON tem registos duplicados. Corrige o ficheiro primeiro.")
-        seen.add(key)
+        key=record["android_source_key"]
+        # Exact repeated records (even when Android repeats a native ID) are skipped.
+        # Contradictory records with same composite identity require manual review.
+        if key in seen:
+            if seen[key]!=h:
+                raise AndroidImportError("Existem alterações contraditórias na mesma marcação.")
+            repeated+=1
+            continue
+        seen[key]=h
         names.append(record["name"] if kind=="medications" else record["title"])
-        if source and source in sources and sources[source]!=h:
-            raise AndroidImportError("Conflito: um registo Android existente foi alterado. Nada foi importado.")
-        if h in hashes or record["id"] in ids or (source and source in sources):
+        if key in existing:
+            if existing[key]!=h:
+                raise AndroidImportError("Conflito com um registo já importado. Sem substituição automática.")
             repeated+=1
             continue
         pending.append(record)
     return ImportPlan(kind,tuple(incoming),tuple(pending),repeated,tuple(names),profile["id"])
 
 def apply_plan(store,plan:ImportPlan):
-    """Atomic add-only commit. Refuse stale plans, changes to active profile,
-    or changes to the file's original records since preview.
-    """
     if not isinstance(plan,ImportPlan):raise AndroidImportError("Pré-visualização em falta.")
     profile=store.get_profile(plan.profile_id)
     if profile is None:raise AndroidImportError("O perfil de destino desapareceu.")
     existing=profile.get(plan.kind,[])
     if not isinstance(existing,list):raise AndroidImportError("Categoria do destino inválida.")
-    ids={str(x.get("id","")) for x in existing if isinstance(x,dict)}
-    hashes={str(x.get("android_source_hash","")) for x in existing if isinstance(x,dict)}
-    sources={str(x.get("android_source_id","")) for x in existing if isinstance(x,dict) and x.get("android_source_id")}
+    seen=_existing_map(existing,plan.kind)
     for record in plan.new:
-        if record["id"] in ids or record["android_source_hash"] in hashes or (record["android_source_id"] and record["android_source_id"] in sources):
+        if record["android_source_key"] in seen:
             raise AndroidImportError("Os dados mudaram desde a pré-visualização. Importa novamente.")
-    # Temporary copy avoids partly written records when DPAPI storage fails.
     original=profile[plan.kind]
     profile[plan.kind]=original+list(plan.new)
     try:store.save()

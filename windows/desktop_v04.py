@@ -17,7 +17,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
-from PIL import Image, ImageOps, ImageEnhance, ImageDraw
+from PIL import Image, ImageOps, ImageEnhance, ImageDraw, ImageFilter
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(ROOT))
@@ -31,9 +31,11 @@ from windows.visual_v07 import circular_photo, wallpaper_image
 from windows.android_import_v062 import plan_json, apply_plan, AndroidImportError
 from windows.android_archive_v063 import archive_sources,prepare_archive,apply_archive
 from windows.family_ui_v064 import family_controls, export_original_zip
+from windows.profile_fields_v066 import missing_profile_fields
+from windows.medication_schedule_v066 import next_medication_label
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.5"
+VERSION = "0.6.6"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -200,14 +202,26 @@ class Desktop(ctk.CTk):
         label=current.get("name","") if current else self.t("active_none")
         photo=circular_photo(current.get("photo_b64",""),36) if current else None
         self.profile_avatar=ctk.CTkImage(photo,photo,size=(36,36)) if photo else None
+        # Separate avatar and label; centring both inside a wide CTkButton
+        # previously left an unsightly gap before the photograph.
+        self.profile_pill=ctk.CTkFrame(
+            right,fg_color=self.p["panel2"],corner_radius=13,
+            border_color="#177b87",border_width=1,height=41)
+        self.profile_pill.pack(side="right")
+        self.profile_pill.pack_propagate(False)
+        avatar_label=ctk.CTkLabel(
+            self.profile_pill,image=self.profile_avatar,
+            text="" if self.profile_avatar else "👤",width=36,height=36)
+        avatar_label.pack(side="left",padx=(5,4),pady=2)
+        avatar_label.bind("<Button-1>",lambda _event:self._toggle_profile_menu())
         self.profile_select=ctk.CTkButton(
-            right,text=label+"   ⌄",image=self.profile_avatar,
+            self.profile_pill,text=label+"  ⌄",
             command=self._toggle_profile_menu,
-            compound="left",width=172,height=39,corner_radius=13,
-            fg_color=self.p["panel2"],hover_color=self.p["hover"],
-            border_color="#177b87",border_width=1,
+            anchor="w",width=max(105,min(225,len(label)*9+35)),
+            height=36,corner_radius=9,
+            fg_color="transparent",hover_color=self.p["hover"],
             font=ctk.CTkFont(size=12,weight="bold"),text_color=self.p["text"])
-        self.profile_select.pack(side="right")
+        self.profile_select.pack(side="left",padx=(0,5),pady=2)
 
         catalog=self.page in ("home","more")
         if catalog:
@@ -231,7 +245,7 @@ class Desktop(ctk.CTk):
 
         footer=ctk.CTkFrame(self,height=28,fg_color=self.p["panel"],corner_radius=0)
         footer.pack(fill="x",side="bottom")
-        self._label(footer,"Windows 0.6.3 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
+        self._label(footer,f"Windows {VERSION} · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
         self._label(footer,self.t("not_alarm"),10,color=self.p["muted"]).pack(side="right",padx=18,pady=5)
         self.profile_menu=None
 
@@ -354,6 +368,29 @@ class Desktop(ctk.CTk):
         except Exception:
             return None
 
+    def _med_card_photo(self,b64,width,height):
+        """Fill the photo frame using ONLY the stored authentic photograph.
+
+        A blurred crop fills the full frame; the uncropped medicine photo is
+        centred over it so names/dosages are not lost on portrait images.
+        """
+        if not b64:return None
+        try:
+            raw=base64.b64decode(b64,validate=True)
+            if len(raw)>600000:return None
+            with Image.open(BytesIO(raw)) as original:
+                if original.width*original.height>20_000_000:return None
+                clean=ImageOps.exif_transpose(original).convert("RGB")
+                back=ImageOps.fit(clean,(width,height),
+                    method=Image.Resampling.LANCZOS)
+                back=back.filter(ImageFilter.GaussianBlur(radius=13))
+                front=ImageOps.contain(clean,(width,height),
+                    method=Image.Resampling.LANCZOS)
+                back.paste(front,((width-front.width)//2,(height-front.height)//2))
+            return ctk.CTkImage(back,back,size=(width,height))
+        except (ValueError,OSError,TypeError):
+            return None
+
     def _profiles(self):
         self._heading(self.t("profiles"),self.t("profile_hint"))
         left,listing,right=self._two_pane(self.t("registered_profiles"),290)
@@ -377,9 +414,37 @@ class Desktop(ctk.CTk):
             status=("🙌  "+self.t("caregiver_field") if profile.get("caregiver") else
                     ("● "+self.t("active_profile") if profile["id"]==self.active_id else ""))
             if status:self._label(content,status,10,color=self.p["muted"]).pack(anchor="w")
+            self._button(row,"🗑",lambda pid=profile["id"]:self._delete_profile(pid),
+                         width=34,height=30).pack(side="right",padx=(0,6))
             self._button(row,"›",lambda pid=profile["id"]:self._edit_profile(pid),
-                         width=32,height=30).pack(side="right",padx=(0,7))
+                         width=29,height=30).pack(side="right",padx=(0,3))
         self._profile_form(right)
+
+    def _delete_profile(self,pid):
+        person=self.store.get_profile(pid)
+        if person is None:return
+        meds=len(person.get("medications",[]))
+        agenda=len(person.get("appointments",[]))
+        docs=len(self.store.imported_assets(pid))
+        if not messagebox.askyesno("Eliminar perfil",
+            f"Eliminar DEFINITIVAMENTE o perfil {person.get('name','')}?\\n\\n"
+            f"Serão retirados {meds} medicamentos, {agenda} marcações e "
+            f"{docs} anexos associados a este perfil Windows.\\n\\n"
+            "Os backups exportados e o ZIP familiar Android original "
+            "permanecem guardados. Recomenda-se criar um backup "
+            "encriptado antes de eliminar.\\n\\nContinuar?",
+            parent=self):
+            return
+        try:
+            result=self.store.delete_profile(pid)
+            self.active_id=result["next_active"] or (
+                self.store.profiles()[0]["id"] if self.store.profiles() else None)
+            if self.editing_profile==pid:self.editing_profile=self.active_id
+            self.gallery_mode="catalog"
+            self.editing_med=None
+            self._render()
+        except (LocalStoreError,OSError,ValueError) as exc:
+            messagebox.showerror("Eliminar perfil",str(exc),parent=self)
 
     def _new_profile(self):
         self.editing_profile=None
@@ -404,7 +469,12 @@ class Desktop(ctk.CTk):
 
     def _profile_form(self,frame):
         current=self.store.get_profile(self.editing_profile) if self.editing_profile else None
-        fields=current or {}
+        fields=dict(current or {})
+        if current:
+            # Old imports may have retained these values only in Android's
+            # original profile metadata. Display them without overwriting edits.
+            fields.update(missing_profile_fields(
+                fields,fields.get("android_profile_original",{})))
         head=ctk.CTkFrame(frame,fg_color="transparent")
         head.pack(fill="x",padx=16,pady=(9,4))
         self._label(head,self.t("edit_profile") if current else self.t("new_profile"),
@@ -521,8 +591,6 @@ class Desktop(ctk.CTk):
         self._label(bar,self.t("medication_list"),15,True).pack(side="left",padx=(1,15))
         self._button(bar,"+ "+self.t("new_medication"),self._new_med,
                      True,width=160,height=32).pack(side="right",padx=(8,0))
-        self._button(bar,"Importar JSON",lambda:self.navigate("import"),
-                     width=120,height=32).pack(side="right",padx=(8,0))
         query_var=ctk.StringVar(value=self.med_gallery_query)
         # No unlabelled/inert search rectangle over the wallpaper.
         search=None
@@ -574,9 +642,10 @@ class Desktop(ctk.CTk):
             r,c=divmod(i,columns)
             tile=self._card(grid,rounding=13)
             tile.grid(row=r,column=c,sticky="nsew",padx=5,pady=5)
-            tile.configure(height=263)
+            tile.configure(height=285)
             tile.grid_propagate(False)
-            photo=self._authentic_thumb(med.get("photo_b64",""),160,142)
+            available=max(170,int((self.winfo_width()-110)/columns)-37)
+            photo=self._med_card_photo(med.get("photo_b64",""),available,137)
             poster=ctk.CTkFrame(tile,fg_color=self.p["thumb"],height=137,
                                  corner_radius=10)
             poster.pack(fill="x",padx=8,pady=(8,7))
@@ -596,17 +665,27 @@ class Desktop(ctk.CTk):
             if med.get("time"):meta+="  ·  "+med["time"]
             subtitle=self._label(tile,meta,11,color=self.p["muted"])
             subtitle.pack(anchor="w",padx=12,pady=(2,1))
+            dose_info=next_medication_label(med)
+            predicted=self._label(tile,dose_info,10,color=self.p["muted"])
+            predicted.pack(anchor="w",padx=12,pady=(3,1))
             status=("Suspensa" if med.get("suspended") else
                     ("Sem alarme" if med.get("no_alarm") else "Ativa"))
             line=ctk.CTkFrame(tile,fg_color="transparent")
             line.pack(fill="x",padx=10,pady=(6,5))
-            self._chip(line,status).pack(side="left")
+            status_bg=("#b72c3c" if med.get("suspended") else
+                       "#238e51" if not med.get("no_alarm") else self.p["chip"])
+            status_fg=("#ffffff" if not med.get("no_alarm") or
+                       med.get("suspended") else self.p["chip_text"])
+            ctk.CTkLabel(line,text="  "+status+"  ",
+                font=ctk.CTkFont(size=10,weight="bold"),
+                text_color=status_fg,fg_color=status_bg,
+                corner_radius=8,height=24).pack(side="left")
             self._button(line,self.t("edit_medication"),
                          lambda mid=med["id"]:self._edit_med(mid),
                          width=77,height=27).pack(side="right")
             # Clicking the poster or title opens the editor, just like a
             # movie card; no extra floating form windows.
-            for widget in (poster,picture,title,subtitle):
+            for widget in (poster,picture,title,subtitle,predicted):
                 widget.bind("<Button-1>",lambda event,mid=med["id"]:self._edit_med(mid),add="+")
             tile.configure(cursor="hand2")
 
@@ -812,37 +891,76 @@ class Desktop(ctk.CTk):
             12,color=self.p["muted"],wrap=920).pack(anchor="w",pady=(12,0))
 
     def _agenda(self):
-        """Read-only agenda initially; no reminders or Android schedule changes."""
+        """Read-only appointments, grouped by actual local date and time."""
         self._heading("Agenda", "Compromissos do perfil selecionado · sem criar alarmes Windows")
-        bar=ctk.CTkFrame(self.body,fg_color="transparent")
-        bar.pack(fill="x",pady=(0,10))
-        self._button(bar,"Importar agenda JSON",lambda:self.navigate("import"),
-                     True,width=200,height=35).pack(side="left")
         profile=self.store.get_profile(self.active_id) if self.active_id else None
         if not profile:
             self._label(self.body,"Seleciona primeiro um perfil.",14).pack(anchor="w")
             return
-        items=profile.get("appointments",[])
+        items=[x for x in profile.get("appointments",[]) if isinstance(x,dict)]
         if not items:
             self._label(self.body,"Este perfil ainda não tem marcações importadas.",
                         15,color=self.p["muted"]).pack(anchor="w",pady=18)
             return
-        scroll=ctk.CTkScrollableFrame(self.body,fg_color="transparent",
-                                    corner_radius=0)
-        scroll.pack(fill="both",expand=True)
+        now=datetime.now()
+        future=[]
+        past=[]
         for item in items:
-            if not isinstance(item,dict):continue
-            title=str(item.get("title") or item.get("name") or "Marcação")[:160]
-            date=str(item.get("date") or "")[:40]
-            time=str(item.get("time") or "")[:40]
-            location=str(item.get("location") or item.get("place") or
-                         item.get("unit") or "")[:200]
-            row=ctk.CTkFrame(scroll,fg_color=self.p["panel"],
-                             corner_radius=10,height=71)
-            row.pack(fill="x",pady=4,padx=(0,9))
-            self._label(row,title,15,True).pack(anchor="w",padx=16,pady=(9,0))
-            self._label(row,"   •   ".join(x for x in (date,time,location) if x),
-                        11,color=self.p["muted"]).pack(anchor="w",padx=16,pady=(3,10))
+            date_text=str(item.get("date") or "")
+            time_text=str(item.get("time") or "00:00")
+            try:
+                planned=datetime.fromisoformat(date_text+"T"+time_text)
+                current=planned>=now
+            except (ValueError,TypeError):
+                # Invalid dates are not asserted to be future appointments.
+                current=False
+                planned=datetime.min
+            (future if current else past).append((planned,item))
+        future.sort(key=lambda row:row[0])
+        past.sort(key=lambda row:row[0],reverse=True)
+        scroll=ctk.CTkScrollableFrame(self.body,fg_color="transparent",
+                                     corner_radius=0)
+        scroll.pack(fill="both",expand=True)
+        def section(title,events,is_future):
+            if not events:return
+            heading=ctk.CTkFrame(scroll,fg_color="transparent")
+            heading.pack(fill="x",pady=(6,7))
+            ctk.CTkFrame(heading,fg_color=TEAL,width=3,height=23).pack(
+                side="left",padx=(1,12))
+            self._label(heading,title,16,True).pack(side="left")
+            for _,item in events:
+                title=str(item.get("title") or item.get("activity") or
+                          item.get("department") or item.get("name") or
+                          "Marcação")[:160]
+                d=str(item.get("date") or "")[:40]
+                t=str(item.get("time") or "")[:40]
+                location=str(item.get("location") or item.get("place") or
+                             item.get("unit") or "")[:200]
+                # Future: near-white opaque card; past: subtle dark, faded
+                # card against the authentic wallpaper.
+                bg=("#eaf5fa" if self.p["bg"]!="#edf4f7" else "#ffffff") if is_future else (
+                    "#0d1f2a" if self.p["bg"]!="#edf4f7" else "#e4eef2")
+                fg="#173140" if is_future else self.p["muted"]
+                secondary="#496170" if is_future else "#8098a6"
+                row=ctk.CTkFrame(scroll,fg_color=bg,corner_radius=11,
+                    border_width=1,border_color="#c5e6ef" if is_future else self.p["line"],
+                    height=81 if is_future else 70)
+                row.pack(fill="x",pady=4,padx=(0,8))
+                row.pack_propagate(False)
+                symbol=ctk.CTkLabel(row,text="▦",width=44,height=43,
+                    fg_color="#b7edf1" if is_future else "#193b48",
+                    corner_radius=9,font=ctk.CTkFont(size=22,weight="bold"),
+                    text_color="#155664" if is_future else "#638a98")
+                symbol.pack(side="left",padx=(12,15),pady=10)
+                detail=ctk.CTkFrame(row,fg_color="transparent")
+                detail.pack(side="left",fill="both",expand=True,pady=6)
+                self._label(detail,"  •  ".join(x for x in (d,t) if x),
+                    11,True,color=fg).pack(anchor="w",pady=(2,0))
+                self._label(detail,title,14,True,color=fg).pack(anchor="w")
+                if location:
+                    self._label(detail,location,11,color=secondary).pack(anchor="w")
+        section("Próximos compromissos",future,True)
+        section("Compromissos anteriores",past,False)
 
     def _documents(self):
         self._heading("Documentos","Fotografias, PDFs e anexos importados do Android")

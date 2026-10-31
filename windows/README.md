@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.3**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.3-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.4**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.4-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.3-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.4-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.6.3-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.6.4-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -100,3 +100,7 @@ A imagem de fundo é gerada a partir do PNG original Android (`assets/saude_back
 6. Em Importar/Exportar há exportação de Medicação ou Agenda JSON por perfil (não encriptada: exige confirmação). Em Backup, o `.spbackup` encriptado inclui também fotografias/documentos e é restaurável no Windows.
 
 **Atenção:** antes de qualquer teste com dados reais, fazer um backup `.spbackup`. Os dados do Android não são alterados. Nunca transferir ZIP ou ficheiros com informação clínica para o repositório público. O restauro ZIP Android é aditivo e **por perfil**, não é uma sincronização automática nem substitui a gestão de alarmes Android. Campos de outros módulos e compatibilidade de restauro `.spbackup` diretamente no Android ainda estão em desenvolvimento. Não deixar exportações JSON sem proteção em pastas partilhadas.
+
+## Validação de integridade 0.6.4
+
+O Windows confirma a integridade dos anexos DPAPI já existentes antes de os reutilizar num restauro ou importação repetida. Se encontrar um documento/fotografia corrompido, interrompe a operação sem acrescentar perfis ou alterar dados clínicos. O restauro exige que o caminho do perfil corresponda ao identificador no backup. Os testes de regressão usam exclusivamente dados sintéticos. A edição e interoperabilidade clínica com o Android continuam experimentais.

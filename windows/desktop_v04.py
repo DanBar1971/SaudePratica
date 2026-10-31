@@ -32,7 +32,7 @@ from windows.android_import_v062 import plan_json, apply_plan, AndroidImportErro
 from windows.android_archive_v063 import archive_sources,prepare_archive,apply_archive
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.3"
+VERSION = "0.6.4"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -230,7 +230,7 @@ class Desktop(ctk.CTk):
 
         footer=ctk.CTkFrame(self,height=28,fg_color=self.p["panel"],corner_radius=0)
         footer.pack(fill="x",side="bottom")
-        self._label(footer,"Windows 0.6.3 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
+        self._label(footer,"Windows 0.6.4 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
         self._label(footer,self.t("not_alarm"),10,color=self.p["muted"]).pack(side="right",padx=18,pady=5)
         self.profile_menu=None
 

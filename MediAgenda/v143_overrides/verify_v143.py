@@ -13,7 +13,7 @@ fam=read("data/FamilyBackupStore.kt")
 assert '"diabetes_v1"' in fam
 assert "storedTops()" in fam
 assert "forbiddenTop" in fam
-assert "data/"+'"' not in fam  # no arbitrary extension to raw paths
+assert 'require(allowed(name))' in fam  # ZIP entry allowlist enforced
 assert "saudepratica_app_pin_v1" in fam
 assert "backup.json" in fam and "sha256" in fam
 assert "850L*1024*1024" in fam

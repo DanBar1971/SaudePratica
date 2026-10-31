@@ -36,9 +36,10 @@ from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
+from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -979,6 +980,8 @@ class Desktop(ctk.CTk):
             data["notes"]=self.appointment_notes.get("1.0","end-1c")
             data["description"]=self.appointment_description.get("1.0","end-1c")
             data["desktop_status"]=APPOINTMENT_STATES[self.appointment_status_var.get()]
+            data["reminders_minutes"]=[minutes for minutes,var in self.reminder_vars.items()
+                                         if var.get()]
             for key,(entry,original) in self.appointment_extra_widgets.items():
                 data[key]=parse_appointment_extra(key,entry.get(),original)
             self.store.save_appointment(self.active_id,data,self.editing_appointment)
@@ -1039,8 +1042,29 @@ class Desktop(ctk.CTk):
         self._label(state_box,
             "Cancelar aqui altera apenas a ficha local. Não cancela a consulta no hospital.",
             11,color=self.p["muted"],wrap=880).pack(anchor="w",pady=(6,0))
+        reminder_box=ctk.CTkFrame(content,fg_color="transparent")
+        reminder_box.grid(row=base_row+1,column=0,columnspan=2,
+                          sticky="ew",padx=7,pady=(12,7))
+        self._label(reminder_box,"Avisos da consulta",14,True,color=TEAL).pack(anchor="w",pady=(0,6))
+        self._label(reminder_box,
+            "Notificações Windows: disponíveis mesmo após fechar a aplicação, "
+            "com o computador ligado e a sessão iniciada. "
+            "O Android mantém os seus próprios avisos.",
+            11,color=self.p["muted"],wrap=900).pack(anchor="w",pady=(0,8))
+        configured=record_offsets(values) if current else list(REMINDER_DEFAULT)
+        self.reminder_vars={}
+        reminder_line=ctk.CTkFrame(reminder_box,fg_color="transparent")
+        reminder_line.pack(fill="x")
+        for minutes,label in REMINDER_CHOICES:
+            option=ctk.BooleanVar(value=minutes in configured)
+            self.reminder_vars[minutes]=option
+            ctk.CTkCheckBox(reminder_line,text=label,variable=option,
+                checkbox_width=19,checkbox_height=19,
+                fg_color=TEAL,hover_color=TEAL_HOVER,
+                text_color=self.p["text"]).pack(side="left",padx=(0,22),pady=5)
+
         for delta,(key,label) in enumerate((("description","Descrição"),("notes","Notas"))):
-            row=base_row+1+delta*2
+            row=base_row+2+delta*2
             self._label(content,label,11,True,color=self.p["muted"]).grid(
                 row=row,column=0,columnspan=2,sticky="w",padx=9,pady=(11,3))
             field=ctk.CTkTextbox(content,height=85,fg_color=self.p["field"],
@@ -1049,7 +1073,7 @@ class Desktop(ctk.CTk):
             field.insert("1.0",str(values.get(key,"") or ""))
             if key=="notes":self.appointment_notes=field
             else:self.appointment_description=field
-        start_extra=base_row+5
+        start_extra=base_row+6
         extras=appointment_extras(values)
         if extras:
             self._label(content,"Outros campos importados ou personalizados",15,
@@ -1553,11 +1577,12 @@ def _close_boot_splash():
 
 
 def main():
-    """Never hide startup failures behind the persistent splash.
-
-    CI tests both unbundled source and the actual packaged EXE through a
-    synthetic, short-lived GUI launch; health details are never uploaded.
-    """
+    """Launch the UI normally, or the isolated background reminder agent."""
+    if "--reminder-agent" in sys.argv:
+        _close_boot_splash()
+        from windows.reminder_agent_v071 import run_reminder_agent
+        run_reminder_agent()
+        return
     import traceback
     app = None
     smoke_report = os.environ.get("SAUDEPRATICA_SMOKE_REPORT", "")
@@ -1600,6 +1625,11 @@ def main():
             Path(smoke_report).write_text("GUI_READY\n", encoding="utf-8")
             app.destroy()
             return
+        # Run the independent per-user reminder worker and configure its
+        # next-login startup; the UI process may now close without stopping it.
+        from windows.reminder_agent_v071 import enable_background_reminders
+        try:enable_background_reminders()
+        except (OSError,ImportError,PermissionError):pass
         app.mainloop()
     except Exception:
         failure = traceback.format_exc()

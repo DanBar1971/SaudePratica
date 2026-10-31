@@ -10,9 +10,9 @@ import unicodedata
 MODULE_CARDS = [
     ("medication", "💊", "Medicação", "Terapêutica e avisos", True),
     ("doses", "✅", "Tomas", "Pendentes e confirmadas", False),
-    ("agenda", "📆", "Agenda", "Consultas e exames", False),
+    ("agenda", "📆", "Agenda", "Consultas e exames", True),
     ("calendar", "🗓️", "Calendário", "Vista mensal e marcações", False),
-    ("documents", "📁", "Documentos", "PDF e fotografias", False),
+    ("documents", "📁", "Documentos", "PDF e fotografias", True),
     ("clinical", "🏥", "Situação Clínica", "Medicina do trabalho", False),
     ("expenses", "🧾", "Despesas de Saúde", "Faturas e IRS", False),
     ("water", "💧", "Beber Água", "Hidratação", False),

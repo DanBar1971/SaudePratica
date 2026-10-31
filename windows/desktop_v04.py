@@ -34,9 +34,10 @@ from windows.family_ui_v064 import family_controls, export_original_zip
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
+from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.8"
+VERSION = "0.6.9"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -94,6 +95,7 @@ class Desktop(ctk.CTk):
         self.med_gallery_query = ""
         self.catalog_query = ""
         self.med_gallery_state = "all"
+        self.agenda_filter = "all"
         self.gallery_mode = "catalog"
         self.profile_menu = None
         self.profile_avatar = None
@@ -951,78 +953,112 @@ class Desktop(ctk.CTk):
             "medicação, agenda e os ZIPs Android originais anteriormente importados.",
             12,color=self.p["muted"],wrap=920).pack(anchor="w",pady=(12,0))
 
+    def _set_agenda_filter(self,key):
+        """Re-render the Agenda with one of the four Android-style views."""
+        if key not in dict(AGENDA_FILTERS):return
+        self.agenda_filter=key
+        self._render()
+
     def _agenda(self):
-        """Read-only appointments, grouped by actual local date and time."""
-        # The wallpaper's canvas-glass compositor can cover CTkScrollableFrame
-        # child windows, clipping white appointment cards during scrolling.
-        # Preserve an opaque, stable card surface on this screen only.
+        """Filter appointments without changing the imported Android records."""
         self.wallpaper_shell.glass_enabled=False
-        self._heading("Agenda", "Compromissos do perfil selecionado · sem criar alarmes Windows")
+        self._heading("Agenda", "Consultas, exames e tratamentos num só lugar")
         profile=self.store.get_profile(self.active_id) if self.active_id else None
         if not profile:
             self._label(self.body,"Seleciona primeiro um perfil.",14).pack(anchor="w")
             return
-        items=[x for x in profile.get("appointments",[]) if isinstance(x,dict)]
-        if not items:
-            self._label(self.body,"Este perfil ainda não tem marcações importadas.",
-                        15,color=self.p["muted"]).pack(anchor="w",pady=18)
-            return
+
+        controls=ctk.CTkFrame(self.body,fg_color="transparent")
+        controls.pack(fill="x",pady=(0,11))
+        for key,label in AGENDA_FILTERS:
+            self._button(
+                controls,label,lambda k=key:self._set_agenda_filter(k),
+                accent=(self.agenda_filter==key),
+                width=124 if key!="all" else 113,height=32
+            ).pack(side="left",padx=(0,6))
+
+        all_items=[x for x in profile.get("appointments",[]) if isinstance(x,dict)]
         now=datetime.now()
-        future=[]
-        past=[]
+        items=filtered_appointments(all_items,self.agenda_filter,now)
+        summary=ctk.CTkFrame(self.body,fg_color="transparent")
+        summary.pack(fill="x",pady=(2,11))
+        self._label(summary,"Marcações",18,True).pack(side="left",padx=(0,12))
+        self._label(summary,f"{len(items)} de {len(all_items)}",12,
+                    color=self.p["muted"]).pack(side="left",pady=(3,0))
+
+        if not items:
+            self._label(self.body,"Não existem marcações para este filtro.",14,
+                        color=self.p["muted"]).pack(anchor="w",pady=22)
+            return
+
+        upcoming,past=[],[]
         for item in items:
-            date_text=str(item.get("date") or "")
-            time_text=str(item.get("time") or "00:00")
-            try:
-                planned=datetime.fromisoformat(date_text+"T"+time_text)
-                current=planned>=now
-            except (ValueError,TypeError):
-                # Invalid dates are not asserted to be future appointments.
-                current=False
-                planned=datetime.min
-            (future if current else past).append((planned,item))
-        future.sort(key=lambda row:row[0])
-        past.sort(key=lambda row:row[0],reverse=True)
+            when=appointment_datetime(item)
+            is_future=when is not None and when>=now
+            (upcoming if is_future else past).append((when or datetime.min,item))
+        upcoming.sort(key=lambda pair:pair[0])
+        past.sort(key=lambda pair:pair[0],reverse=True)
+
         scroll=ctk.CTkScrollableFrame(self.body,fg_color="transparent",
                                      corner_radius=0)
         scroll.pack(fill="both",expand=True)
-        def section(title,events,is_future):
-            if not events:return
-            heading=ctk.CTkFrame(scroll,fg_color="transparent")
-            heading.pack(fill="x",pady=(6,7))
-            ctk.CTkFrame(heading,fg_color=TEAL,width=3,height=23).pack(
+
+        def section(heading,entries,is_future):
+            if not entries:return
+            label=ctk.CTkFrame(scroll,fg_color="transparent")
+            label.pack(fill="x",pady=(5,7))
+            ctk.CTkFrame(label,fg_color=TEAL,width=3,height=23).pack(
                 side="left",padx=(1,12))
-            self._label(heading,title,16,True).pack(side="left")
-            for _,item in events:
-                title=str(item.get("title") or item.get("activity") or
-                          item.get("department") or item.get("name") or
-                          "Marcação")[:160]
-                d=str(item.get("date") or "")[:40]
-                t=str(item.get("time") or "")[:40]
+            self._label(label,heading,15,True).pack(side="left")
+            for _,item in entries:
+                name=str(item.get("title") or item.get("activity") or
+                         item.get("department") or item.get("name") or
+                         "Marcação")[:180]
+                date=str(item.get("date") or "")[:40]
+                hour=str(item.get("time") or "")[:40]
                 location=str(item.get("location") or item.get("place") or
-                             item.get("unit") or "")[:200]
-                # Future: near-white opaque card; past: subtle dark, faded
-                # card against the authentic wallpaper.
-                bg=("#eaf5fa" if self.p["bg"]!="#edf4f7" else "#ffffff") if is_future else (
-                    "#0d1f2a" if self.p["bg"]!="#edf4f7" else "#e4eef2")
+                             item.get("unit") or "")[:220]
+                status=appointment_status(item,now)
+                status_name={"pending":"● PENDENTE","done":"✓ REALIZADA",
+                             "cancelled":"✕ CANCELADA"}[status]
+                bright="#eaf5fa" if self.p["bg"]!="#edf4f7" else "#ffffff"
+                dark="#0d1f2a" if self.p["bg"]!="#edf4f7" else "#e4eef2"
+                bg=bright if is_future else dark
                 fg="#173140" if is_future else self.p["muted"]
                 secondary="#496170" if is_future else "#8098a6"
+                status_color=("#9e353b" if is_future else "#f09a9a") if status=="cancelled" else (
+                    ("#0c6762" if is_future else "#67c9b5") if status=="done"
+                    else ("#0c716a" if is_future else "#70d4cc"))
                 row=ctk.CTkFrame(scroll,fg_color=bg,corner_radius=11,
                     border_width=1,border_color="#c5e6ef" if is_future else self.p["line"])
                 row.pack(fill="x",pady=5,padx=(0,8))
-                symbol=ctk.CTkLabel(row,text="▦",width=44,height=43,
-                    fg_color="#b7edf1" if is_future else "#193b48",
-                    corner_radius=9,font=ctk.CTkFont(size=22,weight="bold"),
-                    text_color="#155664" if is_future else "#638a98")
-                symbol.pack(side="left",padx=(12,15),pady=10)
-                detail=ctk.CTkFrame(row,fg_color="transparent")
-                detail.pack(side="left",fill="both",expand=True,pady=(8,9))
-                self._label(detail,"  •  ".join(x for x in (d,t) if x),
-                    11,True,color=fg).pack(anchor="w",pady=(2,0))
-                self._label(detail,title,14,True,color=fg).pack(anchor="w")
+                when=appointment_datetime(item)
+                tile=ctk.CTkFrame(row,fg_color="#c5ecec" if is_future else "#193b48",
+                                  corner_radius=9,width=105)
+                tile.pack(side="left",padx=(11,14),pady=10)
+                tile.pack_propagate(False)
+                if when:
+                    self._label(tile,when.strftime("%d %b").upper(),13,True,
+                        color="#14585e" if is_future else "#a3d4d5",
+                        anchor="center").pack(fill="x",padx=7,pady=(9,2))
+                    self._label(tile,when.strftime("%H:%M"),12,True,
+                        color="#14585e" if is_future else "#a3d4d5",
+                        anchor="center").pack(fill="x",padx=7,pady=(0,8))
+                else:
+                    self._label(tile,date or "Sem data",11,True,
+                        color="#14585e" if is_future else "#a3d4d5",
+                        anchor="center").pack(fill="x",padx=7,pady=14)
+                info=ctk.CTkFrame(row,fg_color="transparent")
+                info.pack(side="left",fill="both",expand=True,pady=(8,9),padx=(0,9))
+                self._label(info,name,14,True,color=fg,wrap=880).pack(
+                    anchor="w",fill="x")
                 if location:
-                    self._label(detail,location,11,color=secondary).pack(anchor="w")
-        section("Próximos compromissos",future,True)
+                    self._label(info,location,11,color=secondary,wrap=880).pack(
+                        anchor="w",fill="x",pady=(2,0))
+                self._label(info,status_name,11,True,color=status_color).pack(
+                    anchor="w",pady=(3,0))
+
+        section("Próximos compromissos",upcoming,True)
         section("Compromissos anteriores",past,False)
 
     def _documents(self):

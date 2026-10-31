@@ -1,10 +1,14 @@
-# SaúdePrática Windows 0.6.8 — Galeria de Medicação
+# SaúdePrática Windows 0.6.9 — Filtros da Agenda
 
-- Cartões de medicamentos com fundo contínuo desde a fotografia até aos botões, sem recortes ou texto fora do cartão.
-- A altura ajusta-se ao conteúdo e os cartões da mesma linha ficam alinhados; a camada de vidro não se sobrepõe à galeria.
-- Estado **Ativa** verde, **Suspensa** vermelho e **Sem alarme** amarelo. A suspensão prevalece visualmente sobre a falta de alarme.
-- Novo filtro **Sem definição**: registos sem data/hora de toma definida, sem confundir com a opção explícita **Sem alarme**. Os filtros Todos, Ativos, Suspensos e Sem alarme mantêm-se.
-- Mantidas as fotografias originais dos medicamentos, sem imagens inventadas.
-- Não são criados alarmes Windows, nem alterados os dados ou backups Android.
-- Instalador Windows experimental sem certificado de editor reconhecido; o SmartScreen pode apresentar um aviso.
-- Testes automáticos com dados sintéticos, compilação e smoke tests do executável e setup.
+## Alterações
+- **Agenda:** quatro seletores funcionais no topo, como no Android: **Todas | Pendentes | Realizadas | Canceladas**.
+- O filtro aplica-se às marcações do perfil escolhido, sem alterar dados clínicos.
+- Indicador de **marcações visíveis / total** e mensagem de lista vazia se o filtro não devolver resultados.
+- Estados nos cartões: **PENDENTE, REALIZADA, CANCELADA**. A indicação de cancelamento tem prioridade; dados sem estado explícito seguem a regra Android de considerar realizada uma marcação após a respetiva data.
+- A lista mantém próximos compromissos por ordem crescente e anteriores por ordem decrescente, com contraste claro/escuro da versão anterior.
+- Layout responsivo, utilizando o cabeçalho e navegação horizontal já aprovados na aplicação Windows. Não introduz barra lateral nem controlos apenas ilustrativos.
+- Dados Android e backups existentes preservados; não foram acrescentados alarmes nem sincronização bidirecional.
+- Os testes automáticos usam exclusivamente registos fictícios para confirmar filtros, estados e preservação de dados.
+
+## Notas
+A versão Windows mantém-se experimental e sem assinatura digital reconhecida do editor. O Windows SmartScreen pode apresentar um aviso durante a instalação.

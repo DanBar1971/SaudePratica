@@ -426,6 +426,132 @@ class SecureStore:
                 "appointments":len(plan.appointments.new),
                 "attachments":len(assets)}
 
+    def android_archives(self):
+        """Metadata only: archive bytes remain in DPAPI, never in the profile JSON."""
+        return [dict(item) for item in self.data.get("android_family_archives", [])]
+
+    def export_original_android_zip(self, digest: str) -> bytes:
+        """Return the byte-for-byte original (unencrypted) Android ZIP for user export."""
+        from hashlib import sha256
+        from windows.android_archive_v063 import validated_files
+        row=next((x for x in self.android_archives() if x.get("sha256")==digest),None)
+        if row is None:
+            raise LocalStoreError("Não existe este backup Android guardado.")
+        raw=self.read_imported_asset({"sha256":digest})
+        if len(raw)!=row["bytes"] or sha256(raw).hexdigest()!=digest:
+            raise LocalStoreError("O backup Android guardado está corrompido.")
+        validated_files(raw)
+        return raw
+
+    def import_android_family(self, plan):
+        """Atomic family import, including encrypted exact source ZIP for every category.
+
+        Any unimplemented Android modules remain recoverable in the original ZIP;
+        they are NOT misrepresented as Windows-compatible screens.
+        """
+        from windows.family_portability_v064 import FamilyPlan, plan_summary, _new_profile
+        from windows.android_import_v062 import AndroidImportError, _existing_map
+        from hashlib import sha256
+        from pathlib import PurePosixPath
+        import copy
+        if not isinstance(plan,FamilyPlan):
+            raise AndroidImportError("Pré-visualização familiar inválida.")
+        if sha256(plan.original_zip).hexdigest()!=plan.digest:
+            raise AndroidImportError("O ZIP familiar mudou desde a pré-visualização.")
+        # Reverify manifest and sha256 when committing, not only on preview.
+        from windows.android_archive_v063 import validated_files
+        validated_files(plan.original_zip)
+        previous=self.data
+        proposed=copy.deepcopy(previous)
+        people={p["id"]:p for p in proposed.get("profiles",[])}
+        old_descriptors=list(proposed.get("imported_files",[]))
+        descriptors=list(old_descriptors)
+        known={(x.get("profile_id"),x.get("path"),x.get("sha256"))
+               for x in old_descriptors}
+        assets=[]
+        summary=plan_summary(plan)
+        for member in plan.members:
+            pid=member.profile_id
+            p=people.get(pid)
+            if member.create:
+                if p is not None:
+                    raise AndroidImportError(
+                        "Foi criado um perfil desde a pré-visualização. Prepara novamente.")
+                p=_new_profile(member.source,member.original_profile)
+                if p["id"]!=pid:
+                    raise AndroidImportError("O identificador de destino mudou.")
+                proposed["profiles"].append(p)
+                people[pid]=p
+            if p is None or p.get("android_zip_source_id") not in (
+                None,"",member.source.identifier):
+                raise AndroidImportError("O perfil Windows mudou desde a pré-visualização.")
+            if not member.create and any(x.get("android_zip_source_id") ==
+                    member.source.identifier and x["id"]!=pid
+                    for x in proposed["profiles"]):
+                raise AndroidImportError("Há uma associação Android duplicada.")
+            for category,partial in (
+                ("medications",member.imported.medications),
+                ("appointments",member.imported.appointments)):
+                existing=_existing_map(p.get(category,[]),category)
+                if any(x["android_source_key"] in existing for x in partial.new):
+                    raise AndroidImportError(
+                        "Os dados foram alterados desde a pré-visualização. Tenta novamente.")
+                p[category]=list(p.get(category,[]))+copy.deepcopy(list(partial.new))
+            p["android_zip_source_id"]=member.source.identifier
+            p["android_zip_source_name"]=member.source.name
+            if member.original_profile and not p.get("android_profile_original"):
+                p["android_profile_original"]=dict(member.original_profile)
+            if member.imported.avatar_b64 and not p.get("photo_b64"):
+                p["photo_b64"]=member.imported.avatar_b64
+            for name,data,category,digest,display_name in member.imported.attachments:
+                key=(pid,name,digest)
+                if key in known:
+                    old=next(x for x in old_descriptors if
+                        (x.get("profile_id"),x.get("path"),x.get("sha256"))==key)
+                    # A corrupted existing file must block this transaction.
+                    self.read_imported_asset(old)
+                    continue
+                if any(x.get("profile_id")==pid and x.get("path")==name
+                       and x.get("sha256")!=digest for x in descriptors):
+                    raise AndroidImportError("Conflito num documento já importado.")
+                descriptors.append({
+                    "profile_id":pid,"path":name,"filename":PurePosixPath(name).name,
+                    "category":category,"sha256":digest,"bytes":len(data),
+                    "display_name":display_name,
+                    "android_source":member.source.identifier,
+                })
+                known.add(key)
+                assets.append((digest,data))
+        proposed["imported_files"]=descriptors
+        archives=list(proposed.get("android_family_archives",[]))
+        prior=next((a for a in archives if a.get("sha256")==plan.digest),None)
+        if prior:
+            if prior.get("bytes")!=len(plan.original_zip):
+                raise AndroidImportError("O arquivo original está inconsistente.")
+            prior["profile_ids"]=sorted(set(prior.get("profile_ids",[]))|
+                {m.profile_id for m in plan.members})
+        else:
+            archives.append({
+                "sha256":plan.digest, "bytes":len(plan.original_zip),
+                "filename":"SaudePratica-backup-Android-original.zip",
+                "profile_ids":[m.profile_id for m in plan.members],
+                "source_ids":[m.source.identifier for m in plan.members],
+            })
+        proposed["android_family_archives"]=archives
+        assets.append((plan.digest,plan.original_zip))
+        created=self._write_assets(assets)
+        try:
+            self.data=proposed
+            self.save()
+        except Exception:
+            self.data=previous
+            for file in created:
+                try:file.unlink()
+                except OSError:pass
+            raise
+        summary["new_attachments"]=len(assets)-1
+        return summary
+
     def export_backup(self, password: str) -> bytes:
         files = {}
         for p in self.profiles():
@@ -438,6 +564,14 @@ class SecureStore:
                         if k not in ("medications", "appointments")}
             files[prefix+"profile.json"] = json.dumps(
                 metadata, ensure_ascii=False).encode("utf-8")
+            # Preserve preferences and future global metadata in the encrypted
+            # archive, without overwriting preferences on a populated Windows.
+            if p is self.profiles()[0]:
+                state={k:v for k,v in self.data.items()
+                       if k not in ("profiles","imported_files",
+                                    "android_family_archives")}
+                files[prefix+"windows_state.json"]=json.dumps(
+                    state,ensure_ascii=False).encode("utf-8")
             files[prefix+"medicacao.json"] = json.dumps(
                 {"medications":p.get("medications",[])}, ensure_ascii=False).encode("utf-8")
             files[prefix+"agenda.json"] = json.dumps(
@@ -450,6 +584,17 @@ class SecureStore:
                 archive_path="attachments/"+digest[:2]+"/"+digest+".bin"
                 if archive_path not in files:
                     files[archive_path]=self.read_imported_asset(entry)
+            # Full original Android archives retain all opaque categories and
+            # profile prefs without pretending Windows can edit them today.
+            archives=[dict(a) for a in self.android_archives()
+                      if pid in a.get("profile_ids",[])]
+            files[prefix+"android_archives.json"]=json.dumps(
+                archives,ensure_ascii=False).encode("utf-8")
+            for item in archives:
+                digest=item["sha256"]
+                archive_path="attachments/"+digest[:2]+"/"+digest+".bin"
+                if archive_path not in files:
+                    files[archive_path]=self.read_imported_asset({"sha256":digest})
         if not files:
             raise LocalStoreError("Cria pelo menos um perfil antes de fazer backup.")
         return create_backup(files, password)
@@ -524,15 +669,75 @@ class SecureStore:
                     raise BackupError("Anexo ausente ou com hash inválido.")
                 attachment_meta.append(entry)
                 encrypted_assets.append((digest,verified_files[path]))
+        # All-or-nothing original Android ZIP recovery: preserve exactly,
+        # validate the digest and attach it to all restored Windows profiles.
+        from windows.android_archive_v063 import validated_files
+        archive_rows={}
+        for person in added:
+            pid=person["id"]
+            key=f"profiles/{pid}/android_archives.json"
+            if key not in verified_files:continue  # previous backup v1
+            rows=json.loads(verified_files[key])
+            if not isinstance(rows,list) or len(rows)>100:
+                raise BackupError("Índice dos backups Android inválido.")
+            for row in rows:
+                if not isinstance(row,dict) or pid not in row.get("profile_ids",[]):
+                    raise BackupError("Associação de ZIP Android a perfil inválida.")
+                digest=row.get("sha256","")
+                if not isinstance(digest,str) or len(digest)!=64:
+                    raise BackupError("Identificador de backup Android inválido.")
+                key_data="attachments/"+digest[:2]+"/"+digest+".bin"
+                raw=verified_files.get(key_data)
+                if raw is None or sha256(raw).hexdigest()!=digest:
+                    raise BackupError("Backup Android original incompleto.")
+                validated_files(raw)
+                previous=archive_rows.get(digest)
+                if previous is not None and previous!=row:
+                    raise BackupError("O mesmo backup tem metadados contraditórios.")
+                archive_rows[digest]=row
+                encrypted_assets.append((digest,raw))
+        existing_archives=self.data.get("android_family_archives",[])
+        if any(row["sha256"] in {p.get("sha256") for p in existing_archives}
+               for row in archive_rows.values()):
+            raise BackupError("O backup Android original já existe neste Windows.")
+        old_global={k:v for k,v in self.data.items()
+                    if k not in ("profiles","imported_files","android_family_archives")}
+        # Recover global settings only into a fresh Windows data store.
+        # Existing installations retain their current local preferences.
+        incoming_state=None
+        for person in added:
+            key=f"profiles/{person['id']}/windows_state.json"
+            if key in verified_files:
+                state=json.loads(verified_files[key])
+                if not isinstance(state,dict) or state.get("format")!=STORE_FORMAT:
+                    raise BackupError("Metadados globais do Windows inválidos.")
+                if incoming_state is not None and incoming_state!=state:
+                    raise BackupError("Definições globais contraditórias no backup.")
+                incoming_state=state
+        restore_into_empty=not self.profiles()
         created=self._write_assets(encrypted_assets)
         old_files=self.data.get("imported_files",[])
         self.data["imported_files"]=old_files+attachment_meta
+        self.data["android_family_archives"]=list(existing_archives)+list(archive_rows.values())
         self.data["profiles"].extend(added)
+        if incoming_state is not None:
+            if restore_into_empty:
+                for key,value in incoming_state.items():
+                    if key not in ("profiles","imported_files","android_family_archives"):
+                        self.data[key]=value
+            else:
+                # Do not overwrite local settings when importing profiles.
+                added[0]["windows_original_settings"]=incoming_state.get("settings",{})
         try:
             self.save()
         except Exception:
             del self.data["profiles"][-len(added):]
             self.data["imported_files"]=old_files
+            self.data["android_family_archives"]=existing_archives
+            for key in list(self.data):
+                if key not in ("profiles","imported_files","android_family_archives"):
+                    self.data.pop(key)
+            self.data.update(old_global)
             for path in created:
                 try:path.unlink()
                 except OSError:pass

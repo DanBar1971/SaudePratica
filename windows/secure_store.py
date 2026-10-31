@@ -268,6 +268,35 @@ class SecureStore:
         return [dict(i) for i in self.data.get("imported_files",[])
                 if i.get("profile_id")==profile_id]
 
+    def import_local_document(self,profile_id:str,source_path:Path):
+        from hashlib import sha256
+        path=Path(source_path)
+        if path.suffix.lower() not in {".pdf",".jpg",".jpeg",".png",".webp"}:
+            raise LocalStoreError("Só PDF e imagens são aceites.")
+        if not path.is_file() or path.stat().st_size>16*1024*1024:
+            raise LocalStoreError("Documento inexistente ou superior a 16 MB.")
+        if self.get_profile(profile_id) is None:
+            raise LocalStoreError("Perfil de destino inválido.")
+        raw=path.read_bytes()
+        digest=sha256(raw).hexdigest()
+        entries=self.data.get("imported_files",[])
+        if any(x.get("profile_id")==profile_id and
+               x.get("sha256")==digest for x in entries):
+            return False
+        descriptor={"profile_id":profile_id,"path":"manual/"+digest+"/"+path.name,
+                    "filename":path.name,"display_name":path.stem,
+                    "category":"documento manual","sha256":digest,"bytes":len(raw)}
+        created=self._write_assets([(digest,raw)])
+        self.data["imported_files"]=entries+[descriptor]
+        try:self.save()
+        except Exception:
+            self.data["imported_files"]=entries
+            for file in created:
+                try:file.unlink()
+                except OSError:pass
+            raise
+        return True
+
     def _asset_path(self, digest):
         import re
         if not isinstance(digest,str) or not re.fullmatch(r"[a-f0-9]{64}",digest):

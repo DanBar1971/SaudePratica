@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.5**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.5-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.6**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.6-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.5-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.6-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.6.5-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.6.6-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -101,7 +101,7 @@ A imagem de fundo é gerada a partir do PNG original Android (`assets/saude_back
 
 **Atenção:** antes de qualquer teste com dados reais, fazer um backup `.spbackup`. Os dados do Android não são alterados. Nunca transferir ZIP ou ficheiros com informação clínica para o repositório público. O restauro ZIP Android é aditivo e **por perfil**, não é uma sincronização automática nem substitui a gestão de alarmes Android. Campos de outros módulos e compatibilidade de restauro `.spbackup` diretamente no Android ainda estão em desenvolvimento. Não deixar exportações JSON sem proteção em pastas partilhadas.
 
-## Importação familiar e exportação completa (Windows 0.6.5)
+## Importação familiar e exportação completa (Windows 0.6.6)
 
 - Abrir **Backup → Importar toda a família Android**. Em Importar / Exportar escolher **Importar ZIP familiar completo** mesmo sem ter selecionado um perfil Windows.
 - Depois da validação e da pré-visualização, clicar **Confirmar importação familiar**: cria os perfis em falta, acrescenta medicação, agenda e anexos por pessoa sem substituir registos existentes.
@@ -110,3 +110,12 @@ A imagem de fundo é gerada a partir do PNG original Android (`assets/saude_back
 - **Reexportar ZIP Android original** recupera exatamente os mesmos bytes do ficheiro recebido. **Esse ZIP original não está encriptado pelo programa**; apenas o `.spbackup` é protegido por palavra-passe.
 - Não existe ainda sincronização bidirecional ou restauro de `.spbackup` no Android. Alterações Windows não modificam o ZIP Android original.
 - Fazer um backup e confirmar a associação dos perfis antes de trabalhar com dados clínicos reais.
+
+## Perfis, Medicação e Agenda na 0.6.6
+
+- Perfis antigos podem ser eliminados na lista após confirmação explícita. A operação preserva os outros perfis, impede a perda de anexos compartilhados e mantém os ZIP Android originais encriptados. Recomenda-se criar um backup .spbackup antes da eliminação.
+- Os campos originais Android disponíveis em nomes snake_case/camelCase são recuperados para fichas Windows vazias; nenhum dado pessoal fictício é preenchido.
+- Seletor de perfil no topo compacto e alinhado com a fotografia autêntica.
+- Cartões de Medicação mostram as fotografias originais com preenchimento visual, sem deformação nem substituição de embalagens. Estados Ativa em verde e Suspensa em vermelho. Data da próxima toma prevista apenas quando existe regra real de calendário; Windows não cria alarmes.
+- Agenda separa por data real os compromissos futuros (cartões quase brancos) dos anteriores (cartões discretos). Botões de importação JSON retirados da Medicação e Agenda: continuam apenas em Backup/Importar-Exportar.
+- A construção e os testes automáticos usam dados sintéticos. Validar visualmente com backup encriptado antes de trabalhar com dados reais.

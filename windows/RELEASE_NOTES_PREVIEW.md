@@ -1,29 +1,18 @@
-# SaúdePrática Windows v0.6.5 — Importação e Exportação Familiar Completa
+# SaúdePrática Windows v0.6.6 — Perfis, Medicação e Agenda
 
-## Importar de Android para Windows
+## Correções pedidas para Windows
+- **Perfis:** ação Eliminar em cada cartão, confirmação explícita, preservação dos outros perfis e anexos partilhados, recuperação de campos já existentes em backups Android antigos ou recentes, sem preencher dados inventados.
+- **Seletor de perfil:** avatar e nome compactos e alinhados, sem espaço vazio antes da fotografia.
+- **Medicação:** imagens autênticas ocupam o quadro fotográfico com fundo desfocado e original legível; estado Ativa verde, Suspensa vermelho; próxima data/hora prevista calculada apenas quando há regra de toma válida e sem criar alarmes Windows.
+- **Agenda:** compromissos futuros ordenados por data/hora e visualmente destacados com cartões claros quase brancos; compromissos anteriores escurecidos e discretos. Datas inválidas não são anunciadas como compromissos futuros.
+- **Navegação:** botões Importar JSON removidos dos ecrãs Medicação e Agenda. Importação/exportação mantém-se no módulo Backup/Importar e Exportar.
+- **Rodapé:** apresenta a versão atual do aplicativo, sem número antigo.
 
-- **Backup → Importar toda a família Android** e, no módulo Importar / Exportar, selecionar um ZIP completo exportado pelo Android.
-- Validação integral do ZIP familiar: manifesto, SHA-256 de cada ficheiro, limites de dimensão e proteção contra caminhos/entradas perigosas.
-- Pré-visualização de **todos os perfis Android** com nome, número de medicamentos, marcações e anexos. Não altera os dados sem confirmação.
-- O Windows cria automaticamente os perfis que faltam e reconhece os previamente associados à mesma identidade Android; não mistura nomes iguais nem substitui silenciosamente registos já existentes.
-- Importação de medicação, agenda, fotografias e documentos que o Windows já suporta, em única operação com rollback por falha de gravação. Os dados de outros módulos ficam no ZIP original.
-- Guarda uma cópia **integral, byte-a-byte**, do ZIP de origem com proteção Windows DPAPI: perfis, definições Android, fotos, documentos, análises, medições e quaisquer categorias extra permanecem recuperáveis mesmo sem ecrã Windows correspondente.
+## Dados, cópias e segurança
+- Mantém importação familiar Android, fotografias, documentos e backups encriptados .spbackup introduzidos na v0.6.5.
+- Nunca coloca informações clínicas, imagens reais ou dados de utilizadores no GitHub. Eliminar um perfil não apaga um ZIP original que contém outros membros da família.
+- A data de toma apresentada é informativa; **não é um despertador Windows**. Se não existir uma recorrência inequívoca, a data fica por definir em vez de ser inventada.
+- O instalador Windows continua experimental e sem certificado de assinatura de editor reconhecido; o aviso SmartScreen pode persistir.
 
-## Exportar
-
-- **Backup encriptado .spbackup:** um só ficheiro para todos os perfis Windows, campos de perfil, medicação, agenda, fotografias, documentos, preferências e ZIPs Android originais importados; AES-256-GCM e palavra-passe.
-- **Restauro .spbackup** noutra conta Windows: preserva os perfis e os anexos, com confirmação. É aditivo e bloqueia IDs já presentes, para não perder nem sobrepor dados.
-- **Reexportar ZIP Android original:** recupera os bytes exatos do ficheiro importado, com aviso de privacidade porque o ZIP é não encriptado.
-- Importação/exportação JSON individual permanece disponível.
-
-## Limitações e segurança
-
-- A cópia integral preserva **todos os ficheiros existentes no ZIP Android**, mas ainda não torna todos os módulos Android editáveis no Windows. Sem sincronização automática bidirecional; alterações feitas no Windows **não são incorporadas automaticamente** no ZIP original devolvido.
-- A aplicação Windows **não substitui alarmes do Android**, nem importa dados já não presentes no ZIP.
-- A portabilidade .spbackup só funciona no Windows neste momento; importar diretamente .spbackup no Android ainda não está implementado.
-- Não enviar backups, documentos, imagens nem perfis clínicos ao GitHub. ZIP original reexportado é sensível; preferir .spbackup cifrado.
-- Instalador ainda é **experimental e sem certificado de editor Windows** (o aviso SmartScreen pode continuar).
-
-## Testes
-
-Suite sintética Windows: importação de vários perfis, associações, anexos encriptados, ficheiro original imutável, exportação .spbackup, restauro noutra conta, reimportação sem duplicação e rollback. Os testes CI e o arranque gráfico de compilação não substituem testes manuais com cópias de segurança reais.
+## Validação
+Testes automáticos com dados sintéticos: correspondência de campos Android, datas e recorrências, eliminação com rollback e documentos partilhados, regressão de interface, abertura do executável e instalação Inno Setup. Recomenda-se cópia de segurança antes de qualquer teste com dados reais.

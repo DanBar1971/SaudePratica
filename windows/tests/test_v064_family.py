@@ -100,7 +100,11 @@ class FamilyPortabilityTests(unittest.TestCase):
         store=self.store(self.first)
         plan=plan_family_archive(make_zip(),store.profiles())
         # Another profile appeared after preview: no partial import.
-        store.create_profile("Existing fictitious")
+        store.data["profiles"].append({
+            "id":plan.members[0].profile_id,
+            "name":"Another unrelated Windows person",
+            "medications":[],"appointments":[]})
+        store.save()
         before=json.dumps(store.data,sort_keys=True)
         with self.assertRaises(AndroidImportError):
             store.import_android_family(plan)

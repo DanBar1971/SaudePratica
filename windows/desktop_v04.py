@@ -980,8 +980,10 @@ class Desktop(ctk.CTk):
             data["notes"]=self.appointment_notes.get("1.0","end-1c")
             data["description"]=self.appointment_description.get("1.0","end-1c")
             data["desktop_status"]=APPOINTMENT_STATES[self.appointment_status_var.get()]
-            data["reminders_minutes"]=[minutes for minutes,var in self.reminder_vars.items()
-                                         if var.get()]
+            data["reminders_minutes"]=sorted(
+                self.unlisted_reminder_offsets+
+                [minutes for minutes,var in self.reminder_vars.items() if var.get()],
+                reverse=True)
             for key,(entry,original) in self.appointment_extra_widgets.items():
                 data[key]=parse_appointment_extra(key,entry.get(),original)
             self.store.save_appointment(self.active_id,data,self.editing_appointment)
@@ -1052,6 +1054,9 @@ class Desktop(ctk.CTk):
             "O Android mantém os seus próprios avisos.",
             11,color=self.p["muted"],wrap=900).pack(anchor="w",pady=(0,8))
         configured=record_offsets(values) if current else list(REMINDER_DEFAULT)
+        self.unlisted_reminder_offsets=[
+            m for m in configured if m not in {key for key,_ in REMINDER_CHOICES}
+        ]
         self.reminder_vars={}
         reminder_line=ctk.CTkFrame(reminder_box,fg_color="transparent")
         reminder_line.pack(fill="x")
@@ -1062,6 +1067,12 @@ class Desktop(ctk.CTk):
                 checkbox_width=19,checkbox_height=19,
                 fg_color=TEAL,hover_color=TEAL_HOVER,
                 text_color=self.p["text"]).pack(side="left",padx=(0,22),pady=5)
+
+        if self.unlisted_reminder_offsets:
+            self._label(reminder_box,
+                "Avisos adicionais importados e preservados: "+
+                ", ".join(str(v)+" min" for v in self.unlisted_reminder_offsets),
+                11,color=self.p["muted"],wrap=800).pack(anchor="w",pady=(6,2))
 
         for delta,(key,label) in enumerate((("description","Descrição"),("notes","Notas"))):
             row=base_row+2+delta*2

@@ -335,7 +335,7 @@ class SecureStore:
         known={(x.get("profile_id"),x.get("path"),x.get("sha256"))
                for x in previous_files}
         assets=[]
-        for name,data,category,digest in plan.attachments:
+        for name,data,category,digest,display_name in plan.attachments:
             key=(p["id"],name,digest)
             if key in known:continue
             if any(x.get("profile_id")==p["id"] and x.get("path")==name and
@@ -343,7 +343,7 @@ class SecureStore:
                 raise AndroidImportError("Um anexo existente foi alterado. Importação interrompida.")
             filename=PurePosixPath(name).name
             descriptors.append({"profile_id":p["id"],"path":name,"filename":filename,
-                                "category":category,"sha256":digest,"bytes":len(data),
+                                "category":category,"sha256":digest,"bytes":len(data), "display_name":display_name,
                                 "android_source":plan.source.identifier})
             assets.append((digest,data))
         created=self._write_assets(assets)

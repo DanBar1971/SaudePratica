@@ -249,20 +249,13 @@ class SecureStore:
             raise LocalStoreError("Indica o nome e uma dose com até 90 caracteres.")
         if len(indication) > 2000 or len(notes) > 4000:
             raise LocalStoreError("O texto da indicação ou das notas é demasiado longo.")
-        if dose_pattern not in ("", "Jejum", "Pequeno-almoço", "Almoço", "Jantar",
-                                "Às refeições", "Ao deitar", "SOS", "Horário livre",
-                                "De 4 em 4 horas", "De 6 em 6 horas", "De 12 em 12 horas"):
-            raise LocalStoreError("Tipo de toma inválido.")
+        # Windows is currently a medication catalogue, NOT an alarm scheduler.
+        # Android may encode a time as "Jejum" or a schedule in separate JSON.
+        # Never force existing records to fabricate HH:mm, route, frequency or
+        # dose simply to change their suspended/active status.
+        if len(time)>100 or len(dose_pattern)>120:
+            raise LocalStoreError("Campo da medicação demasiado comprido.")
         no_alarm = bool(fields.get("no_alarm", False)) or dose_pattern == "SOS"
-        if not no_alarm:
-            if (len(time) != 5 or time[2] != ":" or not time[:2].isdigit()
-                    or not time[3:].isdigit() or int(time[:2]) > 23
-                    or int(time[3:]) > 59):
-                raise LocalStoreError("Indica uma hora de aviso válida (HH:mm) ou ativa Sem alarme.")
-        elif time and (len(time) != 5 or time[2] != ":" or not time[:2].isdigit()
-                       or not time[3:].isdigit() or int(time[:2]) > 23
-                       or int(time[3:]) > 59):
-            raise LocalStoreError("Hora inválida (HH:mm).")
         # The desktop may save an authentic photo of the medication package.
         # Keep legacy image/attachment fields untouched when the editor does
         # not supply a new photo, and never store unbounded or fake thumbnails.
@@ -473,6 +466,23 @@ class SecureStore:
     def android_archives(self):
         """Metadata only: archive bytes remain in DPAPI, never in the profile JSON."""
         return [dict(item) for item in self.data.get("android_family_archives", [])]
+
+    def profile_android_extras(self, profile_id: str):
+        """Get all recoverable read-only fields for just this Android profile."""
+        from windows.android_profile_v067 import read_profile_extras
+        p=self.get_profile(profile_id)
+        if p is None:return {},()
+        source_id=p.get("android_zip_source_id")
+        if not source_id:return {},()
+        for item in self.android_archives():
+            if profile_id not in item.get("profile_ids",[]):continue
+            try:
+                raw=self.read_imported_asset({"sha256":item["sha256"]})
+                return read_profile_extras(raw,source_id)
+            except (ValueError,OSError,KeyError):
+                continue
+        return {},()
+
 
     def export_original_android_zip(self, digest: str) -> bytes:
         """Return the byte-for-byte original (unencrypted) Android ZIP for user export."""

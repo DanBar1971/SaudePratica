@@ -471,11 +471,18 @@ class Desktop(ctk.CTk):
     def _profile_form(self,frame):
         current=self.store.get_profile(self.editing_profile) if self.editing_profile else None
         fields=dict(current or {})
+        self.profile_extra_rows=()
         if current:
-            # Old imports may have retained these values only in Android's
-            # original profile metadata. Display them without overwriting edits.
+            # Old imports may have retained fields only in the original Android
+            # ZIP. Retrieve them privately via DPAPI, never display mock data.
             fields.update(missing_profile_fields(
                 fields,fields.get("android_profile_original",{})))
+            try:
+                recovered,extra=self.store.profile_android_extras(current["id"])
+                fields.update({k:v for k,v in recovered.items() if not fields.get(k)})
+                self.profile_extra_rows=extra
+            except (LocalStoreError,OSError,ValueError):
+                pass
         head=ctk.CTkFrame(frame,fg_color="transparent")
         head.pack(fill="x",padx=16,pady=(9,4))
         self._label(head,self.t("edit_profile") if current else self.t("new_profile"),
@@ -526,6 +533,67 @@ class Desktop(ctk.CTk):
                border_color=self.p["line"],text_color=self.p["text"])
         self.profile_notes.grid(row=13,column=0,columnspan=2,sticky="ew",padx=8,pady=(4,14))
         self.profile_notes.insert("1.0",fields.get("notes",""))
+        next_row=14
+        if current:
+            # Identification documents are individually protected under DPAPI.
+            # Render authentic images only, never a generic/fabricated CC.
+            ids=[entry for entry in self.store.imported_assets(current["id"])
+                 if entry.get("category")=="identificação"]
+            if ids:
+                self._label(scroll,"Documentos de identificação do Android",15,
+                    True,color=TEAL).grid(row=next_row,column=0,columnspan=2,
+                                          sticky="w",padx=9,pady=(15,7))
+                next_row+=1
+                id_panel=ctk.CTkFrame(scroll,fg_color="transparent")
+                id_panel.grid(row=next_row,column=0,columnspan=2,
+                              sticky="ew",padx=8,pady=5)
+                next_row+=1
+                for entry in ids[:30]:
+                    line=ctk.CTkFrame(id_panel,fg_color=self.p["panel2"],
+                                      corner_radius=8)
+                    line.pack(fill="x",pady=3)
+                    filename=str(entry.get("filename",""))
+                    if Path(filename).suffix.lower() in (".jpg",".jpeg",".png",".webp"):
+                        try:
+                            raw=self.store.read_imported_asset(entry)
+                            if len(raw)<16_000_000:
+                                with Image.open(BytesIO(raw)) as original:
+                                    if original.width*original.height<=20_000_000:
+                                        image=ImageOps.contain(original.convert("RGB"),
+                                            (155,100),method=Image.Resampling.LANCZOS)
+                                        photo=ctk.CTkImage(image,image,
+                                            size=(image.width,image.height))
+                                        ctk.CTkLabel(line,image=photo,text="",
+                                            width=160).pack(side="left",padx=6,pady=5)
+                        except (OSError,ValueError,LocalStoreError):
+                            pass
+                    self._label(line,str(entry.get("display_name") or filename),
+                                12,True).pack(side="left",padx=8)
+                    self._button(line,"Exportar",lambda item=entry:self._export_document(item),
+                                 width=110).pack(side="right",padx=9,pady=6)
+            if self.profile_extra_rows:
+                self._label(scroll,"Informação adicional recuperada do Android",
+                    15,True,color=TEAL).grid(row=next_row,column=0,columnspan=2,
+                                              sticky="w",padx=9,pady=(17,7))
+                next_row+=1
+                helptext=("Dados de leitura recuperados do backup Android. "
+                    "Podem incluir campos que ainda não têm editor Windows. "
+                    "Estes valores não são alterados ao guardar a ficha.")
+                self._label(scroll,helptext,11,color=self.p["muted"],
+                    wrap=900).grid(row=next_row,column=0,columnspan=2,
+                                   sticky="w",padx=9,pady=(0,8))
+                next_row+=1
+                for name,value in self.profile_extra_rows[:250]:
+                    line=ctk.CTkFrame(scroll,fg_color=self.p["field"],
+                                     corner_radius=5)
+                    line.grid(row=next_row,column=0,columnspan=2,
+                              sticky="ew",padx=8,pady=2)
+                    self._label(line,str(name),11,True,
+                                color=self.p["muted"],wrap=400).pack(
+                                    side="left",padx=9,pady=4)
+                    self._label(line,str(value),11,wrap=600).pack(
+                        side="right",padx=9,pady=4)
+                    next_row+=1
         footer=ctk.CTkFrame(frame,fg_color="transparent")
         footer.pack(fill="x",padx=16,pady=(0,9))
         self._button(footer,self.t("save"),self._save_profile,True,width=137,height=33).pack(side="right")
@@ -893,6 +961,10 @@ class Desktop(ctk.CTk):
 
     def _agenda(self):
         """Read-only appointments, grouped by actual local date and time."""
+        # The wallpaper's canvas-glass compositor can cover CTkScrollableFrame
+        # child windows, clipping white appointment cards during scrolling.
+        # Preserve an opaque, stable card surface on this screen only.
+        self.wallpaper_shell.glass_enabled=False
         self._heading("Agenda", "Compromissos do perfil selecionado · sem criar alarmes Windows")
         profile=self.store.get_profile(self.active_id) if self.active_id else None
         if not profile:
@@ -944,17 +1016,15 @@ class Desktop(ctk.CTk):
                 fg="#173140" if is_future else self.p["muted"]
                 secondary="#496170" if is_future else "#8098a6"
                 row=ctk.CTkFrame(scroll,fg_color=bg,corner_radius=11,
-                    border_width=1,border_color="#c5e6ef" if is_future else self.p["line"],
-                    height=81 if is_future else 70)
-                row.pack(fill="x",pady=4,padx=(0,8))
-                row.pack_propagate(False)
+                    border_width=1,border_color="#c5e6ef" if is_future else self.p["line"])
+                row.pack(fill="x",pady=5,padx=(0,8))
                 symbol=ctk.CTkLabel(row,text="▦",width=44,height=43,
                     fg_color="#b7edf1" if is_future else "#193b48",
                     corner_radius=9,font=ctk.CTkFont(size=22,weight="bold"),
                     text_color="#155664" if is_future else "#638a98")
                 symbol.pack(side="left",padx=(12,15),pady=10)
                 detail=ctk.CTkFrame(row,fg_color="transparent")
-                detail.pack(side="left",fill="both",expand=True,pady=6)
+                detail.pack(side="left",fill="both",expand=True,pady=(8,9))
                 self._label(detail,"  •  ".join(x for x in (d,t) if x),
                     11,True,color=fg).pack(anchor="w",pady=(2,0))
                 self._label(detail,title,14,True,color=fg).pack(anchor="w")

@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from .agenda_filter_v069 import appointment_datetime
+from .appointment_reminders_v071 import normalize_offsets
 
 MAIN_FIELDS=(
  ("title","Título"),("date","Data (AAAA-MM-DD)"),("time","Hora (HH:MM)"),
@@ -22,6 +23,7 @@ STATUS_VALUES=("pending","done","cancelled")
 STATUS_OPTIONS={"Pendente":"pending","Realizada":"done","Cancelada":"cancelled"}
 PROTECTED={
  "id","android_original","android_source_id","android_source_key",
+ "reminders_minutes",
  "android_source_hash","android_origin","desktop_status","status",
  "state","appointment_status","appointmentStatus","statusAgendamento",
  "status_agendamento","situacao","situação","estado","isDone","completed",
@@ -71,6 +73,10 @@ def clean_appointment_fields(changes,old=None):
     old=old or {}
     result={}
     for key,value in changes.items():
+        if key=="reminders_minutes":
+            try:result[key]=normalize_offsets(value)
+            except ValueError as exc:raise ValueError(str(exc)) from exc
+            continue
         if key=="desktop_status":
             if value not in STATUS_VALUES:raise ValueError("Estado da marcação inválido.")
             result[key]=value

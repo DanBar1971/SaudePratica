@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.8**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.8-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.9**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.9-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.8-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.9-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.6.8-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.6.9-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -127,3 +127,7 @@ Agenda com cartões futuros sem composição de vidro por cima, evitando recorte
 ## Versão 0.6.8 — Medicação
 
 Cartões com fundo completo e altura automática; botão Sem alarme amarelo; novo filtro Sem definição, distinto de Sem alarme intencional. Preservação dos dados e do backup familiar.
+
+## Windows 0.6.9 — Filtros da Agenda
+
+A Agenda apresenta os quatro filtros funcionais no topo: **Todas | Pendentes | Realizadas | Canceladas**. São vistas dos dados importados; não alteram as marcações nem criam alarmes. O estado explícito Cancelada tem prioridade, o estado explícito Realizada é respeitado e os compromissos de data já passada são apresentados como realizados se não tiverem indicação de cancelamento, de acordo com o comportamento Android. Mostra também o número de marcações visíveis e totais.

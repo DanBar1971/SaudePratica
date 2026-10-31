@@ -95,6 +95,7 @@ class DeletionTests(unittest.TestCase):
         text=(root/"windows/desktop_v04.py").read_text(encoding="utf-8")
         self.assertNotIn('self._button(bar,"Importar JSON"',text)
         self.assertNotIn('self._button(bar,"Importar agenda JSON"',text)
-        self.assertIn('section("Próximos compromissos",future,True)',text)
+        self.assertIn('section("Próximos compromissos",upcoming,True)',text)
+        self.assertIn('filtered_appointments(all_items,self.agenda_filter,now)',text)
 
 if __name__=="__main__":unittest.main()

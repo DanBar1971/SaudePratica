@@ -1036,9 +1036,11 @@ class Desktop(ctk.CTk):
                 tile=ctk.CTkFrame(row,fg_color="#c5ecec" if is_future else "#193b48",
                                   corner_radius=9,width=105)
                 tile.pack(side="left",padx=(11,14),pady=10)
-                tile.pack_propagate(False)
                 if when:
-                    self._label(tile,when.strftime("%d %b").upper(),13,True,
+                    month_names=("JAN","FEV","MAR","ABR","MAI","JUN",
+                                 "JUL","AGO","SET","OUT","NOV","DEZ")
+                    date_badge=f"{when.day:02d} {month_names[when.month-1]}"
+                    self._label(tile,date_badge,13,True,
                         color="#14585e" if is_future else "#a3d4d5",
                         anchor="center").pack(fill="x",padx=7,pady=(9,2))
                     self._label(tile,when.strftime("%H:%M"),12,True,

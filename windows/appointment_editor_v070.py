@@ -87,7 +87,9 @@ def clean_appointment_fields(changes,old=None):
             if key not in old or key not in dict(extra_fields(old)):
                 raise ValueError("Campo adicional não reconhecido: "+key)
             encoded=json.dumps(value,ensure_ascii=False)
-            if len(encoded)>16000 or not _editable(value):
+            prior=old[key]
+            if ((prior is not None and type(value) is not type(prior)) or
+                    len(encoded)>16000 or not _editable(value)):
                 raise ValueError("Campo adicional inválido: "+key)
             result[key]=value
     if not (result.get("title") or old.get("title") or old.get("name") or old.get("activity")):

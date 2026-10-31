@@ -47,6 +47,11 @@ Source: "..\..\dist\saude_icon.ico"; DestDir: "{app}"; DestName: "SaudePratica.i
 Name: "{userprograms}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\SaudePratica.ico"
 Name: "{userdesktop}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\SaudePratica.ico"; Tasks: desktopicon
 
+[Registry]
+; User-only autostart of the independent Agenda reminder worker.
+; Runs after Windows sign-in, even if the desktop UI was closed.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SaudePraticaAgendaReminders"; ValueData: """{app}\{#MyAppExeName}"" --reminder-agent"; Flags: uninsdeletevalue
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir a SaúdePrática Desktop"; Flags: nowait postinstall skipifsilent
 

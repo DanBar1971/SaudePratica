@@ -842,6 +842,12 @@ class Desktop(ctk.CTk):
         if not profile:
             self._label(self.body,"Seleciona um perfil.",14).pack(anchor="w")
             return
+        actions=ctk.CTkFrame(self.body,fg_color="transparent")
+        actions.pack(fill="x",pady=(0,9))
+        self._button(actions,"+ Importar documento / fotografia",
+                     self._add_manual_document,True,width=265,height=34).pack(side="left")
+        self._button(actions,"Importar ZIP Android",lambda:self.navigate("import"),
+                     width=170,height=34).pack(side="left",padx=10)
         items=self.store.imported_assets(profile["id"])
         self._label(self.body,f"{len(items)} documentos e fotografias guardados com proteção Windows",
                     12,color=self.p["muted"]).pack(anchor="w",pady=(0,12))
@@ -863,6 +869,53 @@ class Desktop(ctk.CTk):
                         11,color=self.p["muted"]).pack(anchor="w")
             self._button(row,"Exportar ficheiro",lambda x=item:self._export_document(x),
                          width=150,height=32).pack(side="right",padx=10)
+
+    def _add_manual_document(self):
+        if not self.active_id:return
+        file=filedialog.askopenfilename(parent=self,title="Importar documento ou fotografia",
+             filetypes=[("PDF e fotografias","*.pdf *.jpg *.jpeg *.png *.webp")])
+        if not file:return
+        try:
+            created=self.store.import_local_document(self.active_id,Path(file))
+            messagebox.showinfo("Documentos",
+                "Documento protegido e associado ao perfil." if created else
+                "Documento já existente neste perfil.",parent=self)
+            self._render()
+        except (LocalStoreError,OSError,ValueError) as exc:
+            messagebox.showerror("Documentos",str(exc),parent=self)
+
+    def _export_profile_json(self,kind):
+        profile=self.store.get_profile(self.active_id) if self.active_id else None
+        if not profile:return
+        if not messagebox.askyesno("Exportar JSON",
+            "O JSON exportado não será encriptado. Guarda-o numa pasta segura. Continuar?",
+            parent=self):
+            return
+        filename="medicacao.json" if kind=="medications" else "agenda.json"
+        dest=filedialog.asksaveasfilename(parent=self,title="Exportar JSON do perfil",
+              defaultextension=".json",initialfile=filename,
+              filetypes=[("JSON","*.json")])
+        if not dest:return
+        try:
+            records=[]
+            for item in profile.get(kind,[]):
+                raw=item.get("android_original")
+                if isinstance(raw,dict):
+                    records.append(raw)
+                else:
+                    obj=dict(item)
+                    if kind=="medications":
+                        obj["medication"]=obj.pop("name","")
+                    else:
+                        obj["activity"]=obj.pop("title","")
+                    records.append(obj)
+            Path(dest).write_text(json.dumps({kind:records},ensure_ascii=False,
+                               indent=2),encoding="utf-8")
+            messagebox.showinfo("Exportar JSON",
+                "JSON exportado. A importação deste ficheiro no Android ainda precisa de testes.",
+                parent=self)
+        except (OSError,ValueError) as exc:
+            messagebox.showerror("Exportar JSON",str(exc),parent=self)
 
     def _export_document(self,item):
         ext=Path(item["filename"]).suffix.lower()
@@ -1005,6 +1058,12 @@ class Desktop(ctk.CTk):
                      True,width=216,height=38).pack(side="left",padx=(0,10))
         self._button(bar,"Importar ZIP Android",self._inspect_android_zip,
                      width=218,height=38).pack(side="left")
+        exports=ctk.CTkFrame(self.body,fg_color="transparent")
+        exports.pack(fill="x",pady=(0,9))
+        self._button(exports,"Exportar Medicação JSON",lambda:self._export_profile_json("medications"),
+                     width=220,height=34).pack(side="left",padx=(0,9))
+        self._button(exports,"Exportar Agenda JSON",lambda:self._export_profile_json("appointments"),
+                     width=215,height=34).pack(side="left")
         self._label(self.body,"Ficheiros aceites: medicacao.json, agenda.json ou ZIP completo Android. "
                     "Os dados novos serão acrescentados apenas ao perfil escolhido.",
                     12,color=self.p["muted"],wrap=1000).pack(anchor="w",pady=(0,12))

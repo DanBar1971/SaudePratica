@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 env:
-  WINDOWS_APP_VERSION: "0.7.0"
+  WINDOWS_APP_VERSION: "0.7.1"
 
 jobs:
   windows-preview:

@@ -331,6 +331,7 @@ class SecureStore:
         previous_files=self.data.get("imported_files",[])
         old_source=p.get("android_zip_source_id")
         old_source_name=p.get("android_zip_source_name")
+        old_avatar=p.get("photo_b64")
         descriptors=list(previous_files)
         known={(x.get("profile_id"),x.get("path"),x.get("sha256"))
                for x in previous_files}
@@ -352,6 +353,8 @@ class SecureStore:
             p["appointments"]=previous_apt+list(plan.appointments.new)
             p["android_zip_source_id"]=plan.source.identifier
             p["android_zip_source_name"]=plan.source.name
+            if plan.avatar_b64 and not p.get("photo_b64"):
+                p["photo_b64"]=plan.avatar_b64
             self.data["imported_files"]=descriptors
             self.save()
         except Exception:
@@ -362,6 +365,8 @@ class SecureStore:
             if old_source_name is None:p.pop("android_zip_source_name",None)
             else:p["android_zip_source_name"]=old_source_name
             self.data["imported_files"]=previous_files
+            if old_avatar is None:p.pop("photo_b64",None)
+            else:p["photo_b64"]=old_avatar
             for path in created:
                 try:path.unlink()
                 except OSError:pass

@@ -81,6 +81,50 @@ class SecureStore:
     def get_profile(self, profile_id: str):
         return next((p for p in self.profiles() if p.get("id") == profile_id), None)
 
+    def delete_profile(self, profile_id: str) -> dict:
+        """User-confirmed profile deletion. Persist atomically before removing orphan assets.
+
+        Other family members, their documents, and the original encrypted
+        family archive are preserved. Never erase shared-content blobs.
+        """
+        import copy
+        current=self.get_profile(profile_id)
+        if current is None:
+            raise LocalStoreError("O perfil já não existe.")
+        previous=self.data
+        proposed=copy.deepcopy(previous)
+        proposed["profiles"]=[p for p in proposed["profiles"] if p.get("id")!=profile_id]
+        attachments=proposed.get("imported_files",[])
+        proposed["imported_files"]=[
+            x for x in attachments if x.get("profile_id")!=profile_id]
+        settings=proposed.get("settings")
+        if isinstance(settings,dict) and settings.get("active_profile")==profile_id:
+            settings["active_profile"]=(
+                proposed["profiles"][0]["id"] if proposed["profiles"] else None)
+        # Original family ZIPs contain other family members. Keep them encrypted,
+        # but do not advertise the deleted profile as an active import destination.
+        for archive in proposed.get("android_family_archives",[]):
+            archive["profile_ids"]=[
+                pid for pid in archive.get("profile_ids",[]) if pid!=profile_id]
+        remaining={x.get("sha256") for x in proposed["imported_files"]}
+        remaining.update(x.get("sha256") for x in
+                         proposed.get("android_family_archives",[]))
+        released={x.get("sha256") for x in attachments
+                  if x.get("profile_id")==profile_id}
+        try:
+            self.data=proposed
+            self.save()
+        except Exception:
+            self.data=previous
+            raise
+        # Only prune encrypted files unreferenced by ANY other profile/archive.
+        for digest in released-remaining:
+            try:self._asset_path(digest).unlink(missing_ok=True)
+            except (LocalStoreError,OSError):pass
+        return {"id":profile_id,"name":current.get("name",""),
+                "remaining":len(proposed["profiles"]),
+                "next_active":proposed.get("settings",{}).get("active_profile")}
+
     def settings(self):
         """Local preferences only; no new database or migration required."""
         return dict(self.data.get("settings") or {})
@@ -450,6 +494,7 @@ class SecureStore:
         they are NOT misrepresented as Windows-compatible screens.
         """
         from windows.family_portability_v064 import FamilyPlan, plan_summary, _new_profile
+        from windows.profile_fields_v066 import missing_profile_fields
         from windows.android_import_v062 import AndroidImportError, _existing_map
         from hashlib import sha256
         from pathlib import PurePosixPath
@@ -499,8 +544,12 @@ class SecureStore:
                 p[category]=list(p.get(category,[]))+copy.deepcopy(list(partial.new))
             p["android_zip_source_id"]=member.source.identifier
             p["android_zip_source_name"]=member.source.name
-            if member.original_profile and not p.get("android_profile_original"):
-                p["android_profile_original"]=dict(member.original_profile)
+            if member.original_profile:
+                if not p.get("android_profile_original"):
+                    p["android_profile_original"]=dict(member.original_profile)
+                # Upgrade both newly-created and old imported profiles with the
+                # fields Android already contains; never replace Windows edits.
+                p.update(missing_profile_fields(p,member.original_profile))
             if member.imported.avatar_b64 and not p.get("photo_b64"):
                 p["photo_b64"]=member.imported.avatar_b64
             for name,data,category,digest,display_name in member.imported.attachments:

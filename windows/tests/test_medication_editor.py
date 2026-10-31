@@ -42,11 +42,11 @@ class MedicationEditorTests(unittest.TestCase):
         decoded=read_backup(backup,"Frase de teste secreta 2026")
         self.assertTrue(any(b'"injection_type": "sc"' in v for k,v in decoded.items() if k.endswith("medicacao.json")))
 
-    def test_invalid_time_does_not_change_store(self):
+    def test_oversize_time_does_not_change_store(self):
         old=self.store.add_medication(self.profile,"Medicamento fictício","20 mg","07:00","oral")
         with self.assertRaises(LocalStoreError):
             self.store.save_medication(self.profile,{
-                "name":"Medicação errada","time":"27:75",
+                "name":"Medicação errada","time":"7"*101,
                 "dose":"25 mg","administration_route":"oral"
             },medication_id=old["id"])
         self.assertEqual(self.store.get_profile(self.profile)["medications"][0]["name"],

@@ -31,6 +31,11 @@ def appointment_status(item, now=None):
     Realizada, matching SaúdePrática's automatic post-date status convention.
     """
     now=now or datetime.now()
+    # Deliberate Windows edits take precedence over immutable Android history.
+    # In particular, reopening a cancelled appointment as pending must work.
+    override=item.get("desktop_status")
+    if override in ("pending","done","cancelled"):
+        return override
     original=item.get("android_original")
     source=original if isinstance(original,dict) else {}
     fields=(item,source)

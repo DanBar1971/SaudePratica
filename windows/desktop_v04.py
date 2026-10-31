@@ -1001,7 +1001,8 @@ class Desktop(ctk.CTk):
                      width=156,height=32).pack(side="right")
         content=ctk.CTkScrollableFrame(self.body,fg_color="transparent",corner_radius=0)
         content.pack(fill="both",expand=True,padx=9,pady=5)
-        content.grid_columnconfigure((0,1),weight=1)
+        content.grid_columnconfigure(0,weight=1)
+        content.grid_columnconfigure(1,weight=1)
         self.appointment_widgets={}
         self.appointment_extra_widgets={}
         labels=dict(APPOINTMENT_FIELDS)
@@ -1183,8 +1184,8 @@ class Desktop(ctk.CTk):
                         anchor="center").pack(fill="x",padx=7,pady=14)
                 info=ctk.CTkFrame(row,fg_color="transparent")
                 info.pack(side="left",fill="both",expand=True,pady=(8,9),padx=(0,9))
-                self._label(info,name,14,True,color=fg,wrap=880).pack(
-                    anchor="w",fill="x")
+                appointment_title=self._label(info,name,14,True,color=fg,wrap=880)
+                appointment_title.pack(anchor="w",fill="x")
                 if location:
                     self._label(info,location,11,color=secondary,wrap=880).pack(
                         anchor="w",fill="x",pady=(2,0))
@@ -1195,7 +1196,7 @@ class Desktop(ctk.CTk):
                 self._button(row,"Abrir ficha",
                     lambda uid=item["id"]:self._open_appointment(uid),
                     width=110,height=32).pack(side="right",padx=(5,12),pady=13)
-                for widget in (row,tile,info,status_widget):
+                for widget in (row,tile,info,appointment_title,status_widget):
                     widget.bind("<Button-1>",
                         lambda _event,uid=item["id"]:self._open_appointment(uid),add="+")
 

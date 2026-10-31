@@ -68,3 +68,5 @@ jobs:
           gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isPrerelease,assets |
             jq -e '.tagName=="v1.9.123" and (.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")'
           gh workflow run pages.yml --repo "$REPO" --ref main
+
+# Signed delta contains no private key; signature is re-verified before publishing.

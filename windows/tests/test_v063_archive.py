@@ -151,8 +151,8 @@ class ImportRealAndroidSchemaTests(unittest.TestCase):
     def test_reimport_rejects_corrupted_existing_photo_without_data_loss(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/"profile_data.dpapi"
-            with patch.object(secure_store,"_user_data_path",return_value=path),\\
-                 patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\\
+            with patch.object(secure_store,"_user_data_path",return_value=path),\
+                 patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\
                  patch.object(secure_store,"_decrypt",side_effect=lambda x:x):
                 store=secure_store.SecureStore()
                 profile=store.save_profile({"name":"Perfil de teste"})
@@ -173,8 +173,8 @@ class ImportRealAndroidSchemaTests(unittest.TestCase):
             second=Path(folder)/"target"/"profile_data.dpapi"
             first.parent.mkdir()
             second.parent.mkdir()
-            with patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\\
-                 patch.object(secure_store,"_decrypt",side_effect=lambda x:x),\\
+            with patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\
+                 patch.object(secure_store,"_decrypt",side_effect=lambda x:x),\
                  patch.object(secure_store,"_user_data_path",return_value=first):
                 source=secure_store.SecureStore()
                 person=source.save_profile({"name":"Perfil fictício"})
@@ -193,8 +193,8 @@ class ImportRealAndroidSchemaTests(unittest.TestCase):
     def test_restore_rejects_mismatched_profile_path_without_creating_profiles(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/"profile_data.dpapi"
-            with patch.object(secure_store,"_user_data_path",return_value=path),\\
-                 patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\\
+            with patch.object(secure_store,"_user_data_path",return_value=path),\
+                 patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\
                  patch.object(secure_store,"_decrypt",side_effect=lambda x:x):
                 target=secure_store.SecureStore()
                 identifier="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"

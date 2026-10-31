@@ -39,7 +39,7 @@ assert "Color.argb(240,241,249,248)" not in read("HealthTipsActivity.kt")
 # The update must never touch medicine schedules or the package certificate.
 assert "private fun reschedule() = NotificationScheduler(this).scheduleAllProfiles()" in main
 assert (src/"notifications/NotificationScheduler.kt").is_file()
-assert (src/"notifications/MedicationAlarmActivity.kt").is_file()
+assert (src/"notifications/MedicationAlarmService.kt").is_file()
 assert "DiabetesActivity" in (app/"src/main/AndroidManifest.xml").read_text()
 assert "ImportantShortcutsV2Activity" in (app/"src/main/AndroidManifest.xml").read_text()
 print("PASS: v1.9.122 theme consistency and clinical invariants (static, not device QA)")

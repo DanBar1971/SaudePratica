@@ -564,6 +564,14 @@ class SecureStore:
                         if k not in ("medications", "appointments")}
             files[prefix+"profile.json"] = json.dumps(
                 metadata, ensure_ascii=False).encode("utf-8")
+            # Preserve preferences and future global metadata in the encrypted
+            # archive, without overwriting preferences on a populated Windows.
+            if p is self.profiles()[0]:
+                state={k:v for k,v in self.data.items()
+                       if k not in ("profiles","imported_files",
+                                    "android_family_archives")}
+                files[prefix+"windows_state.json"]=json.dumps(
+                    state,ensure_ascii=False).encode("utf-8")
             files[prefix+"medicacao.json"] = json.dumps(
                 {"medications":p.get("medications",[])}, ensure_ascii=False).encode("utf-8")
             files[prefix+"agenda.json"] = json.dumps(
@@ -692,6 +700,28 @@ class SecureStore:
         if any(row["sha256"] in {p.get("sha256") for p in existing_archives}
                for row in archive_rows.values()):
             raise BackupError("O backup Android original já existe neste Windows.")
+        old_global={k:v for k,v in self.data.items()
+                    if k not in ("profiles","imported_files","android_family_archives")}
+        # Recover global settings only into a fresh Windows data store.
+        # Existing installations retain their current local preferences.
+        incoming_state=None
+        for person in added:
+            key=f"profiles/{person['id']}/windows_state.json"
+            if key in verified_files:
+                state=json.loads(verified_files[key])
+                if not isinstance(state,dict) or state.get("format")!=STORE_FORMAT:
+                    raise BackupError("Metadados globais do Windows inválidos.")
+                if incoming_state is not None and incoming_state!=state:
+                    raise BackupError("Definições globais contraditórias no backup.")
+                incoming_state=state
+        if incoming_state is not None:
+            if not self.profiles():
+                for key,value in incoming_state.items():
+                    if key not in ("profiles","imported_files","android_family_archives"):
+                        self.data[key]=value
+            else:
+                # Retain source settings in the restored profile metadata.
+                added[0]["windows_original_settings"]=incoming_state.get("settings",{})
         created=self._write_assets(encrypted_assets)
         old_files=self.data.get("imported_files",[])
         self.data["imported_files"]=old_files+attachment_meta
@@ -703,6 +733,10 @@ class SecureStore:
             del self.data["profiles"][-len(added):]
             self.data["imported_files"]=old_files
             self.data["android_family_archives"]=existing_archives
+            for key in list(self.data):
+                if key not in ("profiles","imported_files","android_family_archives"):
+                    self.data.pop(key)
+            self.data.update(old_global)
             for path in created:
                 try:path.unlink()
                 except OSError:pass

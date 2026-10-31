@@ -206,7 +206,8 @@ class Desktop(ctk.CTk):
         # previously left an unsightly gap before the photograph.
         self.profile_pill=ctk.CTkFrame(
             right,fg_color=self.p["panel2"],corner_radius=13,
-            border_color="#177b87",border_width=1,height=41)
+            border_color="#177b87",border_width=1,height=41,
+            width=max(165,min(300,len(label)*9+110)))
         self.profile_pill.pack(side="right")
         self.profile_pill.pack_propagate(False)
         avatar_label=ctk.CTkLabel(

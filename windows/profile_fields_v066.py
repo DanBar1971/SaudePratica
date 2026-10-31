@@ -33,16 +33,37 @@ def mapped_fields(original: dict) -> dict[str, str]:
     """
     if not isinstance(original, dict):
         return {}
-    sources=[original]
-    for key in ("personal", "personalInfo", "details", "contacts", "health", "profile"):
-        child=original.get(key)
-        if isinstance(child,dict):
-            sources.append(child)
+    # Profile values have moved between fields across Android versions.
+    # Inspect only bounded profile dictionaries (not arbitrary encrypted prefs).
+    sources=[]
+    def collect(node,depth=0):
+        if depth>4 or len(sources)>100:return
+        if isinstance(node,dict):
+            sources.append(node)
+            for value in node.values():
+                if isinstance(value,(dict,list)):
+                    collect(value,depth+1)
+        elif isinstance(node,list):
+            for value in node[:30]:collect(value,depth+1)
+    collect(original)
     result={}
+    normalized=lambda key: "".join(c.lower() for c in key if c.isalnum())
     for field,aliases in FIELD_ALIASES.items():
+        names={normalized(a) for a in aliases}
         for source in sources:
-            found=next((source[k].strip() for k in aliases
-                if isinstance(source.get(k),str) and source[k].strip()), "")
+            found=""
+            for key,value in source.items():
+                if isinstance(key,str) and normalized(key) in names:
+                    if isinstance(value,(str,int)) and not isinstance(value,bool):
+                        found=str(value).strip()
+                    if found:break
+            if not found:
+                # Some Android versions store field/value records rather
+                # than a flat profile object.
+                label=str(source.get("field") or source.get("key") or "")
+                val=source.get("value")
+                if normalized(label) in names and isinstance(val,(str,int)):
+                    found=str(val).strip()
             if found and len(found)<=LIMITS[field]:
                 result[field]=found
                 break

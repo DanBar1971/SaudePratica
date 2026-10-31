@@ -18,12 +18,12 @@ def normalize_offsets(value):
     if value is None:return []
     if not isinstance(value,list):
         raise ValueError("Os avisos devem ser uma lista de minutos.")
-    if len(value)>len(ALLOWED):
+    if len(value)>24:
         raise ValueError("Existem demasiados avisos.")
     result=[]
     for item in value:
-        if type(item) is not int or item not in ALLOWED:
-            raise ValueError("Aviso inválido. Escolhe os intervalos disponíveis.")
+        if type(item) is not int or not 0<=item<=10080:
+            raise ValueError("Aviso inválido. Deve estar entre 0 e 10080 minutos.")
         if item not in result:result.append(item)
     return sorted(result,reverse=True)
 
@@ -69,9 +69,8 @@ def due_events(profiles,now=None,grace_minutes=10):
     return result
 
 def reminder_message(planned,minutes):
-    """Avoid placing patient names or medical services on the lock screen."""
-    text=planned.strftime("%d/%m/%Y às %H:%M")
-    return ("Tens uma marcação às "+text+
-            (" (agora)." if minutes==0 else
-             (" (daqui a 1 dia)." if minutes==1440 else
-              f" (aviso {minutes} minutos antes).")))
+    """Avoid displaying patient names or medical services on lock screens."""
+    when=planned.strftime("%d/%m/%Y às %H:%M")
+    human={1440:"1 dia",120:"2 horas",60:"1 hora",30:"30 minutos",0:"agora"}
+    lead=human.get(minutes,f"{minutes} minutos")
+    return f"Tens uma marcação em {when}. Aviso: {lead} antes."

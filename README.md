@@ -7,10 +7,10 @@ Website público e repositório multiplataforma **SaúdePrática**, em portuguê
 | Plataforma | Estado | Instalação |
 | --- | --- | --- |
 | **Android** | Disponível | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
-| **Windows 10/11 (x64)** | **Experimental 0.7.0** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.0-preview/SaudePratica-Setup.exe) |
+| **Windows 10/11 (x64)** | **Experimental 0.7.1** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.1-preview/SaudePratica-Setup.exe) |
 | **iPhone / iOS** | Planeado | Ainda sem aplicação para descarregar |
 
-Para Windows, consultar também a [release Windows específica](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.0-preview), e **não a lista genérica de releases Android/Windows**. A página oficial identifica sempre cada plataforma e a ligação do instalador. A versão Windows é experimental e ainda não sincroniza com o Android nem fornece alarmes clínicos.
+Para Windows, consultar também a [release Windows específica](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.1-preview), e **não a lista genérica de releases Android/Windows**. A página oficial identifica sempre cada plataforma e a ligação do instalador. A versão Windows é experimental e ainda não sincroniza automaticamente com o Android; os avisos de Agenda já funcionam localmente no Windows com sessão iniciada, mas os alarmes de medicação continuam apenas no Android.
 
 **Website:** https://danbar1971.github.io/SaudePratica/
 

@@ -40,7 +40,9 @@ def read_profile_extras(archive:bytes,source_id:str):
     """
     files,head=validated_files(archive)
     original={}
-    node=head.get("prefs",{}).get("saudepratica_profiles_v1",{})
+    prefs=head.get("prefs")
+    prefs=prefs if isinstance(prefs,dict) else {}
+    node=prefs.get("saudepratica_profiles_v1",{})
     payload=(node.get("profiles",{}).get("v","")
              if isinstance(node,dict) else "")
     if isinstance(payload,str):
@@ -71,6 +73,11 @@ def read_profile_extras(archive:bytes,source_id:str):
         if isinstance(candidate,dict):
             for k,v in mapped_fields(candidate).items():
                 fields.setdefault(k,v)
+        elif isinstance(candidate,list):
+            for entry in candidate[:100]:
+                if not isinstance(entry,dict):continue
+                for k,v in mapped_fields(entry).items():
+                    fields.setdefault(k,v)
     display=[]
     seen=set()
     for name,node in sections.items():

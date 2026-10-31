@@ -33,7 +33,7 @@ from windows.android_archive_v063 import archive_sources,prepare_archive,apply_a
 from windows.family_ui_v064 import family_controls, export_original_zip
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.4"
+VERSION = "0.6.5"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"

@@ -1,18 +1,9 @@
-# SaúdePrática Windows v0.6.6 — Perfis, Medicação e Agenda
+# SaúdePrática Windows 0.6.7 — Agenda, Medicação e Perfis Android
 
-## Correções pedidas para Windows
-- **Perfis:** ação Eliminar em cada cartão, confirmação explícita, preservação dos outros perfis e anexos partilhados, recuperação de campos já existentes em backups Android antigos ou recentes, sem preencher dados inventados.
-- **Seletor de perfil:** avatar e nome compactos e alinhados, sem espaço vazio antes da fotografia.
-- **Medicação:** imagens autênticas ocupam o quadro fotográfico com fundo desfocado e original legível; estado Ativa verde, Suspensa vermelho; próxima data/hora prevista calculada apenas quando há regra de toma válida e sem criar alarmes Windows.
-- **Agenda:** compromissos futuros ordenados por data/hora e visualmente destacados com cartões claros quase brancos; compromissos anteriores escurecidos e discretos. Datas inválidas não são anunciadas como compromissos futuros.
-- **Navegação:** botões Importar JSON removidos dos ecrãs Medicação e Agenda. Importação/exportação mantém-se no módulo Backup/Importar e Exportar.
-- **Rodapé:** apresenta a versão atual do aplicativo, sem número antigo.
-
-## Dados, cópias e segurança
-- Mantém importação familiar Android, fotografias, documentos e backups encriptados .spbackup introduzidos na v0.6.5.
-- Nunca coloca informações clínicas, imagens reais ou dados de utilizadores no GitHub. Eliminar um perfil não apaga um ZIP original que contém outros membros da família.
-- A data de toma apresentada é informativa; **não é um despertador Windows**. Se não existir uma recorrência inequívoca, a data fica por definir em vez de ser inventada.
-- O instalador Windows continua experimental e sem certificado de assinatura de editor reconhecido; o aviso SmartScreen pode persistir.
-
-## Validação
-Testes automáticos com dados sintéticos: correspondência de campos Android, datas e recorrências, eliminação com rollback e documentos partilhados, regressão de interface, abertura do executável e instalação Inno Setup. Recomenda-se cópia de segurança antes de qualquer teste com dados reais.
+- **Agenda:** os cartões claros deixam de receber uma camada de composição de vidro que recortava a parte superior e deslocava os ícones. A dimensão de cada cartão adapta-se ao seu conteúdo.
+- **Medicação:** alteração de estado, por exemplo Ativa para Suspensa, pode ser gravada sem preencher obrigatoriamente hora, tipo de toma, dose ou via. Textos de hora importados do Android deixam de bloquear a gravação; não são programados alarmes Windows.
+- **Perfis:** campos de perfil recuperados de estruturas adicionais do ZIP familiar Android guardado com encriptação DPAPI; dados de identificação e saúde apresentados numa área de leitura, juntamente com miniaturas reais de ficheiros de identificação que estejam presentes no backup.
+- **Integridade:** alterações e importações não inventam fotos, números ou datas, nem transferem informações clínicas para o GitHub. Perfil antigo sem ZIP original associado pode necessitar de reimportação por Backup.
+- Mantém a exportação de ficheiros e backups encriptados .spbackup, e o aspeto da 0.6.6.
+- O instalador é experimental e sem assinatura digital de editor reconhecido. O Windows não substitui os alarmes Android.
+- Testes automáticos utilizam dados sintéticos. Criar backup encriptado antes de usar dados reais.

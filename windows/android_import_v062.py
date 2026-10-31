@@ -72,8 +72,10 @@ def _converted(item,kind,profile_id):
     if kind=="medications":
         record["name"]=name
         record["dose"]=_text(item.get("dose") or item.get("dosage") or item.get("strength"),90)
-        record["time"]=_text(item.get("reminder_time") or item.get("alarmTime") or
-                             item.get("time") or item.get("hour"),40)
+        time_value=item.get("reminder_time") or item.get("alarmTime") or item.get("time") or item.get("hour")
+        if not time_value and isinstance(item.get("times"),list):
+            time_value=next((v for v in item["times"] if isinstance(v,str) and v),"")
+        record["time"]=_text(time_value,40)
         record["suspended"]=bool(item.get("suspended") or item.get("suspended_from"))
         # Preserve Android medication alarm preferences without scheduling desktop alarms.
         record["no_alarm"]=bool(item.get("no_alarm",item.get("noAlarm",False)))

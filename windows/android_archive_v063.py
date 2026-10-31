@@ -46,8 +46,9 @@ class ZipPlan:
     source: AndroidSource
     medications: ImportPlan
     appointments: ImportPlan
-    attachments: tuple[tuple[str,bytes,str,str],...]
+    attachments: tuple[tuple[str,bytes,str,str,str],...]
     archive_digest: str
+    avatar_b64: str = ""
 
 def _json(data,what):
     try: return json.loads(data.decode("utf-8-sig"))
@@ -188,11 +189,23 @@ def prepare_archive(blob:bytes,source_id:str,profile:dict)->ZipPlan:
     agenda=plan_json(files.get(apath,b'{"appointments":[]}'),"appointments",profile)
     paths=_asset_paths(files,source_id,meds.entries)
     attachments=[]
+    display={}
+    for base in ("saudepratica_documents","saudepratica_labs"):
+        index_name=f"{base}/{source_id}/index.json"
+        if index_name in files:
+            index=_json(files[index_name],"Índice de documentos")
+            if isinstance(index,list):
+                for entry in index:
+                    if not isinstance(entry,dict):continue
+                    fname=entry.get("fileName")
+                    name=entry.get("name")
+                    if isinstance(fname,str) and isinstance(name,str) and len(name)<250:
+                        display[f"{base}/{source_id}/{fname}"]=name
     for p in paths:
         data=files[p]
         cat=p.split("/")[0]
         attachments.append((p,data,ALLOWED_CATEGORIES.get(cat,"fotografia de medicamento"),
-                           sha256(data).hexdigest()))
+                           sha256(data).hexdigest(),display.get(p, PurePosixPath(p).name)))
     # Preview photos from authenticated original Android image file.
     for med in meds.new:
         original=med["android_original"]
@@ -206,8 +219,13 @@ def prepare_archive(blob:bytes,source_id:str,profile:dict)->ZipPlan:
                 med["photo_b64"]=_jpeg_thumbnail(files[src])
                 if med["photo_b64"]:break
             except (ValueError,OSError):continue
+    avatar_key=f"saudepratica_identity/{source_id}/avatar.jpg"
+    avatar=""
+    if avatar_key in files and not profile.get("photo_b64"):
+        try:avatar=_jpeg_thumbnail(files[avatar_key])
+        except (OSError,ValueError):pass
     return ZipPlan(profile["id"],source,meds,agenda,tuple(attachments),
-                   sha256(blob).hexdigest())
+                   sha256(blob).hexdigest(),avatar)
 
 def apply_archive(store,plan:ZipPlan):
     """SecureStore commits BOTH clinical data and attachments with rollback."""

@@ -249,7 +249,7 @@ class PortableWindowsBackup(private val context:Context) {
                 "Formato clínico não suportado."
             }
             val files=manifest.getJSONArray("files")
-            require(manifest.optInt("file_count")==files.length)
+            require(manifest.optInt("file_count")==files.length())
             val namesDeclared=mutableSetOf("manifest.json")
             val originalKeys=mutableMapOf<String,Original>()
             val indexed=mutableListOf<JSONObject>()

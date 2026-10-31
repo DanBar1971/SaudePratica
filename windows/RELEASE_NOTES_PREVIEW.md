@@ -1,17 +1,12 @@
-# SaúdePrática Windows 0.7.0 — Ficha editável dos agendamentos
+# SaúdePrática Windows 0.7.1 — Avisos de consultas
 
-## Agenda: alterações funcionais
-- **Abrir ficha** em cada cartão. Também é possível abrir a ficha ao clicar no título ou na zona do cartão.
-- **Formulário em ecrã completo**, não numa janela flutuante, com título, data, hora, atividade, tipo, especialidade, unidade de saúde, local/sala, departamento, médico/profissional, médico prescritor, recurso, referência, telefone, email, descrição e notas.
-- **Campos adicionais importados do Android** visíveis e editáveis, mantendo tipos originais (números, booleanos e estruturas JSON). Identificadores internos, chaves de importação e cópia original Android permanecem protegidos contra alterações.
-- **Estado editável:** Pendente, Realizada ou Cancelada. Permite cancelar uma marcação localmente e voltar a reativá-la, sem a apagar.
-- **Adicionar** uma marcação nova na Agenda, incluindo campos não obrigatórios.
-- **Guardar/Cancelar** no ecrã da ficha; o botão Cancelar sai sem gravar. O cancelamento da marcação é escolhido no campo Estado.
-- **Filtros da Agenda** Todas, Pendentes, Realizadas, Canceladas refletem imediatamente os novos estados e preservam a contagem de marcações.
-- Gravação atómica no armazenamento protegido DPAPI com reposição dos dados anteriores em caso de falha de disco.
-- **Importante:** mudar o estado para Cancelada na SaúdePrática **não cancela a consulta no hospital**; o utilizador continua a ter de contactar a unidade de saúde.
-- Continuam sem implementação a sincronização automática bidirecional e os alarmes Windows. A importação e exportação manual por backup mantêm-se.
-- Testes automáticos sintéticos de alterações de campos, persistência, cancelamento e reativação, isolamento de perfis, dados originais do Android e rollback.
-
-## Instalação
-Instalador experimental Windows 10/11, sem certificado de assinatura de editor reconhecido. O aviso SmartScreen pode continuar a aparecer. Recomenda-se criar um backup .spbackup antes de atualizar.
+- A ficha dos agendamentos substitui o campo técnico reminders_minutes por cinco opções: **1 dia antes, 2 horas antes, 1 hora antes, 30 minutos antes, na hora da consulta**.
+- São conservados os intervalos importados do Android que não constem destas opções. Ambos usam minutos: 1440 corresponde a um dia e 120 a duas horas.
+- **Novo agente Windows:** verifica as consultas em segundo plano e apresenta avisos locais do Windows mesmo depois de fechares a janela principal. É iniciado automaticamente ao entrar na sessão Windows, na conta atual e sem privilégios de administrador.
+- As notificações mostram apenas a data/hora, sem revelar dados clínicos ou nomes dos pacientes no ecrã bloqueado. Os avisos já enviados são controlados por identificadores anonimizados.
+- Alterar a data, cancelar ou realizar uma consulta adapta os avisos futuros.
+- Não é necessária Internet para os avisos Windows, mas o computador precisa de estar ligado, acordado e com a sessão iniciada. O modo Não incomodar ou as definições de notificações podem impedir a apresentação; após suspensão existe uma breve margem de recuperação.
+- **O Android continua a emitir os avisos que já tem configurados.** Ainda não há sincronização automática Windows–Android. Alterações feitas na ficha Windows **não são enviadas automaticamente** ao Android; até existir sincronização, configurar os mesmos avisos no telemóvel.
+- Os alarmes de medicação do Android não foram alterados e ainda não existem alarmes de medicação Windows.
+- Sem exportação de informação clínica para serviços externos. Foram adicionados testes automáticos de cálculo, segurança, configuração e prevenção de duplicações.
+- Instalação experimental e ainda sem certificado de editor reconhecido no Windows.

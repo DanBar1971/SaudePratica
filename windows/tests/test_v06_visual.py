@@ -45,7 +45,7 @@ class VisualV06Tests(unittest.TestCase):
         root=Path(__file__).resolve().parents[2]
         main=(root/"windows/desktop_v04.py").read_text(encoding="utf-8")
         dashboard=(root/"windows/dashboard_v06.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "0.6.8"',main)
+        self.assertIn('VERSION = "0.6.9"',main)
         self.assertIn('self.dashboard=Dashboard(self.body,self,full=False)',main)
         self.assertIn('def _toggle_profile_menu(self)',main)
         self.assertIn('circular_photo(person.get("photo_b64",""),42)',main)

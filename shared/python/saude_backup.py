@@ -45,7 +45,7 @@ def _valid_path(path: str) -> bool:
 def _file_limit(path: str) -> int:
     # A verified original Android ZIP is stored as an opaque binary attachment;
     # keep all JSON/ordinary attachments under the original 100 MB limit.
-    if re.fullmatch(r"attachments/[a-f0-9]{2}/[a-f0-9]{64}\\.bin", path):
+    if re.fullmatch(r"attachments/[a-f0-9]{2}/[a-f0-9]{64}\.bin", path):
         return MAX_ARCHIVED_ANDROID_BYTES
     return MAX_FILE_BYTES
 

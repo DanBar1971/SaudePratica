@@ -858,7 +858,7 @@ class Desktop(ctk.CTk):
             row.pack(fill="x",padx=4,pady=3)
             info=ctk.CTkFrame(row,fg_color="transparent")
             info.pack(side="left",fill="x",expand=True,padx=14,pady=8)
-            self._label(info,item["filename"],13,True).pack(anchor="w")
+            self._label(info,item.get("display_name") or item["filename"],13,True).pack(anchor="w")
             self._label(info,f"{item['category']} · {round(item['bytes']/1024)} KB",
                         11,color=self.p["muted"]).pack(anchor="w")
             self._button(row,"Exportar ficheiro",lambda x=item:self._export_document(x),

@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.6**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.6-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.7**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.7-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.6-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.7-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.6.6-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.6.7-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -119,3 +119,7 @@ A imagem de fundo é gerada a partir do PNG original Android (`assets/saude_back
 - Cartões de Medicação mostram as fotografias originais com preenchimento visual, sem deformação nem substituição de embalagens. Estados Ativa em verde e Suspensa em vermelho. Data da próxima toma prevista apenas quando existe regra real de calendário; Windows não cria alarmes.
 - Agenda separa por data real os compromissos futuros (cartões quase brancos) dos anteriores (cartões discretos). Botões de importação JSON retirados da Medicação e Agenda: continuam apenas em Backup/Importar-Exportar.
 - A construção e os testes automáticos usam dados sintéticos. Validar visualmente com backup encriptado antes de trabalhar com dados reais.
+
+## Windows 0.6.7: Agenda e recuperação dos perfis
+
+Agenda com cartões futuros sem composição de vidro por cima, evitando recortes. Na Medicação, guardar apenas a mudança de estado não exige criar uma hora nem um tipo de toma. Os perfis importados podem consultar dados adicionais do backup Android cifrado (incluindo documentos de identificação e fotos do CC presentes no arquivo) numa área de leitura. Não se criam valores ou fotografias fictícias. Para perfis sem ZIP original associado, importar o backup familiar no módulo Backup. Fazer um .spbackup antes de testar com dados reais.

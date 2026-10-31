@@ -90,6 +90,13 @@ A arte 16:9 aprovada é incorporada no pacote de instalação sem pedidos à int
 A imagem de fundo é gerada a partir do PNG original Android (`assets/saude_background.png`, 941×1672), em composição panorâmica com **proporção preservada**, em vez de ampliar um WebP minúsculo. Os ícones exibem os mesmos símbolos Android em 64 px com transparência verdadeira (sem quadrados artificiais); Windows Segoe UI Emoji assegura cores. Removidas as molduras exteriores redundantes no painel de Perfis e simplificada a ficha de Medicação.
 
 
-## Importação Android JSON (experimental)
+## Importação e exportação manual Android ↔ Windows (v0.6.3 experimental)
 
-No Windows: selecionar perfil no canto superior direito → Backup → **Importar JSON Android / Analisar ZIP**. Selecionar `medicacao.json` ou `agenda.json` (ficheiros do perfil correto), verificar a pré-visualização e confirmar. O Windows adiciona novos registos sem editar os anteriores. As fotografias Android referenciadas por caminho e o histórico de tomas não são transferidos. Os eventos de Agenda são mostrados mas ainda não são editáveis. A análise ZIP é **apenas de leitura**, não é um restauro total. Antes de testar com dados reais, criar backup `.spbackup` Windows.
+1. Selecionar **perfil Windows de destino** no canto superior direito.
+2. Abrir **Backup → Importar JSON / ZIP Android**.
+3. Para um JSON do perfil: importar `medicacao.json` ou `agenda.json`. Os campos Android reais (`medication`, `activity`, `department`) são reconhecidos, e marcações com IDs Android repetidos distinguem-se pela identidade do evento.
+4. Para ZIP familiar Android: selecionar `SaudePratica-backup-*.zip`, **selecionar explicitamente perfil Android de origem**, preparar e conferir pré-visualização de medicação, agenda e anexos, e confirmar. Repetir para os restantes perfis, sempre com o destino correto.
+5. Fotografias e documentos importados são guardados cifrados por ficheiro com Windows DPAPI. Em **Documentos** pode importar manualmente PDF/fotografias, ver a lista e exportar um ficheiro escolhido para pasta Windows.
+6. Em Importar/Exportar há exportação de Medicação ou Agenda JSON por perfil (não encriptada: exige confirmação). Em Backup, o `.spbackup` encriptado inclui também fotografias/documentos e é restaurável no Windows.
+
+**Atenção:** antes de qualquer teste com dados reais, fazer um backup `.spbackup`. Os dados do Android não são alterados. Nunca transferir ZIP ou ficheiros com informação clínica para o repositório público. O restauro ZIP Android é aditivo e **por perfil**, não é uma sincronização automática nem substitui a gestão de alarmes Android. Campos de outros módulos e compatibilidade de restauro `.spbackup` diretamente no Android ainda estão em desenvolvimento. Não deixar exportações JSON sem proteção em pastas partilhadas.

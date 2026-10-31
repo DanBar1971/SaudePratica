@@ -52,7 +52,7 @@ def due_events(profiles,now=None,grace_minutes=10):
             planned=appointment_datetime(item)
             if planned is None or planned < now-timedelta(minutes=grace_minutes):
                 continue
-            if appointment_status(item,now) in ("cancelled","done"):continue
+            if appointment_status(item,planned-timedelta(seconds=1)) in ("cancelled","done"):continue
             try:offsets=record_offsets(item)
             except ValueError:continue
             for minutes in offsets:

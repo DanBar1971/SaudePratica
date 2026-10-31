@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/publish-signed-v19122.yml"
+      - ".github/workflows/publish-signed-v19123.yml"
       - "MediAgenda/release-verified/v1.9.123/**"
   workflow_dispatch:
 permissions:
@@ -50,7 +50,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | head -n 1 | tee apk-identity.txt
           grep -F "name='com.mediagenda.app.stable'" apk-identity.txt
           grep -F "versionCode='133'" apk-identity.txt
-          grep -F "versionName='1.9.122'" apk-identity.txt
+          grep -F "versionName='1.9.123'" apk-identity.txt
       - name: Publish immutable signed APK with source and checksums
         env:
           GH_TOKEN: ${{ github.token }}

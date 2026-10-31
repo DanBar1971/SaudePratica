@@ -30,9 +30,10 @@ from windows.wallpaper_shell_v06 import WallpaperShell
 from windows.visual_v07 import circular_photo, wallpaper_image
 from windows.android_import_v062 import plan_json, apply_plan, AndroidImportError
 from windows.android_archive_v063 import archive_sources,prepare_archive,apply_archive
+from windows.family_ui_v064 import family_controls, export_original_zip
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.4"
+VERSION = "0.6.5"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -230,7 +231,7 @@ class Desktop(ctk.CTk):
 
         footer=ctk.CTkFrame(self,height=28,fg_color=self.p["panel"],corner_radius=0)
         footer.pack(fill="x",side="bottom")
-        self._label(footer,"Windows 0.6.4 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
+        self._label(footer,"Windows 0.6.3 · experimental",10,color=self.p["muted"]).pack(side="left",padx=18,pady=5)
         self._label(footer,self.t("not_alarm"),10,color=self.p["muted"]).pack(side="right",padx=18,pady=5)
         self.profile_menu=None
 
@@ -801,8 +802,14 @@ class Desktop(ctk.CTk):
         actions.pack(anchor="w")
         self._button(actions,self.t("export"),self._export_backup,True,200).pack(side="left",padx=(0,10))
         self._button(actions,self.t("restore"),self._restore_backup,width=200).pack(side="left")
-        self._button(wrapper,"Importar JSON / ZIP Android",
-                     lambda:self.navigate("import"),width=290,height=35).pack(anchor="w",pady=(18,0))
+        self._button(wrapper,"Importar toda a família Android",
+                     lambda:self.navigate("import"),width=302,height=38).pack(anchor="w",pady=(18,0))
+        self._button(wrapper,"Reexportar ZIP Android original",
+                     lambda:export_original_zip(self),width=300,height=34).pack(anchor="w",pady=(8,0))
+        self._label(wrapper,
+            "O backup .spbackup encriptado inclui todos os perfis, fotos, documentos, "
+            "medicação, agenda e os ZIPs Android originais anteriormente importados.",
+            12,color=self.p["muted"],wrap=920).pack(anchor="w",pady=(12,0))
 
     def _agenda(self):
         """Read-only agenda initially; no reminders or Android schedule changes."""
@@ -1043,13 +1050,18 @@ class Desktop(ctk.CTk):
         self._render()
 
     def _android_import_page(self):
-        self._heading("Importar dados Android", "Medicação e Agenda JSON por perfil · sem substituir registos")
+        self._heading("Importar / Exportar dados",
+                      "Família completa Android ou importação individual por perfil")
+        family_controls(self)
         profile=self.store.get_profile(self.active_id) if self.active_id else None
         if not profile:
-            self._label(self.body,"Seleciona um perfil de destino no canto superior direito.",
-                        15).pack(anchor="w",pady=15)
+            self._label(self.body,"Para importações JSON isoladas, seleciona um perfil de destino. "
+                        "A importação da família inteira funciona mesmo sem perfil selecionado.",
+                        13,color=self.p["muted"],wrap=960).pack(anchor="w",pady=12)
+            if getattr(self,"android_import_error",""):
+                self._label(self.body,self.android_import_error,13,color="#e59b9b").pack(anchor="w")
             return
-        self._label(self.body,"Destino: "+str(profile.get("name","")),
+        self._label(self.body,"Importação individual · Destino: "+str(profile.get("name","")),
                     17,True,color=TEAL).pack(anchor="w",pady=(4,13))
         bar=ctk.CTkFrame(self.body,fg_color="transparent")
         bar.pack(fill="x",pady=(0,14))

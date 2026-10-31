@@ -14,8 +14,8 @@
 
 ## O que NÃO está disponível ainda
 - Sincronização entre telemóvel e Windows.
-- Importação direta das cópias Android / Nearby v2 para Windows.
-- Restauro de todas as categorias e anexos, ou interoperabilidade Android↔Windows.
+- Sincronização automática em tempo real com o Android (o ZIP completo já pode ser importado manualmente).
+- Edição Windows de todas as categorias Android; os dados ainda não suportados são preservados no ZIP original cifrado, sem integração visual.
 - Avisos e alarmes Windows; o Android continua a ser o alarme principal.
 - Editor completo de prescrições, agenda, documentos, fotografias, PIN e idiomas.
 - Instalador **assinado digitalmente**; a primeira versão tem instalador com
@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.3**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.3-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.6.5**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.6.5-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.3-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.6.5-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,7 +54,7 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow cria também o instalador com Inno Setup 6 e publica a versão
-`windows-v0.6.3-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+`windows-v0.6.5-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
 o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -100,3 +100,13 @@ A imagem de fundo é gerada a partir do PNG original Android (`assets/saude_back
 6. Em Importar/Exportar há exportação de Medicação ou Agenda JSON por perfil (não encriptada: exige confirmação). Em Backup, o `.spbackup` encriptado inclui também fotografias/documentos e é restaurável no Windows.
 
 **Atenção:** antes de qualquer teste com dados reais, fazer um backup `.spbackup`. Os dados do Android não são alterados. Nunca transferir ZIP ou ficheiros com informação clínica para o repositório público. O restauro ZIP Android é aditivo e **por perfil**, não é uma sincronização automática nem substitui a gestão de alarmes Android. Campos de outros módulos e compatibilidade de restauro `.spbackup` diretamente no Android ainda estão em desenvolvimento. Não deixar exportações JSON sem proteção em pastas partilhadas.
+
+## Importação familiar e exportação completa (Windows 0.6.5)
+
+- Abrir **Backup → Importar toda a família Android**. Em Importar / Exportar escolher **Importar ZIP familiar completo** mesmo sem ter selecionado um perfil Windows.
+- Depois da validação e da pré-visualização, clicar **Confirmar importação familiar**: cria os perfis em falta, acrescenta medicação, agenda e anexos por pessoa sem substituir registos existentes.
+- O programa guarda uma **cópia original integral do ZIP Android**, protegida com DPAPI na conta Windows. Os dados que ainda não têm módulo Windows ficam conservados nesse ZIP.
+- **Backup → Exportar** cria um único ficheiro `.spbackup` **encriptado com palavra-passe** contendo perfis, medicação, agenda, documentos, fotografias, preferências e ZIPs Android completos importados. **Restaurar** recupera esses dados noutro Windows sem sobrescrever perfis existentes.
+- **Reexportar ZIP Android original** recupera exatamente os mesmos bytes do ficheiro recebido. **Esse ZIP original não está encriptado pelo programa**; apenas o `.spbackup` é protegido por palavra-passe.
+- Não existe ainda sincronização bidirecional ou restauro de `.spbackup` no Android. Alterações Windows não modificam o ZIP Android original.
+- Fazer um backup e confirmar a associação dos perfis antes de trabalhar com dados clínicos reais.

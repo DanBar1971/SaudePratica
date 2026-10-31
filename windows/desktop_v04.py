@@ -33,9 +33,10 @@ from windows.android_archive_v063 import archive_sources,prepare_archive,apply_a
 from windows.family_ui_v064 import family_controls, export_original_zip
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
+from windows.medication_gallery_v068 import medication_filter_matches, medication_status
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.7"
+VERSION = "0.6.8"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -660,15 +661,17 @@ class Desktop(ctk.CTk):
         self._label(bar,self.t("medication_list"),15,True).pack(side="left",padx=(1,15))
         self._button(bar,"+ "+self.t("new_medication"),self._new_med,
                      True,width=160,height=32).pack(side="right",padx=(8,0))
+        # Keep the background inside every medicine card, not wallpaper glass.
+        self.wallpaper_shell.glass_enabled=False
         query_var=ctk.StringVar(value=self.med_gallery_query)
         # No unlabelled/inert search rectangle over the wallpaper.
         search=None
         filters=ctk.CTkFrame(self.body,fg_color="transparent")
         filters.pack(fill="x",pady=(0,8))
         for key,label in (("all","Todos"),("active","Ativos"),("suspended","Suspensos"),
-                          ("no_alarm","Sem alarme")):
+                          ("no_alarm","Sem alarme"),("undefined","Sem definição")):
             self._button(filters,label,lambda k=key:self._set_med_filter(k),
-                accent=(self.med_gallery_state==key),width=100,height=29).pack(
+                accent=(self.med_gallery_state==key),width=116 if key=="undefined" else 100,height=29).pack(
                     side="left",padx=(0,5))
         listing=ctk.CTkScrollableFrame(self.body,fg_color="transparent",
             scrollbar_button_color=self.p["panel2"],corner_radius=0)
@@ -694,12 +697,7 @@ class Desktop(ctk.CTk):
         search=normalized(self.med_gallery_query)
         meds=[m for m in meds if search in normalized(m.get("name","")+" "+
               m.get("dose","")+" "+m.get("dose_pattern",""))]
-        def relevant(m):
-            state=self.med_gallery_state
-            return (state=="all" or (state=="active" and not m.get("suspended")) or
-                    (state=="suspended" and m.get("suspended")) or
-                    (state=="no_alarm" and m.get("no_alarm")))
-        meds=[m for m in meds if relevant(m)]
+        meds=[m for m in meds if medication_filter_matches(m,self.med_gallery_state)]
         columns=5 if self.winfo_width()>=1400 else 4 if self.winfo_width()>=1100 else 3
         for col in range(columns):grid.grid_columnconfigure(col,weight=1,uniform="meds")
         if not meds:
@@ -711,8 +709,7 @@ class Desktop(ctk.CTk):
             r,c=divmod(i,columns)
             tile=self._card(grid,rounding=13)
             tile.grid(row=r,column=c,sticky="nsew",padx=5,pady=5)
-            tile.configure(height=285)
-            tile.grid_propagate(False)
+            # Auto-size content. Grid aligns cards in the same row.
             available=max(170,int((self.winfo_width()-110)/columns)-37)
             photo=self._med_card_photo(med.get("photo_b64",""),available,137)
             poster=ctk.CTkFrame(tile,fg_color=self.p["thumb"],height=137,
@@ -728,30 +725,25 @@ class Desktop(ctk.CTk):
                 self._label(poster,"Sem fotografia",9,
                             color=self.p["muted"]).place(relx=.5,rely=.9,anchor="center")
             picture.pack(fill="both",expand=True)
-            title=self._label(tile,med.get("name",""),14,True)
-            title.pack(anchor="w",padx=12)
-            meta=med.get("dose","")
-            if med.get("time"):meta+="  ·  "+med["time"]
-            subtitle=self._label(tile,meta,11,color=self.p["muted"])
-            subtitle.pack(anchor="w",padx=12,pady=(2,1))
+            title=self._label(tile,med.get("name",""),14,True,wrap=available)
+            title.pack(anchor="w",fill="x",padx=12)
+            meta="  ·  ".join(str(x) for x in
+                (med.get("dose"),med.get("time")) if x)
+            subtitle=self._label(tile,meta,11,color=self.p["muted"],wrap=available)
+            subtitle.pack(anchor="w",fill="x",padx=12,pady=(2,1))
             dose_info=next_medication_label(med)
-            predicted=self._label(tile,dose_info,10,color=self.p["muted"])
-            predicted.pack(anchor="w",padx=12,pady=(3,1))
-            status=("Suspensa" if med.get("suspended") else
-                    ("Sem alarme" if med.get("no_alarm") else "Ativa"))
+            predicted=self._label(tile,dose_info,10,color=self.p["muted"],wrap=available)
+            predicted.pack(anchor="w",fill="x",padx=12,pady=(3,1))
+            status,status_bg,status_fg=medication_status(med)
             line=ctk.CTkFrame(tile,fg_color="transparent")
-            line.pack(fill="x",padx=10,pady=(6,5))
-            status_bg=("#b72c3c" if med.get("suspended") else
-                       "#238e51" if not med.get("no_alarm") else self.p["chip"])
-            status_fg=("#ffffff" if not med.get("no_alarm") or
-                       med.get("suspended") else self.p["chip_text"])
+            line.pack(side="bottom",fill="x",padx=10,pady=(8,10))
             ctk.CTkLabel(line,text="  "+status+"  ",
                 font=ctk.CTkFont(size=10,weight="bold"),
                 text_color=status_fg,fg_color=status_bg,
                 corner_radius=8,height=24).pack(side="left")
             self._button(line,self.t("edit_medication"),
                          lambda mid=med["id"]:self._edit_med(mid),
-                         width=77,height=27).pack(side="right")
+                         width=110,height=27).pack(side="right")
             # Clicking the poster or title opens the editor, just like a
             # movie card; no extra floating form windows.
             for widget in (poster,picture,title,subtitle,predicted):

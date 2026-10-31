@@ -10,6 +10,8 @@ sys.path.insert(0,str(ROOT))
 from windows.android_import_v062 import plan_json,apply_plan,AndroidImportError
 from windows.android_archive_v063 import archive_sources,prepare_archive,validated_files,apply_archive
 from windows import secure_store
+from windows.secure_store import LocalStoreError
+from shared.python.saude_backup import BackupError
 
 def _payload(key,values):
     return json.dumps({key:values},ensure_ascii=False).encode()
@@ -145,5 +147,66 @@ class ImportRealAndroidSchemaTests(unittest.TestCase):
                 plan=prepare_archive(blob,"legacy",profile)
                 result=apply_archive(store,plan)
                 self.assertEqual(result,{"medications":0,"appointments":0,"attachments":0})
+
+    def test_reimport_rejects_corrupted_existing_photo_without_data_loss(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"profile_data.dpapi"
+            with patch.object(secure_store,"_user_data_path",return_value=path),\\
+                 patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\\
+                 patch.object(secure_store,"_decrypt",side_effect=lambda x:x):
+                store=secure_store.SecureStore()
+                profile=store.save_profile({"name":"Perfil de teste"})
+                archive=make_zip()
+                apply_archive(store,prepare_archive(archive,"legacy",profile))
+                entry=store.imported_assets(profile["id"])[0]
+                store._asset_path(entry["sha256"]).write_bytes(b"corrupted ciphertext")
+                medications_before=list(profile["medications"])
+                appointments_before=list(profile["appointments"])
+                with self.assertRaisesRegex(AndroidImportError,"corrompido"):
+                    apply_archive(store,prepare_archive(archive,"legacy",profile))
+                self.assertEqual(profile["medications"],medications_before)
+                self.assertEqual(profile["appointments"],appointments_before)
+
+    def test_restore_rejects_existing_corrupted_dpapi_blob_atomically(self):
+        with tempfile.TemporaryDirectory() as folder:
+            first=Path(folder)/"source"/"profile_data.dpapi"
+            second=Path(folder)/"target"/"profile_data.dpapi"
+            first.parent.mkdir()
+            second.parent.mkdir()
+            with patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\\
+                 patch.object(secure_store,"_decrypt",side_effect=lambda x:x),\\
+                 patch.object(secure_store,"_user_data_path",return_value=first):
+                source=secure_store.SecureStore()
+                person=source.save_profile({"name":"Perfil fictício"})
+                apply_archive(source,prepare_archive(make_zip(),"legacy",person))
+                exported=source.export_backup("palavra-passe de teste")
+                digest=source.imported_assets(person["id"])[0]["sha256"]
+                with patch.object(secure_store,"_user_data_path",return_value=second):
+                    target=secure_store.SecureStore()
+                    _,verified=target.inspect_backup(exported,"palavra-passe de teste")
+                    target._asset_path(digest).write_bytes(b"bad DPAPI content")
+                    with self.assertRaisesRegex(LocalStoreError,"corrompido"):
+                        target.restore_backup(verified)
+                    self.assertEqual(len(target.profiles()),0)
+                    self.assertEqual(target.imported_assets(person["id"]),[])
+
+    def test_restore_rejects_mismatched_profile_path_without_creating_profiles(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"profile_data.dpapi"
+            with patch.object(secure_store,"_user_data_path",return_value=path),\\
+                 patch.object(secure_store,"_encrypt",side_effect=lambda x:x),\\
+                 patch.object(secure_store,"_decrypt",side_effect=lambda x:x):
+                target=secure_store.SecureStore()
+                identifier="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                root="profiles/"+identifier+"/"
+                files={
+                    "profiles/not-the-same/profile.json":
+                        json.dumps({"id":identifier,"name":"Teste"}).encode(),
+                    root+"medicacao.json":_payload("medications",[]),
+                    root+"agenda.json":_payload("appointments",[]),
+                }
+                with self.assertRaisesRegex(BackupError,"Caminho"):
+                    target.restore_backup(files)
+                self.assertEqual(target.profiles(),[])
 
 if __name__=="__main__":unittest.main()

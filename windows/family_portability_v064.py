@@ -17,6 +17,7 @@ from windows.android_archive_v063 import (
     validated_files, _names_from_prefs, _json,
 )
 from windows.android_import_v062 import AndroidImportError
+from windows.profile_fields_v066 import mapped_fields
 
 @dataclass(frozen=True)
 class FamilyMember:
@@ -66,16 +67,9 @@ def _new_profile(source: AndroidSource, original: dict) -> dict:
         "android_zip_source_name": source.name,
         "android_profile_original": dict(original),
     }
-    # Whitelisted fields usable by the Windows profile editor; complete
-    # Android source metadata stays in android_profile_original regardless.
-    for field, limit in {
-        "phone": 50, "email": 160, "niss": 40, "health_unit": 180,
-        "address": 250, "city": 100, "postal_code": 24,
-        "birth_date": 10, "notes": 3000,
-    }.items():
-        value = original.get(field)
-        if isinstance(value, str) and len(value) <= limit:
-            person[field] = value
+    # One explicit mapping for current and older Android field naming.
+    # Do not fill fields with examples or assume absent values.
+    person.update(mapped_fields(original))
     if isinstance(original.get("caregiver"), bool):
         person["caregiver"] = original["caregiver"]
     return person

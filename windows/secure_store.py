@@ -714,19 +714,20 @@ class SecureStore:
                 if incoming_state is not None and incoming_state!=state:
                     raise BackupError("Definições globais contraditórias no backup.")
                 incoming_state=state
-        if incoming_state is not None:
-            if not self.profiles():
-                for key,value in incoming_state.items():
-                    if key not in ("profiles","imported_files","android_family_archives"):
-                        self.data[key]=value
-            else:
-                # Retain source settings in the restored profile metadata.
-                added[0]["windows_original_settings"]=incoming_state.get("settings",{})
+        restore_into_empty=not self.profiles()
         created=self._write_assets(encrypted_assets)
         old_files=self.data.get("imported_files",[])
         self.data["imported_files"]=old_files+attachment_meta
         self.data["android_family_archives"]=list(existing_archives)+list(archive_rows.values())
         self.data["profiles"].extend(added)
+        if incoming_state is not None:
+            if restore_into_empty:
+                for key,value in incoming_state.items():
+                    if key not in ("profiles","imported_files","android_family_archives"):
+                        self.data[key]=value
+            else:
+                # Do not overwrite local settings when importing profiles.
+                added[0]["windows_original_settings"]=incoming_state.get("settings",{})
         try:
             self.save()
         except Exception:

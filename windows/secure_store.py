@@ -209,6 +209,43 @@ class SecureStore:
             raise
         return new
 
+    def save_appointment(self, profile_id: str, fields: dict,
+                         appointment_id: str | None = None):
+        """Persist the Windows appointment editor atomically.
+
+        No Android synchronization, SMS or external medical cancellation is
+        implied. Existing record IDs and android_original metadata are immutable.
+        """
+        from windows.appointment_editor_v070 import clean_appointment_fields
+        profile=self.get_profile(profile_id)
+        if profile is None:raise LocalStoreError("Perfil não encontrado.")
+        appointments=profile.get("appointments",[])
+        if not isinstance(appointments,list):
+            raise LocalStoreError("A Agenda do perfil tem um formato inválido.")
+        old=next((x for x in appointments if x.get("id")==appointment_id),
+                 None) if appointment_id else None
+        if appointment_id and old is None:
+            raise LocalStoreError("A marcação já não existe.")
+        try:cleaned=clean_appointment_fields(fields,old)
+        except (ValueError,TypeError) as exc:raise LocalStoreError(str(exc)) from exc
+        new=dict(old) if old else {"id":str(uuid.uuid4())}
+        new.update(cleaned)
+        if "desktop_status" in cleaned:
+            new["status"]=cleaned["desktop_status"]
+            # Keep the Android original intact, but let local status override
+            # historical cancelled/done flags on future desktop edits.
+        if old is not None:
+            idx=appointments.index(old)
+            appointments[idx]=new
+        else:
+            appointments.append(new)
+        try:self.save()
+        except Exception:
+            if old is not None:appointments[idx]=old
+            else:appointments.pop()
+            raise
+        return new
+
     def add_medication(self, profile_id: str, name: str, dose: str, time: str, route: str):
         """Compatibility with records saved by the first experimental build."""
         return self.save_medication(profile_id, {

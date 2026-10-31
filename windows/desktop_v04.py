@@ -35,7 +35,7 @@ from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.6"
+VERSION = "0.6.7"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"

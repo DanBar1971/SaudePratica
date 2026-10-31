@@ -20,6 +20,7 @@ class WallpaperShell(tk.Canvas):
         self._background_id=None
         self._glass_photos={}
         self._glass_pending=None
+        self.glass_enabled=True
         self.content=ctk.CTkFrame(self,fg_color="transparent",corner_radius=0)
         self._win=self.create_window(18,12,anchor="nw",window=self.content)
         self.bind("<Configure>",self._resize,add="+")
@@ -52,7 +53,7 @@ class WallpaperShell(tk.Canvas):
 
     def _paint_glass(self):
         self._glass_pending=None
-        if not self.winfo_exists():return
+        if not self.winfo_exists() or not self.glass_enabled:return
         w,h=self.winfo_width(),self.winfo_height()
         if w<160 or h<160:return
         source=wallpaper_image(w,h,self.light)

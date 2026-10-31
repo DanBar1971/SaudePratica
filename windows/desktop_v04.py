@@ -35,9 +35,10 @@ from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
+from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.6.9"
+VERSION = "0.7.0"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -96,6 +97,10 @@ class Desktop(ctk.CTk):
         self.catalog_query = ""
         self.med_gallery_state = "all"
         self.agenda_filter = "all"
+        self.agenda_mode = "catalog"
+        self.editing_appointment = None
+        self.appointment_widgets = {}
+        self.appointment_extra_widgets = {}
         self.gallery_mode = "catalog"
         self.profile_menu = None
         self.profile_avatar = None
@@ -953,6 +958,127 @@ class Desktop(ctk.CTk):
             "medicação, agenda e os ZIPs Android originais anteriormente importados.",
             12,color=self.p["muted"],wrap=920).pack(anchor="w",pady=(12,0))
 
+    def _open_appointment(self,appointment_id):
+        self.editing_appointment=appointment_id
+        self.agenda_mode="editor"
+        self._render()
+
+    def _new_appointment(self):
+        self.editing_appointment=None
+        self.agenda_mode="editor"
+        self._render()
+
+    def _close_appointment(self):
+        self.editing_appointment=None
+        self.agenda_mode="catalog"
+        self._render()
+
+    def _save_appointment(self):
+        try:
+            data={key:entry.get() for key,entry in self.appointment_widgets.items()}
+            data["notes"]=self.appointment_notes.get("1.0","end-1c")
+            data["description"]=self.appointment_description.get("1.0","end-1c")
+            data["desktop_status"]=APPOINTMENT_STATES[self.appointment_status_var.get()]
+            for key,(entry,original) in self.appointment_extra_widgets.items():
+                data[key]=parse_appointment_extra(key,entry.get(),original)
+            self.store.save_appointment(self.active_id,data,self.editing_appointment)
+            self._close_appointment()
+        except (LocalStoreError,ValueError,KeyError) as exc:
+            messagebox.showerror("Não foi possível guardar a marcação",str(exc),parent=self)
+
+    def _appointment_form(self,person):
+        appointments=person.get("appointments",[])
+        current=next((x for x in appointments if x.get("id")==self.editing_appointment),
+                     None) if self.editing_appointment else None
+        if self.editing_appointment and current is None:
+            self._close_appointment()
+            return
+        values=current or {}
+        heading=ctk.CTkFrame(self.body,fg_color="transparent")
+        heading.pack(fill="x",padx=12,pady=(7,8))
+        self._label(heading,"Editar marcação" if current else "Nova marcação",20,True).pack(side="left")
+        self._button(heading,"Voltar à Agenda",self._close_appointment,
+                     width=156,height=32).pack(side="right")
+        content=ctk.CTkScrollableFrame(self.body,fg_color="transparent",corner_radius=0)
+        content.pack(fill="both",expand=True,padx=9,pady=5)
+        content.grid_columnconfigure((0,1),weight=1)
+        self.appointment_widgets={}
+        self.appointment_extra_widgets={}
+        labels=dict(APPOINTMENT_FIELDS)
+        self._label(content,"Dados do agendamento",15,True,color=TEAL).grid(
+            row=0,column=0,columnspan=2,sticky="w",padx=8,pady=(4,11))
+        primary=[key for key,_ in APPOINTMENT_FIELDS if key not in ("notes","description")]
+        for i,key in enumerate(primary):
+            initial=values.get(key,"")
+            if key=="title" and not initial:
+                initial=values.get("activity") or values.get("name") or ""
+            row,col=1+i//2,i%2
+            box=ctk.CTkFrame(content,fg_color="transparent")
+            box.grid(row=row,column=col,sticky="ew",padx=7,pady=5)
+            self._label(box,labels[key],11,True,color=self.p["muted"]).pack(anchor="w",pady=(0,3))
+            entry=ctk.CTkEntry(box,height=35,corner_radius=8,
+                 border_color=self.p["line"],fg_color=self.p["field"],
+                 text_color=self.p["text"])
+            entry.pack(fill="x")
+            entry.insert(0,str(initial) if initial is not None else "")
+            self.appointment_widgets[key]=entry
+        base_row=1+(len(primary)+1)//2
+        state_box=ctk.CTkFrame(content,fg_color="transparent")
+        state_box.grid(row=base_row,column=0,columnspan=2,sticky="ew",padx=7,pady=(12,9))
+        self._label(state_box,"Estado da marcação",12,True,color=TEAL).pack(anchor="w",pady=(0,5))
+        current_state=appointment_status(values) if current else "pending"
+        selected=next((label for label,key in APPOINTMENT_STATES.items()
+                       if key==current_state),"Pendente")
+        self.appointment_status_var=ctk.StringVar(value=selected)
+        ctk.CTkOptionMenu(state_box,values=list(APPOINTMENT_STATES),
+            variable=self.appointment_status_var,height=36,width=250,
+            fg_color=self.p["panel2"],button_color=BLUE,
+            dropdown_fg_color=self.p["panel2"],text_color=self.p["text"],
+            dropdown_text_color=self.p["text"]).pack(anchor="w")
+        self._label(state_box,
+            "Cancelar aqui altera apenas a ficha local. Não cancela a consulta no hospital.",
+            11,color=self.p["muted"],wrap=880).pack(anchor="w",pady=(6,0))
+        for delta,(key,label) in enumerate((("description","Descrição"),("notes","Notas"))):
+            row=base_row+1+delta*2
+            self._label(content,label,11,True,color=self.p["muted"]).grid(
+                row=row,column=0,columnspan=2,sticky="w",padx=9,pady=(11,3))
+            field=ctk.CTkTextbox(content,height=85,fg_color=self.p["field"],
+                 border_width=1,border_color=self.p["line"],text_color=self.p["text"])
+            field.grid(row=row+1,column=0,columnspan=2,sticky="ew",padx=7,pady=(0,6))
+            field.insert("1.0",str(values.get(key,"") or ""))
+            if key=="notes":self.appointment_notes=field
+            else:self.appointment_description=field
+        start_extra=base_row+5
+        extras=appointment_extras(values)
+        if extras:
+            self._label(content,"Outros campos importados ou personalizados",15,
+                True,color=TEAL).grid(row=start_extra,column=0,columnspan=2,
+                                     sticky="w",padx=8,pady=(19,8))
+            for index,(key,value) in enumerate(extras):
+                box=ctk.CTkFrame(content,fg_color="transparent")
+                box.grid(row=start_extra+1+index//2,column=index%2,
+                         sticky="ew",padx=7,pady=4)
+                self._label(box,key,11,True,color=self.p["muted"]).pack(anchor="w",pady=(0,3))
+                entry=ctk.CTkEntry(box,height=35,fg_color=self.p["field"],
+                     border_color=self.p["line"],text_color=self.p["text"])
+                entry.pack(fill="x")
+                entry.insert(0,json.dumps(value,ensure_ascii=False)
+                             if not isinstance(value,str) else value)
+                self.appointment_extra_widgets[key]=(entry,value)
+        if current and current.get("android_original") is not None:
+            hint_row=start_extra+2+(len(extras)+1)//2
+            self._label(content,
+                "Os campos originais de importação Android e os identificadores ficam "
+                "protegidos. Todos os restantes campos visíveis são editáveis.",
+                11,color=self.p["muted"],wrap=900).grid(
+                    row=hint_row,column=0,columnspan=2,sticky="w",padx=8,pady=11)
+        actions=ctk.CTkFrame(self.body,fg_color="transparent")
+        actions.pack(fill="x",padx=20,pady=(5,11))
+        self._button(actions,"Guardar alterações" if current else "Guardar marcação",
+                     self._save_appointment,True,width=179,height=36).pack(side="right")
+        self._button(actions,"Cancelar",self._close_appointment,
+                     width=112,height=36).pack(side="right",padx=8)
+
     def _set_agenda_filter(self,key):
         """Re-render the Agenda with one of the four Android-style views."""
         if key not in dict(AGENDA_FILTERS):return
@@ -966,6 +1092,9 @@ class Desktop(ctk.CTk):
         profile=self.store.get_profile(self.active_id) if self.active_id else None
         if not profile:
             self._label(self.body,"Seleciona primeiro um perfil.",14).pack(anchor="w")
+            return
+        if self.agenda_mode=="editor":
+            self._appointment_form(profile)
             return
 
         controls=ctk.CTkFrame(self.body,fg_color="transparent")
@@ -985,6 +1114,8 @@ class Desktop(ctk.CTk):
         self._label(summary,"Marcações",18,True).pack(side="left",padx=(0,12))
         self._label(summary,f"{len(items)} de {len(all_items)}",12,
                     color=self.p["muted"]).pack(side="left",pady=(3,0))
+        self._button(summary,"+ Adicionar",self._new_appointment,
+                     True,width=145,height=32).pack(side="right",padx=8)
 
         if not items:
             self._label(self.body,"Não existem marcações para este filtro.",14,
@@ -1057,8 +1188,16 @@ class Desktop(ctk.CTk):
                 if location:
                     self._label(info,location,11,color=secondary,wrap=880).pack(
                         anchor="w",fill="x",pady=(2,0))
-                self._label(info,status_name,11,True,color=status_color).pack(
-                    anchor="w",pady=(3,0))
+                status_widget=self._label(info,status_name,11,True,color=status_color)
+                status_widget.pack(anchor="w",pady=(3,0))
+                # Editing is explicit; clicking the title or date also opens
+                # the full-screen form, never a floating dialog.
+                self._button(row,"Abrir ficha",
+                    lambda uid=item["id"]:self._open_appointment(uid),
+                    width=110,height=32).pack(side="right",padx=(5,12),pady=13)
+                for widget in (row,tile,info,status_widget):
+                    widget.bind("<Button-1>",
+                        lambda _event,uid=item["id"]:self._open_appointment(uid),add="+")
 
         section("Próximos compromissos",upcoming,True)
         section("Compromissos anteriores",past,False)

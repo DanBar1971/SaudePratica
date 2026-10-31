@@ -1,7 +1,9 @@
 # SaúdePrática — backup portável encriptado v1 (.spbackup)
 
-**Estado:** referência implementada em Python para Windows; Android e iOS ainda
-não a importam/exportam. O Nearby Android v2 NÃO é um backup integral.
+**Estado:** implementação Python para Windows; a versão Desktop 0.6.5 exporta
+e restaura perfis, anexos e cópias byte-a-byte de backups Android importados.
+Android e iOS ainda NÃO importam/exportam este `.spbackup`. O Nearby Android
+v2 NÃO é um backup integral.
 
 ## Segurança e contrato comum
 1. Nenhum dado clínico enviado para GitHub. O arquivo pode ser copiado por
@@ -26,7 +28,10 @@ não a importam/exportam. O Nearby Android v2 NÃO é um backup integral.
   com path, size e sha256.
 - Paths previstos: profiles/<UUID>/profile.json,
   profiles/<UUID>/medicacao.json, profiles/<UUID>/agenda.json,
-  attachments/<id>/<nome>.
+  profiles/<UUID>/attachments.json, profiles/<UUID>/android_archives.json,
+  profiles/<UUID>/windows_state.json, attachments/<id>/<nome>.
+  Os ZIPs Android originais são guardados como anexos com hash; esses ficheiros
+  podem ter até 240 MB, mantendo o limite global do backup em 512 MB.
 - Rejeitar caminhos absolutos, '..', ficheiros extra, ficheiros duplicados,
   zip-bombs e hashes incorretos. Não extrair ZIP sem validação.
 - Código Python de referência: shared/python/saude_backup.py.
@@ -35,5 +40,6 @@ não a importam/exportam. O Nearby Android v2 NÃO é um backup integral.
 ## Integrações pendentes
 Criar versão Kotlin Android e Swift iOS conforme estas regras, com teste
 de ida e volta REAL, documentos, imagens, histórico de tomas e dados completos.
-O protótipo Windows só cobre ainda perfis, medicamentos e agenda vazia.
-A compatibilidade transversal NÃO está concluída.
+O Windows importa a família completa, mas as categorias Android sem interface
+Windows ficam conservadas apenas no arquivo original. A compatibilidade de
+edição/sincronização transversal NÃO está concluída.

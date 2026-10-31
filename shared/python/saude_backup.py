@@ -28,6 +28,7 @@ MAGIC = b"SAUDEPRATICA-BACKUP-V1\n"
 ITERATIONS = 600_000
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
 MAX_FILE_BYTES = 100 * 1024 * 1024
+MAX_ARCHIVED_ANDROID_BYTES = 240 * 1024 * 1024
 MAX_FILES = 2000
 _PATH = re.compile(r"^(profiles/[0-9a-fA-F-]{36}/[A-Za-z0-9_.-]+|attachments/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+)$")
 
@@ -39,6 +40,14 @@ class BackupError(ValueError):
 def _valid_path(path: str) -> bool:
     p = PurePosixPath(path)
     return bool(_PATH.fullmatch(path)) and len(path) <= 200 and ".." not in p.parts and not path.startswith("/")
+
+
+def _file_limit(path: str) -> int:
+    # A verified original Android ZIP is stored as an opaque binary attachment;
+    # keep all JSON/ordinary attachments under the original 100 MB limit.
+    if re.fullmatch(r"attachments/[a-f0-9]{2}/[a-f0-9]{64}\.bin", path):
+        return MAX_ARCHIVED_ANDROID_BYTES
+    return MAX_FILE_BYTES
 
 
 def _derive(password: str, salt: bytes, iterations: int) -> bytes:
@@ -58,7 +67,7 @@ def create_backup(files: Mapping[str, bytes], password: str) -> bytes:
     for path, data in sorted(files.items()):
         if not _valid_path(path) or not isinstance(data, bytes):
             raise BackupError("Caminho inválido ou conteúdo não binário.")
-        if len(data) > MAX_FILE_BYTES:
+        if len(data) > _file_limit(path):
             raise BackupError("Anexo demasiado grande.")
         listed.append({"path": path, "size": len(data),
                        "sha256": hashlib.sha256(data).hexdigest()})
@@ -117,7 +126,8 @@ def read_backup(encrypted: bytes, password: str) -> dict[str, bytes]:
         names = [i.filename for i in items]
         if len(names) != len(set(names)) or names.count("manifest.json") != 1:
             raise BackupError("Entradas duplicadas ou manifesto em falta.")
-        if any(i.is_dir() or i.file_size > MAX_FILE_BYTES for i in items):
+        if any(i.is_dir() or i.file_size >
+               _file_limit(i.filename.removeprefix("data/")) for i in items):
             raise BackupError("Ficheiro interno inválido.")
         if sum(i.file_size for i in items) > MAX_ARCHIVE_BYTES:
             raise BackupError("Conteúdo excede o limite de segurança.")

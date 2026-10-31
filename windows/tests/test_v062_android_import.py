@@ -110,7 +110,7 @@ class AndroidJsonImportTests(unittest.TestCase):
     def test_full_page_ui_and_no_search_field(self):
         desktop=(ROOT/"windows/desktop_v04.py").read_text(encoding="utf-8")
         dashboard=(ROOT/"windows/dashboard_v06.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "0.6.4"',desktop)
+        self.assertIn('VERSION = "0.6.5"',desktop)
         self.assertIn("def _android_import_page(self):",desktop)
         self.assertIn('elif self.page=="agenda": self._agenda()',desktop)
         self.assertIn('right=ctk.CTkFrame(container,fg_color="transparent"',desktop)

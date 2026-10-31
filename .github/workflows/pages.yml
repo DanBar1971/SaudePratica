@@ -61,7 +61,7 @@ jobs:
           grep -F 'Windows 10 / 11' index.html
           grep -F 'iPhone / iOS' index.html
           grep -F 'data-windows-download' index.html
-          WIN_VERSION=$(sed -n 's/^  WINDOWS_APP_VERSION: "\\([^"]*\\)"/\\1/p' .github/workflows/windows-build.yml)
+          WIN_VERSION=$(sed -n 's/^  WINDOWS_APP_VERSION: "\([^"]*\)"/\1/p' .github/workflows/windows-build.yml)
           test -n "$WIN_VERSION"
           WIN_URL="releases/download/windows-v${WIN_VERSION}-preview/SaudePratica-Setup.exe"
           grep -F "$WIN_URL" index.html

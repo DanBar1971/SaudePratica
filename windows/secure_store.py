@@ -323,7 +323,19 @@ class SecureStore:
                 if sha256(data).hexdigest()!=digest:
                     raise LocalStoreError("Integridade da fotografia/documento inválida.")
                 path=self._asset_path(digest)
-                if path.exists():continue
+                if path.exists():
+                    # Never trust an existing blob solely because its filename
+                    # matches the digest. A damaged DPAPI file must block the
+                    # restore before any profile/metadata are committed.
+                    try:
+                        current=_decrypt(path.read_bytes())
+                        if sha256(current).hexdigest()!=digest:
+                            raise LocalStoreError("Um anexo já guardado está corrompido.")
+                    except Exception as exc:
+                        raise LocalStoreError(
+                            "Anexo protegido existente ilegível ou corrompido. "
+                            "Os dados atuais não foram alterados.") from exc
+                    continue
                 fd,tmp=tempfile.mkstemp(prefix=".asset_",suffix=".tmp",dir=path.parent)
                 try:
                     with os.fdopen(fd,"wb") as stream:
@@ -367,7 +379,17 @@ class SecureStore:
         assets=[]
         for name,data,category,digest,display_name in plan.attachments:
             key=(p["id"],name,digest)
-            if key in known:continue
+            if key in known:
+                # A repeated import must not claim success if the original
+                # protected attachment has since become unreadable.
+                prior=next(x for x in previous_files if (
+                    x.get("profile_id"),x.get("path"),x.get("sha256"))==key)
+                try:self.read_imported_asset(prior)
+                except Exception as exc:
+                    raise AndroidImportError(
+                        "Um anexo anterior deste perfil está corrompido. "
+                        "Não foram importados dados novos.") from exc
+                continue
             if any(x.get("profile_id")==p["id"] and x.get("path")==name and
                    x.get("sha256")!=digest for x in descriptors):
                 raise AndroidImportError("Um anexo existente foi alterado. Importação interrompida.")
@@ -453,7 +475,14 @@ class SecureStore:
             if not path.endswith("/profile.json"):
                 continue
             person = json.loads(blob)
+            if not isinstance(person,dict) or not isinstance(person.get("id"),str):
+                raise BackupError("Perfil inválido no backup.")
             pid = person["id"]
+            try:uuid.UUID(pid)
+            except (ValueError,AttributeError) as exc:
+                raise BackupError("Identificador do perfil inválido.") from exc
+            if path != "profiles/" + pid + "/profile.json":
+                raise BackupError("Caminho do perfil não corresponde ao identificador.")
             if pid in existing:
                 raise BackupError("O backup inclui um perfil já existente. Nada foi importado.")
             prefix = "profiles/" + pid + "/"
@@ -466,8 +495,6 @@ class SecureStore:
             if not isinstance(medications,list) or not isinstance(appointments,list):
                 raise BackupError("Medicação ou agenda inválidas.")
             if not isinstance(person.get("name"), str) or len(person["name"]) not in range(1,121):
-                raise BackupError("Perfil inválido.")
-            if not isinstance(person, dict):
                 raise BackupError("Perfil inválido.")
             # Preserve forward-compatible profile fields, not just id/name.
             hydrated = dict(person)

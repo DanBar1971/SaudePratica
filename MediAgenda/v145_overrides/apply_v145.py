@@ -48,6 +48,7 @@ change("    private lateinit var discovered:LinearLayout",
     private lateinit var transferBar:ProgressBar
     private lateinit var transferLabel:TextView
     private var senderFileTransferred=false
+    private var destinationConfirmed=false
     private val receivedAck="SP_SYNC_V145_IMPORTED_OK"
     private val linkPrefs by lazy{
         getSharedPreferences("saudepratica_nearby_link_v145",MODE_PRIVATE)
@@ -76,6 +77,14 @@ change("    private lateinit var discovered:LinearLayout",
             options.setLowPower(false)
         }
         return options.build()
+    }
+    private fun finishSenderIfConfirmed(){
+        // Receiver ACK may arrive before Nearby reports FILE success.
+        if(mode=="host" && destinationConfirmed && senderFileTransferred && !sentOk){
+            sentOk=true
+            completeImport("Destino confirmou a integração do perfil.")
+            reportProgress()
+        }
     }
     private fun displayProgress(bytes:Long,total:Long){
         if(total<=0L)return
@@ -154,6 +163,7 @@ change('''        sentOk=false
 '''        sentOk=false
         receivedOk=false
         senderFileTransferred=false
+        destinationConfirmed=false
         receivedSummary=""
         transferBar.visibility=View.GONE
         transferLabel.visibility=View.GONE
@@ -164,7 +174,7 @@ change('''        sentOk=false
 change('AdvertisingOptions.Builder().setStrategy(strategy).build()',
        'advertiseOptions()', "radio advertising")
 change('connections.requestConnection("SaúdePrática · "+Build.MODEL,id,connectionLifecycle)',
-       'connections.requestConnection("SaúdePrática · "+Build.MODEL,id,connectionLifecycle,requestOptions())',
+       '(if(linkMode()==0) connections.requestConnection("SaúdePrática · "+Build.MODEL,id,connectionLifecycle) else connections.requestConnection("SaúdePrática · "+Build.MODEL,id,connectionLifecycle,requestOptions()))',
        "radio connecting")
 
 change('''            devices.remove(endpointId)
@@ -197,10 +207,9 @@ change('''        override fun onDisconnected(id:String){
 change('''            if(payload.type==Payload.Type.FILE){incoming[payload.id]=payload}''',
 '''            if(payload.type==Payload.Type.BYTES && mode=="host"){
                 val response=payload.asBytes()?.toString(Charsets.UTF_8).orEmpty()
-                if(response==receivedAck && senderFileTransferred && !sentOk){
-                    sentOk=true
-                    completeImport("Destino confirmou a integração do perfil.")
-                    reportProgress()
+                if(response==receivedAck){
+                    destinationConfirmed=true
+                    finishSenderIfConfirmed()
                 }
             }else if(payload.type==Payload.Type.FILE && mode=="search"){
                 incoming[payload.id]=payload
@@ -223,9 +232,12 @@ change('''                outgoing.remove(update.payloadId)?.let{
 '''                outgoing.remove(update.payloadId)?.let{
                     it.delete()
                     senderFileTransferred=true
-                    awaitingImport()
-                    show("Dados enviados pelo Nearby. A aguardar confirmação "+
-                        "da integração do perfil no outro telemóvel…")
+                    if(!destinationConfirmed){
+                        awaitingImport()
+                        show("Dados enviados pelo Nearby. A aguardar confirmação "+
+                            "da integração do perfil no outro telemóvel…")
+                    }
+                    finishSenderIfConfirmed()
                 }''',"no premature medical success")
 
 change('''                            receivedOk=true

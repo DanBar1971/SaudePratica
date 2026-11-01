@@ -23,7 +23,9 @@ assert "displayProgress(update.bytesTransferred,update.totalBytes)" in a
 assert 'transferBar.progress=99' in a
 assert 'transferBar.progress=100' in a
 assert a.count('sentOk=true')==1, "Premature sender success introduced"
-assert a.index("sentOk=true")>a.index("response==receivedAck")
+assert "destinationConfirmed=true" in a
+assert "finishSenderIfConfirmed()" in a
+assert a.index("senderFileTransferred && !sentOk") < a.index("sentOk=true")
 assert a.index("connections.sendPayload(endpointId,")>a.index("receivedOk=true")
 assert "selectedProfileLabel" in a
 assert "KEEP_SCREEN_ON" in a

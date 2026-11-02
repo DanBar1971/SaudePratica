@@ -22,7 +22,8 @@ class ProfilesMappingTests(unittest.TestCase):
         self.assertNotIn("phone",missing)
         self.assertEqual(missing["address"],"Rua Exemplo")
     def test_invalid_birthday_not_written(self):
-        self.assertNotIn("birth_date",mapped_fields({"birthDate":"03/05/1984"}))
+        self.assertEqual(mapped_fields({"birthDate":"03/05/1984"})["birth_date"],"1984-05-03")
+        self.assertNotIn("birth_date",mapped_fields({"birthDate":"99/99/1984"}))
         self.assertEqual(mapped_fields({}),{})
 
 class MedicationScheduleTests(unittest.TestCase):

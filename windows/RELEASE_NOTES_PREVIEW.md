@@ -1,3 +1,14 @@
+# SaúdePrática Windows 0.7.2 — Backup familiar e individual (.spbackup)
+
+- Uma interface de backup com Família ou Perfil, ambos encriptados com palavra-passe.
+- Restauro explícito de perfis existentes sem duplicar, com ID confirmado e backup de segurança cifrado antes da substituição.
+- Exportação de fotos de perfis e caixas de medicação e documentos com SHA-256 verificado.
+- Backup individual protege outros familiares, bloqueando ZIP original partilhado.
+- Testes sintéticos de Android para Windows, edição e reexportação dos campos atualizados.
+- A compatibilidade clínica requer ainda testes reais Android ↔ Windows.
+- Não existe sincronização automática em tempo real. O instalador Windows continua experimental e sem assinatura de editor.
+
+---
 # SaúdePrática Windows 0.7.1 — Avisos de consultas
 
 - A ficha dos agendamentos substitui o campo técnico reminders_minutes por cinco opções: **1 dia antes, 2 horas antes, 1 hora antes, 30 minutos antes, na hora da consulta**.

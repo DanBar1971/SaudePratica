@@ -9,6 +9,8 @@ from __future__ import annotations
 import base64
 import json
 from io import BytesIO
+import threading
+import queue
 import os
 from datetime import datetime
 from pathlib import Path
@@ -31,6 +33,7 @@ from windows.visual_v07 import circular_photo, wallpaper_image
 from windows.android_import_v062 import plan_json, apply_plan, AndroidImportError
 from windows.android_archive_v063 import archive_sources,prepare_archive,apply_archive
 from windows.family_ui_v064 import family_controls, export_original_zip
+from windows.backup_ui_v072 import render_backup
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
@@ -39,7 +42,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.1"
+VERSION = "0.7.4"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -88,6 +91,10 @@ class Desktop(ctk.CTk):
         if not self.store.get_profile(self.active_id):
             self.active_id = self.store.profiles()[0]["id"] if self.store.profiles() else None
         self.editing_profile = self.active_id
+        self.profile_edit_open = False
+        self._profile_view_cache = {}
+        self._profile_source_queue = queue.Queue()
+        self.cc_photo_bytes = {}
         self.editing_med = None
         self.page = "home"
         self.profile_widgets = {}
@@ -113,6 +120,7 @@ class Desktop(ctk.CTk):
         self.android_zip_selected = ""
         self._assets()
         self._render()
+        self.after(120,self._poll_profile_sources)
 
     def t(self, key):
         return translate(self.lang, key)
@@ -272,6 +280,8 @@ class Desktop(ctk.CTk):
             self._label(texts,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(1,0))
 
     def navigate(self,page):
+        if page=="profiles" and self.page!="profiles":
+            self.profile_edit_open=False
         self.page=page
         self._render()
 
@@ -428,7 +438,17 @@ class Desktop(ctk.CTk):
                          width=34,height=30).pack(side="right",padx=(0,6))
             self._button(row,"›",lambda pid=profile["id"]:self._edit_profile(pid),
                          width=29,height=30).pack(side="right",padx=(0,3))
-        self._profile_form(right)
+        if self.profile_edit_open:
+            self._profile_form(right)
+        else:
+            note=ctk.CTkFrame(right,fg_color="transparent")
+            note.pack(fill="both",expand=True,padx=24,pady=22)
+            self._label(note,"Escolhe um perfil na lista à esquerda",20,True,
+                        color=TEAL).pack(anchor="w",pady=(20,12))
+            self._label(note,"A ficha e as fotografias só são carregadas quando abres "
+                        "o perfil. Os registos clínicos e os documentos continuam "
+                        "guardados nos respetivos módulos.",13,
+                        color=self.p["muted"],wrap=700).pack(anchor="w")
 
     def _delete_profile(self,pid):
         person=self.store.get_profile(pid)
@@ -458,13 +478,95 @@ class Desktop(ctk.CTk):
 
     def _new_profile(self):
         self.editing_profile=None
+        self.profile_edit_open=True
         self._render()
 
     def _edit_profile(self,pid):
         self.editing_profile=pid
         self.active_id=pid
+        self.profile_edit_open=True
         self.store.update_settings(active_profile=pid)
         self._render()
+        if pid not in self._profile_view_cache:
+            self._load_profile_source(pid)
+
+    def _load_profile_source(self,pid):
+        """Only an explicit edit starts a ZIP scan; never block the Tk thread."""
+        self._profile_view_cache[pid]=None
+        def read():
+            try:
+                fields,photos=self.store.profile_android_images_and_fields(pid)
+            except Exception:
+                fields,photos={},{}
+            self._profile_source_queue.put((pid,fields,photos))
+        threading.Thread(target=read,daemon=True).start()
+
+    def _poll_profile_sources(self):
+        try:
+            while True:
+                pid,fields,photos=self._profile_source_queue.get_nowait()
+                self._profile_view_cache[pid]=(fields,photos)
+                if not (self.page=="profiles" and self.profile_edit_open and
+                        self.editing_profile==pid):
+                    continue
+                # Don't overwrite anything the user has already entered.
+                for key,value in fields.items():
+                    field=self.profile_widgets.get(key)
+                    if field is not None and isinstance(value,str) and not field.get().strip():
+                        field.insert(0,value)
+                self.cc_photo_bytes=photos
+                self._refresh_cc_previews()
+        except queue.Empty:
+            pass
+        try:
+            if self.winfo_exists():
+                self.after(120,self._poll_profile_sources)
+        except tk.TclError:
+            pass
+
+    def _show_cc_photo(self,kind):
+        data=self.cc_photo_bytes.get(kind)
+        if not data:return
+        try:
+            with Image.open(BytesIO(data)) as src:
+                im=ImageOps.exif_transpose(src).convert("RGB")
+                im.thumbnail((950,650),Image.Resampling.LANCZOS)
+            viewer=ctk.CTkToplevel(self)
+            viewer.title("Cartão de Cidadão · "+("Frente" if kind=="cc_front" else "Verso"))
+            viewer.geometry(f"{max(400,im.width+42)}x{max(240,im.height+55)}")
+            preview=ctk.CTkImage(im,im,size=(im.width,im.height))
+            label=ctk.CTkLabel(viewer,image=preview,text="")
+            label.image=preview
+            label.pack(fill="both",expand=True,padx=16,pady=16)
+            viewer.transient(self)
+            viewer.lift()
+        except (OSError,ValueError,TypeError):
+            pass
+
+    def _refresh_cc_previews(self):
+        host=getattr(self,"cc_photo_host",None)
+        if host is None or not host.winfo_exists():return
+        for child in host.winfo_children():
+            child.destroy()
+        self.cc_thumbnails=[]
+        for kind,title in (("cc_front","Frente do CC"),("cc_back","Verso do CC")):
+            raw=self.cc_photo_bytes.get(kind)
+            if not raw:continue
+            try:
+                with Image.open(BytesIO(raw)) as source:
+                    image=ImageOps.contain(
+                        ImageOps.exif_transpose(source).convert("RGB"),
+                        (250,135),method=Image.Resampling.LANCZOS)
+                art=ctk.CTkImage(image,image,size=(image.width,image.height))
+                self.cc_thumbnails.append(art)
+                ctk.CTkButton(host,text=title,image=art,compound="top",
+                    fg_color=self.p["panel2"],text_color=self.p["text"],
+                    hover_color=self.p["line"],width=270,height=175,
+                    command=lambda k=kind:self._show_cc_photo(k)).pack(
+                    side="left",padx=(0,14),pady=5)
+            except (OSError,ValueError):
+                continue
+
 
     def _text_field(self,parent,label,initial="",row=0,col=0,columns=2):
         box=ctk.CTkFrame(parent,fg_color="transparent")
@@ -478,140 +580,113 @@ class Desktop(ctk.CTk):
         return entry
 
     def _profile_form(self,frame):
+        """A genuine Android-style patient form; never a dump of backup JSON."""
         current=self.store.get_profile(self.editing_profile) if self.editing_profile else None
         fields=dict(current or {})
-        self.profile_extra_rows=()
-        if current:
-            # Old imports may have retained fields only in the original Android
-            # ZIP. Retrieve them privately via DPAPI, never display mock data.
-            fields.update(missing_profile_fields(
-                fields,fields.get("android_profile_original",{})))
-            try:
-                recovered,extra=self.store.profile_android_extras(current["id"])
-                fields.update({k:v for k,v in recovered.items() if not fields.get(k)})
-                self.profile_extra_rows=extra
-            except (LocalStoreError,OSError,ValueError):
-                pass
+        fields.update(missing_profile_fields(
+            fields,fields.get("android_profile_original",{})))
+        cached=self._profile_view_cache.get(current["id"]) if current else None
+        if cached:
+            recovered,_=cached
+            fields.update({k:v for k,v in recovered.items() if not fields.get(k)})
+        self.cc_photo_bytes=cached[1] if cached else {}
+
         head=ctk.CTkFrame(frame,fg_color="transparent")
         head.pack(fill="x",padx=16,pady=(9,4))
         self._label(head,self.t("edit_profile") if current else self.t("new_profile"),
                     17,True).pack(side="left")
         self._button(head,self.t("cancel"),
-                     lambda:self._edit_profile(self.active_id) if self.active_id
-                     else self._new_profile(),width=100,height=34).pack(side="right")
+                     self._close_profile_editor,width=110,height=36).pack(side="right")
         scroll=ctk.CTkScrollableFrame(frame,fg_color="transparent")
         scroll.pack(fill="both",expand=True,padx=9,pady=(2,6))
         scroll.grid_columnconfigure(0,weight=1)
         scroll.grid_columnconfigure(1,weight=1)
         self.profile_widgets={}
-        self._label(scroll,self.t("profile_details"),15,True,color=TEAL).grid(
-            row=0,column=0,columnspan=2,sticky="w",padx=9,pady=(4,9))
-        layout=[("name",1,0,2,"first_name"),("birth_date",2,0,1,"birth_date"),
-                ("phone",2,1,1,"phone"),("email",3,0,2,"email"),
-                ("niss",5,0,1,"niss"),("health_unit",5,1,1,"health_unit"),
-                ("address",6,0,2,"address"),("city",7,0,1,"city"),
-                ("postal_code",7,1,1,"postal_code"),
-                ("emergency_name",9,0,1,"emergency_name"),
-                ("emergency_phone",9,1,1,"emergency_phone")]
-        self._label(scroll,self.t("health"),15,True,color=TEAL).grid(
-            row=4,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
-        self._label(scroll,self.t("contacts"),15,True,color=TEAL).grid(
-            row=8,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
-        for key,r,col,span,text in layout:
-            self.profile_widgets[key]=self._text_field(scroll,text,fields.get(key,""),
-                                                         r,col,span)
+
+        self._label(scroll,"👤 Ficha do perfil",18,True,color=TEAL).grid(
+            row=0,column=0,columnspan=2,sticky="w",padx=9,pady=(7,7))
+        photos=ctk.CTkFrame(scroll,fg_color="transparent")
+        photos.grid(row=1,column=0,columnspan=2,sticky="ew",padx=8,pady=(0,13))
         self.photo_draft=fields.get("photo_b64","")
-        photo_box=ctk.CTkFrame(scroll,fg_color="transparent")
-        photo_box.grid(row=10,column=0,columnspan=2,sticky="ew",padx=8,pady=12)
-        self._label(photo_box,self.t("photo"),12,True).pack(anchor="w")
-        self.photo_label=ctk.CTkLabel(photo_box,text=self.t("photo_none"),
-                                     text_color=self.p["muted"])
-        self.photo_label.pack(side="left",padx=(0,18))
+        portrait=ctk.CTkFrame(photos,fg_color="transparent")
+        portrait.pack(side="left",padx=(0,28),anchor="n")
+        self.photo_label=ctk.CTkLabel(portrait,text=self.t("photo_none"),
+            text_color=self.p["muted"],height=148,width=148)
+        self.photo_label.pack(anchor="center")
         self._refresh_photo()
-        self._button(photo_box,self.t("photo_select"),self._choose_photo,
-                     width=175,height=34).pack(side="left")
+        self._button(portrait,"Escolher fotografia",self._choose_photo,
+                     width=156,height=34).pack(pady=(8,3))
+        self.cc_photo_host=ctk.CTkFrame(photos,fg_color="transparent")
+        self.cc_photo_host.pack(side="left",fill="x",expand=True,anchor="n")
+        self._refresh_cc_previews()
+
         self.profile_caregiver=ctk.BooleanVar(value=bool(fields.get("caregiver",False)))
-        ctk.CTkSwitch(scroll,text=self.t("caregiver_field"),
+        ctk.CTkSwitch(scroll,text="🙌 Este perfil é o cuidador da família",
             variable=self.profile_caregiver,progress_color=TEAL,
-            button_color=TEAL,fg_color=self.p["panel2"],text_color=self.p["text"]).grid(
-                row=11,column=0,columnspan=2,sticky="w",padx=10,pady=12)
-        self._label(scroll,self.t("notes"),12,True,color=self.p["muted"]).grid(
-            row=12,column=0,columnspan=2,sticky="w",padx=9)
+            button_color=TEAL,fg_color=self.p["panel2"],
+            text_color=self.p["text"]).grid(
+            row=2,column=0,columnspan=2,sticky="w",padx=10,pady=(6,13))
+        self._label(scroll,"Dados pessoais",16,True,color=TEAL).grid(
+            row=4,column=0,columnspan=2,sticky="w",padx=9,pady=(13,7))
+        self._label(scroll,"Informação de saúde",16,True,color=TEAL).grid(
+            row=12,column=0,columnspan=2,sticky="w",padx=9,pady=(13,7))
+        self._label(scroll,"Morada e contactos",16,True,color=TEAL).grid(
+            row=16,column=0,columnspan=2,sticky="w",padx=9,pady=(13,7))
+        self._label(scroll,"Contacto SOS",16,True,color=TEAL).grid(
+            row=20,column=0,columnspan=2,sticky="w",padx=9,pady=(13,7))
+
+        # Names/identifiers precisely correspond to editable Android fields.
+        layout=[
+            ("name",5,0,2,"Nome do perfil (nome curto)"),
+            ("full_name",6,0,2,"Nome completo"),
+            ("birth_date",7,0,1,"Data de nascimento (AAAA-MM-DD)"),
+            ("gender",7,1,1,"Sexo / género"),
+            ("height",8,0,1,"Altura (cm)"),
+            ("nationality",8,1,1,"Nacionalidade"),
+            ("cc_number",9,0,1,"N.º Cartão de Cidadão"),
+            ("cc_valid_until",9,1,1,"Validade CC (DD/MM/AAAA)"),
+            ("birth_place",10,0,2,"Naturalidade / Local de nascimento"),
+            ("father",11,0,1,"Nome do pai"),
+            ("mother",11,1,1,"Nome da mãe"),
+            ("nif",13,0,1,"NIF"),
+            ("sns_number",13,1,1,"N.º de utente SNS"),
+            ("adse_number",14,0,1,"N.º ADSE"),
+            ("niss",14,1,1,"NISS"),
+            ("health_unit",15,0,2,"Unidade de saúde"),
+            ("address",17,0,2,"Morada"),
+            ("postal_code",18,0,1,"Código postal"),
+            ("city",18,1,1,"Localidade"),
+            ("phone",19,0,1,"Telemóvel / telefone pessoal"),
+            ("email",19,1,1,"Email"),
+            ("emergency_name",21,0,1,"Nome do contacto SOS"),
+            ("emergency_phone",21,1,1,"Telefone SOS")
+        ]
+        for key,row,col,span,label in layout:
+            self.profile_widgets[key]=self._text_field(
+                scroll,label,fields.get(key,""),row,col,span)
+        self._label(scroll,"Notas",12,True,color=self.p["muted"]).grid(
+            row=22,column=0,columnspan=2,sticky="w",padx=9,pady=(8,4))
         self.profile_notes=ctk.CTkTextbox(scroll,height=82,corner_radius=12,
-               fg_color=self.p["field"],border_width=1,
-               border_color=self.p["line"],text_color=self.p["text"])
-        self.profile_notes.grid(row=13,column=0,columnspan=2,sticky="ew",padx=8,pady=(4,14))
+            fg_color=self.p["field"],border_width=1,
+            border_color=self.p["line"],text_color=self.p["text"])
+        self.profile_notes.grid(row=23,column=0,columnspan=2,
+            sticky="ew",padx=8,pady=(4,14))
         self.profile_notes.insert("1.0",fields.get("notes",""))
-        next_row=14
-        if current:
-            # Identification documents are individually protected under DPAPI.
-            # Render authentic images only, never a generic/fabricated CC.
-            ids=[entry for entry in self.store.imported_assets(current["id"])
-                 if entry.get("category")=="identificação"]
-            if ids:
-                self._label(scroll,"Documentos de identificação do Android",15,
-                    True,color=TEAL).grid(row=next_row,column=0,columnspan=2,
-                                          sticky="w",padx=9,pady=(15,7))
-                next_row+=1
-                id_panel=ctk.CTkFrame(scroll,fg_color="transparent")
-                id_panel.grid(row=next_row,column=0,columnspan=2,
-                              sticky="ew",padx=8,pady=5)
-                next_row+=1
-                for entry in ids[:30]:
-                    line=ctk.CTkFrame(id_panel,fg_color=self.p["panel2"],
-                                      corner_radius=8)
-                    line.pack(fill="x",pady=3)
-                    filename=str(entry.get("filename",""))
-                    if Path(filename).suffix.lower() in (".jpg",".jpeg",".png",".webp"):
-                        try:
-                            raw=self.store.read_imported_asset(entry)
-                            if len(raw)<16_000_000:
-                                with Image.open(BytesIO(raw)) as original:
-                                    if original.width*original.height<=20_000_000:
-                                        image=ImageOps.contain(original.convert("RGB"),
-                                            (155,100),method=Image.Resampling.LANCZOS)
-                                        photo=ctk.CTkImage(image,image,
-                                            size=(image.width,image.height))
-                                        ctk.CTkLabel(line,image=photo,text="",
-                                            width=160).pack(side="left",padx=6,pady=5)
-                        except (OSError,ValueError,LocalStoreError):
-                            pass
-                    self._label(line,str(entry.get("display_name") or filename),
-                                12,True).pack(side="left",padx=8)
-                    self._button(line,"Exportar",lambda item=entry:self._export_document(item),
-                                 width=110).pack(side="right",padx=9,pady=6)
-            if self.profile_extra_rows:
-                self._label(scroll,"Informação adicional recuperada do Android",
-                    15,True,color=TEAL).grid(row=next_row,column=0,columnspan=2,
-                                              sticky="w",padx=9,pady=(17,7))
-                next_row+=1
-                helptext=("Dados de leitura recuperados do backup Android. "
-                    "Podem incluir campos que ainda não têm editor Windows. "
-                    "Estes valores não são alterados ao guardar a ficha.")
-                self._label(scroll,helptext,11,color=self.p["muted"],
-                    wrap=900).grid(row=next_row,column=0,columnspan=2,
-                                   sticky="w",padx=9,pady=(0,8))
-                next_row+=1
-                for name,value in self.profile_extra_rows[:250]:
-                    line=ctk.CTkFrame(scroll,fg_color=self.p["field"],
-                                     corner_radius=5)
-                    line.grid(row=next_row,column=0,columnspan=2,
-                              sticky="ew",padx=8,pady=2)
-                    self._label(line,str(name),11,True,
-                                color=self.p["muted"],wrap=400).pack(
-                                    side="left",padx=9,pady=4)
-                    self._label(line,str(value),11,wrap=600).pack(
-                        side="right",padx=9,pady=4)
-                    next_row+=1
+
         footer=ctk.CTkFrame(frame,fg_color="transparent")
         footer.pack(fill="x",padx=16,pady=(0,9))
-        self._button(footer,self.t("save"),self._save_profile,True,width=137,height=33).pack(side="right")
+        self._button(footer,self.t("save"),self._save_profile,
+                     True,width=155,height=42).pack(side="right")
+
+    def _close_profile_editor(self):
+        self.profile_edit_open=False
+        self._render()
 
     def _refresh_photo(self):
         try:
             if self.photo_draft:
                 image=Image.open(BytesIO(base64.b64decode(self.photo_draft))).convert("RGB")
-                self.photo_preview=ctk.CTkImage(image,image,size=(64,64))
+                self.photo_preview=ctk.CTkImage(image,image,size=(140,140))
                 self.photo_label.configure(image=self.photo_preview,text="")
             else:
                 self.photo_label.configure(image=None,text=self.t("photo_none"))
@@ -933,31 +1008,8 @@ class Desktop(ctk.CTk):
         self._render()
 
     def _backup(self):
-        self._heading(self.t("backup_title"),self.t("backup_desc"))
-        card=self._card(self.body)
-        card.pack(fill="x",pady=10)
-        wrapper=ctk.CTkFrame(card,fg_color="transparent")
-        wrapper.pack(fill="x",padx=30,pady=25)
-        self._label(wrapper,self.t("password"),13,True).pack(anchor="w")
-        self.backup_pass=ctk.CTkEntry(wrapper,show="●",height=43,width=320,
-            fg_color=self.p["field"],border_color=self.p["line"])
-        self.backup_pass.pack(anchor="w",pady=(6,15))
-        self._label(wrapper,self.t("confirm_password"),13,True).pack(anchor="w")
-        self.backup_confirm=ctk.CTkEntry(wrapper,show="●",height=43,width=320,
-            fg_color=self.p["field"],border_color=self.p["line"])
-        self.backup_confirm.pack(anchor="w",pady=(6,20))
-        actions=ctk.CTkFrame(wrapper,fg_color="transparent")
-        actions.pack(anchor="w")
-        self._button(actions,self.t("export"),self._export_backup,True,200).pack(side="left",padx=(0,10))
-        self._button(actions,self.t("restore"),self._restore_backup,width=200).pack(side="left")
-        self._button(wrapper,"Importar toda a família Android",
-                     lambda:self.navigate("import"),width=302,height=38).pack(anchor="w",pady=(18,0))
-        self._button(wrapper,"Reexportar ZIP Android original",
-                     lambda:export_original_zip(self),width=300,height=34).pack(anchor="w",pady=(8,0))
-        self._label(wrapper,
-            "O backup .spbackup encriptado inclui todos os perfis, fotos, documentos, "
-            "medicação, agenda e os ZIPs Android originais anteriormente importados.",
-            12,color=self.p["muted"],wrap=920).pack(anchor="w",pady=(12,0))
+        """The only public Backup screen: Family / Profile .spbackup."""
+        return render_backup(self)
 
     def _open_appointment(self,appointment_id):
         self.editing_appointment=appointment_id

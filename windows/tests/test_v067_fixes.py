@@ -61,7 +61,7 @@ class ProfileRecoveryTests(unittest.TestCase):
         fields,rows=read_profile_extras(make_zip(files),"legacy")
         self.assertEqual(fields["birth_date"],"1988-04-18")
         self.assertEqual(fields["health_unit"],"Unidade fictícia")
-        self.assertTrue(any("citizenCard" in k for k,_ in rows))
+        self.assertEqual(rows,()) # no raw backup rows inside profile form
         self.assertFalse(any("OTHER PERSON" in v for _,v in rows))
 
     def test_agenda_uses_stable_cards_without_glass_overlay(self):
@@ -71,6 +71,6 @@ class ProfileRecoveryTests(unittest.TestCase):
         self.assertIn("self.wallpaper_shell.glass_enabled=False",view)
         self.assertIn("not self.glass_enabled",shell)
         self.assertNotIn('row.pack_propagate(False)',view[view.index("    def _agenda("):view.index("    def _documents(")])
-        self.assertIn("Documentos de identificação do Android",view)
+        self.assertIn("self.cc_photo_host",view)
 
 if __name__=="__main__":unittest.main()

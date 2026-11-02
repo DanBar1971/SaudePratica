@@ -9,10 +9,10 @@ Website público e repositório multiplataforma **SaúdePrática**, em portuguê
 | Plataforma | Estado | Instalação |
 | --- | --- | --- |
 | **Android v1.9.127** | Atualização normal | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
-| **Windows 10/11 (x64)** | **Experimental 0.7.2** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.2-preview/SaudePratica-Setup.exe) |
+| **Windows 10/11 (x64)** | **Experimental 0.7.3** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.3-preview/SaudePratica-Setup.exe) |
 | **iPhone / iOS** | Planeado | Ainda sem aplicação para descarregar |
 
-Para Windows, consultar também a [release Windows específica](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.2-preview), e **não a lista genérica de releases Android/Windows**. A página oficial identifica sempre cada plataforma e a ligação do instalador. A versão Windows 0.7.2 permite backups .spbackup manuais com palavra-passe, mas ainda não sincroniza automaticamente com o Android; os avisos de Agenda já funcionam localmente no Windows com sessão iniciada, mas os alarmes de medicação continuam apenas no Android.
+Para Windows, consultar também a [release Windows específica](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.3-preview), e **não a lista genérica de releases Android/Windows**. A página oficial identifica sempre cada plataforma e a ligação do instalador. A versão Windows 0.7.3 recupera os dados completos dos perfis Android, melhora o progresso dos backups e evita o bloqueio da atualização pelo agente de avisos. Continua a permitir backups .spbackup manuais com palavra-passe, mas ainda não sincroniza automaticamente com o Android; os avisos de Agenda já funcionam localmente no Windows com sessão iniciada, mas os alarmes de medicação continuam apenas no Android.
 
 **Website:** https://danbar1971.github.io/SaudePratica/
 

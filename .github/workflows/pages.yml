@@ -61,8 +61,8 @@ jobs:
           grep -F 'Windows 10 / 11' index.html
           grep -F 'iPhone / iOS' index.html
           grep -F 'data-windows-download' index.html
-          WIN_TAG="windows-v0.7.9-preview"
-          grep -F "windows-v0.7.9-preview" .github/workflows/publish-windows-079-approved.yml
+          WIN_TAG="windows-v0.8.0-preview"
+          grep -F "windows-v0.8.0-preview" .github/workflows/publish-windows-080-approved.yml
           test -n "$WIN_TAG"
           WIN_URL="releases/download/${WIN_TAG}/SaudePratica-Setup.exe"
           grep -F 'releases/latest/download/SaudePratica.apk' index.html

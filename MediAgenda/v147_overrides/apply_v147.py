@@ -324,10 +324,20 @@ s=s.replace(message,'''            .setMessage("Dados encontrados: "+clinical+".
                     "Ficheiro cifrado APENAS com os dados do perfil selecionado.")+
                 "\\n\\nConfirma que estas quantidades estão corretas antes de exportar.")''',1)
 main.write_text(s,encoding="utf-8")
+# Emulator-only integration test never enters the production APK.
+test=app/"src/androidTest/java/com/mediagenda/app/BackupRuntimeTest.kt"
+test.parent.mkdir(parents=True,exist_ok=True)
+copyfile(Path("MediAgenda/v147_overrides/BackupRuntimeTest.kt"),test)
 gradle=app/"build.gradle.kts"
 g=gradle.read_text(encoding="utf-8")
 assert 'versionName = "1.9.126"' in g and "versionCode = 136" in g
 g=g.replace('versionName = "1.9.126"','versionName = "1.9.127"',1)
 g=g.replace("versionCode = 136","versionCode = 137",1)
+assert g.count('applicationId = "com.mediagenda.app.stable"')==1
+assert g.count('dependencies {')==1
+assert g.count('versionName = "1.9.127"')==1
+g=g.replace('applicationId = "com.mediagenda.app.stable"',
+   'applicationId = "com.mediagenda.app.stable"\n        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"',1)
+g=g.replace('dependencies {','dependencies {\n    androidTestImplementation("androidx.test:runner:1.6.2")\n    androidTestImplementation("androidx.test.ext:junit:1.2.1")',1)
 gradle.write_text(g,encoding="utf-8")
 print("Android 1.9.127: only two scope-safe .spbackup backup options.")

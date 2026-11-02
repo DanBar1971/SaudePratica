@@ -303,7 +303,7 @@ class PortableWindowsClinicalRestore(private val context:Context) {
         }
     }
 
-    fun restore(preview:PortableWindowsBackup.Preview,expected:Plan):Int {
+    fun restore(preview:PortableWindowsBackup.Preview,expected:Plan,recoveryPassword:CharArray):Int {
         val pending=linkedMapOf<String,ByteArray>()
         val before=ProfileStore(context).all()
         ZipFile(preview.decrypted).use{zip->
@@ -393,12 +393,36 @@ class PortableWindowsClinicalRestore(private val context:Context) {
         require(pending.values.sumOf{it.size.toLong()}<=260L*1024*1024){
             "Demasiados dados para restaurar."
         }
-        val safety=File.createTempFile("sp_pre_restauro_",".zip",context.cacheDir)
+        // Keep the recovery copy OUT of the exported patient's ZIP and cache.
+        // This persistent, password-encrypted .spbackup survives a process crash.
+        // The caller supplies the user's authenticated backup password again;
+        // it is never written to disk and is zeroed on every exit path.
+        val recoveryDir=File(context.filesDir,"sp_recovery_private")
+        require(recoveryDir.isDirectory||recoveryDir.mkdirs()){
+            "Não é possível preparar recuperação privada."
+        }
+        val safety=File.createTempFile("pre_restore_",".spbackup",recoveryDir)
+        val rollbackPassword=recoveryPassword.copyOf()
         val prefs=context.getSharedPreferences("saudepratica_profiles_v1",
             Context.MODE_PRIVATE)
         try{
-            if(before.isNotEmpty())FamilyBackupStore(context)
-                .export(Uri.fromFile(safety))
+            if(before.isNotEmpty()){
+                PortableWindowsBackup(context).export(Uri.fromFile(safety),
+                    recoveryPassword)
+                require(safety.length()>1000){
+                    "Cópia de recuperação encriptada em falta."
+                }
+                // Verify the encrypted recovery copy, including all hashes,
+                // before changing any live patient file.
+                val checked=PortableWindowsBackup(context).inspect(
+                    Uri.fromFile(safety),rollbackPassword.copyOf())
+                try{
+                    val snapshot=inspect(checked)
+                    require(snapshot.people.size==before.size){
+                        "A cópia de recuperação não inclui todos os perfis."
+                    }
+                }finally{checked.discard()}
+            }
             val merged=before.toMutableList()
             for(person in expected.people){
                 val index=merged.indexOfFirst{it.id==person.destination}
@@ -461,10 +485,24 @@ class PortableWindowsClinicalRestore(private val context:Context) {
             }
             return expected.people.size
         }catch(error:Exception){
-            if(safety.length()>0)try {
-                FamilyBackupStore(context).restore(Uri.fromFile(safety))
+            // If a clinical write failed, recover the authenticated Android
+            // original from our encrypted .spbackup, not a plaintext ZIP.
+            if(safety.length()>1000)try {
+                val verified=PortableWindowsBackup(context).inspect(
+                    Uri.fromFile(safety),rollbackPassword.copyOf())
+                try{
+                    require(verified.originals.isNotEmpty()){
+                        "Backup de recuperação incompleto."
+                    }
+                    PortableWindowsBackup(context).restoreOriginal(verified,0)
+                }finally{verified.discard()}
             }catch(e:Exception){error.addSuppressed(e)}
             throw error
-        }finally{safety.delete()}
+        }finally{
+            recoveryPassword.fill(0.toChar())
+            rollbackPassword.fill(0.toChar())
+            if(safety.length()==0L)safety.delete()
+            // Valid encrypted recovery backups are intentionally retained.
+        }
     }
 }

@@ -205,7 +205,16 @@ class Desktop(ctk.CTk):
             self._render_content()
             self.update_idletasks()
         finally:
-            self.configure(cursor="watch" if self._busy_profile else "")
+            if self._busy_profile:
+                self.configure(cursor="watch")
+            else:
+                # Tk has to process its event queue before Windows can show
+                # a cursor change. Defer restoration until the frame is visible.
+                self.after(150,self._finish_busy_cursor)
+
+    def _finish_busy_cursor(self):
+        if not self._busy_profile and self.winfo_exists():
+            self.configure(cursor="")
 
     def _render_content(self):
         self.p=self._palette()
@@ -298,6 +307,10 @@ class Desktop(ctk.CTk):
             self._label(texts,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(1,0))
 
     def navigate(self,page):
+        if page!="profiles":
+            self._busy_profile=None
+            self.profile_loading_widget=None
+            self.profile_loading_frame=None
         if page=="profiles" and self.page!="profiles":
             self.profile_edit_open=False
         self.page=page
@@ -433,7 +446,7 @@ class Desktop(ctk.CTk):
 
     def _profiles(self):
         self._heading(self.t("profiles"),self.t("profile_hint"))
-        left,listing,right=self._two_pane(self.t("registered_profiles"),290)
+        left,listing,right=self._two_pane(self.t("registered_profiles"),365)
         self._button(listing,"+ "+self.t("new_profile"),
                      self._new_profile,True,width=225,height=32).pack(
                          fill="x",pady=(0,8))

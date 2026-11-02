@@ -31,7 +31,7 @@ jobs:
           gh run download 41458179893 --repo "$GITHUB_REPOSITORY" \
             --name SaudePratica-Windows-INSTALADOR-EXPERIMENTAL --dir installer
           test -s installer/SaudePratica-Setup.exe
-          echo "19f957c2cadf3f2db2f4b79dbbd33432c975bb3662a8658fab77bfa724e5f166  installer/SaudePratica-Setup.exe" | sha256sum -c -
+          echo "2aa4ee3e6ea5e6da414a494af23e09aff2d75287b3f916df7e39df630f29f2af  installer/SaudePratica-Setup.exe" | sha256sum -c -
           cp installer/SaudePratica-Setup.exe SaudePratica-Setup.exe
           sha256sum SaudePratica-Setup.exe > SHA256SUMS.txt
       - name: Publicar Windows 0.7.5 no GitHub Releases

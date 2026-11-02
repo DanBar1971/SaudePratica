@@ -507,23 +507,41 @@ class Desktop(ctk.CTk):
         self.profile_widgets={}
         self._label(scroll,self.t("profile_details"),15,True,color=TEAL).grid(
             row=0,column=0,columnspan=2,sticky="w",padx=9,pady=(4,9))
-        layout=[("name",1,0,2,"first_name"),("birth_date",2,0,1,"birth_date"),
-                ("phone",2,1,1,"phone"),("email",3,0,2,"email"),
-                ("niss",5,0,1,"niss"),("health_unit",5,1,1,"health_unit"),
-                ("address",6,0,2,"address"),("city",7,0,1,"city"),
-                ("postal_code",7,1,1,"postal_code"),
-                ("emergency_name",9,0,1,"emergency_name"),
-                ("emergency_phone",9,1,1,"emergency_phone")]
+        # Use every editable identity/health field from the Android profile.
+        # Unknown Android fields remain intact in the original encrypted ZIP.
+        layout=[
+            ("name",1,0,2,"Nome do perfil (curto)"),
+            ("full_name",2,0,2,"Nome completo"),
+            ("birth_date",3,0,1,"birth_date"),
+            ("gender",3,1,1,"Sexo / género"),
+            ("height",4,0,1,"Altura (cm)"),
+            ("nationality",4,1,1,"Nacionalidade"),
+            ("birth_place",5,0,2,"Local de nascimento"),
+            ("father",6,0,1,"Nome do pai"),
+            ("mother",6,1,1,"Nome da mãe"),
+            ("phone",7,0,1,"phone"),
+            ("email",7,1,1,"email"),
+            ("niss",9,0,1,"niss"),
+            ("sns_number",9,1,1,"N.º de utente SNS"),
+            ("nif",10,0,1,"NIF"),
+            ("adse_number",10,1,1,"N.º ADSE"),
+            ("health_unit",11,0,2,"health_unit"),
+            ("address",12,0,2,"address"),
+            ("city",13,0,1,"city"),
+            ("postal_code",13,1,1,"postal_code"),
+            ("emergency_name",15,0,1,"emergency_name"),
+            ("emergency_phone",15,1,1,"emergency_phone"),
+        ]
         self._label(scroll,self.t("health"),15,True,color=TEAL).grid(
-            row=4,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
-        self._label(scroll,self.t("contacts"),15,True,color=TEAL).grid(
             row=8,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
+        self._label(scroll,self.t("contacts"),15,True,color=TEAL).grid(
+            row=14,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
         for key,r,col,span,text in layout:
             self.profile_widgets[key]=self._text_field(scroll,text,fields.get(key,""),
                                                          r,col,span)
         self.photo_draft=fields.get("photo_b64","")
         photo_box=ctk.CTkFrame(scroll,fg_color="transparent")
-        photo_box.grid(row=10,column=0,columnspan=2,sticky="ew",padx=8,pady=12)
+        photo_box.grid(row=16,column=0,columnspan=2,sticky="ew",padx=8,pady=12)
         self._label(photo_box,self.t("photo"),12,True).pack(anchor="w")
         self.photo_label=ctk.CTkLabel(photo_box,text=self.t("photo_none"),
                                      text_color=self.p["muted"])
@@ -535,15 +553,15 @@ class Desktop(ctk.CTk):
         ctk.CTkSwitch(scroll,text=self.t("caregiver_field"),
             variable=self.profile_caregiver,progress_color=TEAL,
             button_color=TEAL,fg_color=self.p["panel2"],text_color=self.p["text"]).grid(
-                row=11,column=0,columnspan=2,sticky="w",padx=10,pady=12)
+                row=17,column=0,columnspan=2,sticky="w",padx=10,pady=12)
         self._label(scroll,self.t("notes"),12,True,color=self.p["muted"]).grid(
-            row=12,column=0,columnspan=2,sticky="w",padx=9)
+            row=18,column=0,columnspan=2,sticky="w",padx=9)
         self.profile_notes=ctk.CTkTextbox(scroll,height=82,corner_radius=12,
                fg_color=self.p["field"],border_width=1,
                border_color=self.p["line"],text_color=self.p["text"])
-        self.profile_notes.grid(row=13,column=0,columnspan=2,sticky="ew",padx=8,pady=(4,14))
+        self.profile_notes.grid(row=19,column=0,columnspan=2,sticky="ew",padx=8,pady=(4,14))
         self.profile_notes.insert("1.0",fields.get("notes",""))
-        next_row=14
+        next_row=20
         if current:
             # Identification documents are individually protected under DPAPI.
             # Render authentic images only, never a generic/fabricated CC.

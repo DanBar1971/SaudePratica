@@ -10,7 +10,8 @@ gradle=(root/"build.gradle.kts").read_text()
 assert 'versionName = "1.9.126"' in gradle
 assert "versionCode = 136" in gradle
 assert 'applicationId = "com.mediagenda.app.stable"' in gradle
-for t in ("DataRepository(context,person.id).ensureFiles()",
+for t in ("Exportação cancelada para evitar um ZIP de 5 KB.",
+          "File(root,prefix+\"medicacao.json\").isFile",
           'prefix+"medicacao.json"','prefix+"agenda.json"',
           "Fotografia do medicamento ausente do backup",
           "saudepratica_profiles_v1","diabetes_v1"):

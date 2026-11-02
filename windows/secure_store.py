@@ -330,7 +330,27 @@ class SecureStore:
         old = next((m for m in p["medications"] if m.get("id") == medication_id), None) if medication_id else None
         if medication_id and old is None:
             raise LocalStoreError("O medicamento já não está disponível neste perfil.")
+        from windows.medication_editor_v080 import (
+            ALL_FIELDS, DOC_KEYS, apply_extras, medication_document_assets,
+            medication_document_option,
+        )
+        optional={key:fields[key] for key in ALL_FIELDS if key in fields}
+        try:
+            validated_extras=apply_extras(old,optional)
+        except ValueError as exc:
+            raise LocalStoreError(str(exc)) from exc
+        allowed=medication_document_assets(self.imported_assets(profile_id))
+        selected={}
+        for key in DOC_KEYS:
+            if key not in fields:continue
+            digest=fields[key]
+            if not isinstance(digest,str) or (
+                    digest and not medication_document_option(allowed,digest)):
+                raise LocalStoreError("Documento da medicação não pertence a este perfil.")
+            selected[key]=digest
         new = dict(old) if old else {"id": str(uuid.uuid4())}
+        new.update(validated_extras)
+        new.update(selected)
         new.update({
             "name": name, "dose": dose, "time": time,
             "administration_route": route, "injection_type": injection,

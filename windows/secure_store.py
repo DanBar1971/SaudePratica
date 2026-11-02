@@ -193,6 +193,12 @@ class SecureStore:
                 raise LocalStoreError("A fotografia deve ser JPEG válido e pequeno.") from exc
         cleaned["caregiver"] = bool(fields.get("caregiver", False))
         if profile_id:
+            from windows.profile_data_guard_v075 import overlaps_medication
+            old_person=self.get_profile(profile_id)
+            if old_person and overlaps_medication(old_person,cleaned.get("notes")):
+                # The original drug record retains this data.
+                cleaned["notes"] = ""
+        if profile_id:
             old = self.get_profile(profile_id)
             if old is None:
                 raise LocalStoreError("Perfil inexistente.")

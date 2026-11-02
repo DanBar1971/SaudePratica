@@ -43,7 +43,7 @@ class PortableWindowsClinicalRestore(private val context:Context) {
     private fun bytes(zip:ZipFile,id:String,name:String):ByteArray{
         val entry=zip.getEntry("data/profiles/"+id+"/"+name)
             ?:error("O perfil não inclui "+name)
-        require(entry.size in 0..16_000_000){"Ficheiro demasiado grande."}
+        require(entry.size in 0L..16_000_000L){"Ficheiro demasiado grande."}
         return zip.getInputStream(entry).use{it.readBytes()}
     }
     private fun scan(zip:ZipFile):Plan {
@@ -90,7 +90,7 @@ class PortableWindowsClinicalRestore(private val context:Context) {
                 require(hash.matches(Regex("[a-f0-9]{64}"))){"Hash inválido."}
                 val record=zip.getEntry("data/attachments/"+hash.take(2)+
                     "/"+hash+".bin")?:error("Anexo em falta.")
-                require(record.size in 0..16_000_000){"Anexo demasiado grande."}
+                require(record.size in 0L..16_000_000L){"Anexo demasiado grande."}
             }
             val entry=zip.getEntry("data/profiles/"+id+"/backup_scope.json")
             if(entry!=null){

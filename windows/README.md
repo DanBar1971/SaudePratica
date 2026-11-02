@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.7.4**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.4-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.7.5**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.5-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.4-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.5-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,9 +54,9 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow de compilação cria o instalador com Inno Setup 6. A versão experimental
-`windows-v0.7.4-preview` foi publicada com base no código testado no ramo
+`windows-v0.7.5-preview` foi publicada com base no código testado no ramo
 `release/windows-074-profiles-fast-20261102`, através do workflow
-`publish-windows-074-approved.yml`. O código do `main` será integrado após validação.
+`publish-windows-075-approved.yml`. O código do `main` será integrado após validação.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
 ## Segurança

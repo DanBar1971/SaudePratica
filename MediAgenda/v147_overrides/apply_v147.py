@@ -151,6 +151,106 @@ after='''        box.addView(infoCard("🔐", "Backup .spbackup · Família",
         })'''
 assert "Backup completo da família" in before and "Exportar JSON" in before
 s=s[:start]+after+s[end:]
+# The public restore now reads the edited Windows data after authenticating
+# the .spbackup; it never replaces the phone with an old unchanged ZIP.
+from shutil import copyfile
+copyfile(Path("MediAgenda/v147_overrides/PortableWindowsClinicalRestore.kt"),
+         src/"data/PortableWindowsClinicalRestore.kt")
+bridge=src/"data/PortableWindowsBackup.kt"
+p=bridge.read_text(encoding="utf-8")
+reject='''            require(found.isNotEmpty()){
+                "O ficheiro Windows não contém um backup Android original. " +
+                    "A sincronização de alterações Windows ainda exige validação de conflitos."
+            }
+'''
+assert p.count(reject)==1,"portable original-only restriction changed"
+p=p.replace(reject,"",1)
+bridge.write_text(p,encoding="utf-8")
+addimport="import com.mediagenda.app.data.PortableWindowsBackup"
+assert s.count(addimport)==1
+s=s.replace(addimport,addimport+"\nimport com.mediagenda.app.data.PortableWindowsClinicalRestore",1)
+start=s.index("    private fun inspectWindowsBackup(uri:Uri,pwd:CharArray){")
+end=s.index("    private val familyExport = registerForActivityResult(",start)
+replacement='''    private fun inspectWindowsBackup(uri:Uri,pwd:CharArray){
+        val busy=MaterialAlertDialogBuilder(this)
+            .setTitle("A verificar backup encriptado")
+            .setMessage("A autenticar palavra-passe e todos os ficheiros…")
+            .setCancelable(false).show()
+        Thread{
+            val result=runCatching{
+                val preview=PortableWindowsBackup(this).inspect(uri,pwd)
+                try{
+                    val plan=PortableWindowsClinicalRestore(this).inspect(preview)
+                    preview to plan
+                }catch(error:Exception){preview.discard();throw error}
+            }
+            runOnUiThread{
+                if(!isFinishing)busy.dismiss()
+                result.onSuccess{(preview,plan)->
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle("Pré-visualizar restauro "+if(plan.scope=="family")
+                            "da Família" else "do Perfil")
+                        .setMessage(plan.description()+"\\\\n\\\\n"+
+                            "Os dados de medicação, agenda e imagens correspondentes "+
+                            "serão restaurados conforme editados no Windows. "+
+                            "Perfis existentes serão SUBSTITUÍDOS, não duplicados. "+
+                            "Os restantes dados do telemóvel ficam preservados. "+
+                            "É criada uma cópia de segurança antes da alteração. "+
+                            "Confirma que o destino de cada perfil está correto.")
+                        .setNegativeButton("Cancelar"){_,_->preview.discard()}
+                        .setPositiveButton("Confirmar restauro"){_,_->
+                            restoreWindowsEdited(preview,plan)
+                        }
+                        .setOnCancelListener{preview.discard()}
+                        .show()
+                }.onFailure{showError("Backup inválido: "+it.message)}
+            }
+        }.start()
+    }
+    private fun restoreWindowsEdited(
+        preview:PortableWindowsBackup.Preview,
+        plan:PortableWindowsClinicalRestore.Plan
+    ){
+        val busy=MaterialAlertDialogBuilder(this)
+            .setTitle("A restaurar dados confirmados")
+            .setMessage("A criar cópia de segurança e a validar fotografias…")
+            .setCancelable(false).show()
+        Thread{
+            val result=runCatching{
+                try{PortableWindowsClinicalRestore(this).restore(preview,plan)}
+                finally{preview.discard()}
+            }
+            runOnUiThread{
+                if(!isFinishing)busy.dismiss()
+                result.onSuccess{count->
+                    runCatching{NotificationScheduler(this).scheduleAllProfiles()}
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle("Restauro concluído")
+                        .setMessage("Restaurados "+count+" perfis. "+
+                            "A SaúdePrática será reiniciada para carregar "+
+                            "os novos dados e atualizar os alarmes.")
+                        .setCancelable(false)
+                        .setPositiveButton("Continuar"){_,_->
+                            startActivity(Intent(this,SplashActivity::class.java)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                                    Intent.FLAG_ACTIVITY_CLEAR_TASK))
+                            finish()
+                        }.show()
+                }.onFailure{showError("Restauro interrompido: "+it.message)}
+            }
+        }.start()
+    }
+
+'''
+s=s[:start]+replacement+s[end:]
+s=s.replace('''            .setTitle("Inspecionar backup Windows")
+            .setMessage("Esta opção verifica o ficheiro e só permite recuperar "+
+                "um ZIP Android ORIGINAL guardado no Windows. As edições feitas "+
+                "no Windows não são sincronizadas por esta função.")''',
+'''            .setTitle("Restaurar .spbackup · Família ou Perfil")
+            .setMessage("Será verificada a palavra-passe e apresentada a lista "+
+                "dos perfis, medicações, consultas e anexos. Podes confirmar "+
+                "a substituição dos dados editados no Windows.")''')
 main.write_text(s,encoding="utf-8")
 gradle=app/"build.gradle.kts"
 g=gradle.read_text(encoding="utf-8")

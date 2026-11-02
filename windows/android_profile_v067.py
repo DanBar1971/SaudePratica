@@ -37,13 +37,25 @@ def _extract(files:dict, head:dict, source_id:str):
     fields=mapped_fields(original)
     recovered,_=unwrap_typed_profile(prefs,source_id)
     fields.update({k:v for k,v in recovered.items() if not fields.get(k)})
-    if isinstance(original.get("caregiver"),bool):
+    # Global caretaker status is a single source UUID in Android, not a
+    # field of the patient's personal preferences. Never infer caregiver from
+    # family_role or any other person's profile.
+    caregiver=prefs.get("saudepratica_caregiver_v1",{})
+    item=caregiver.get("caregiver_id",{}) if isinstance(caregiver,dict) else {}
+    stored=item.get("v") if isinstance(item,dict) and item.get("t")=="s" else None
+    if isinstance(stored,str) and SOURCE_ID.fullmatch(stored):
+        fields["caregiver"]=(stored==source_id)
+    elif isinstance(original.get("caregiver"),bool):
         fields["caregiver"]=original["caregiver"]
-    # Only identity/profile documents belonging to this individual.
-    prefixes=(f"saudepratica_identity/{source_id}/",
-              f"saudepratica_profiles/{source_id}/")
+    # Profile identity files are the only eligible JSON sources. Do not walk
+    # medication, appointment, clinical event or document index JSON.
+    allowed_names={
+        f"saudepratica_identity/{source_id}/records.json",
+        f"saudepratica_identity/{source_id}/profile.json",
+        f"saudepratica_profiles/{source_id}/profile.json",
+    }
     for name,blob in files.items():
-        if not name.startswith(prefixes) or not name.endswith(".json") or len(blob)>128000:
+        if name not in allowed_names or len(blob)>128000:
             continue
         try:
             candidate=json.loads(blob)

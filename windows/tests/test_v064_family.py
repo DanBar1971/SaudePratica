@@ -132,9 +132,9 @@ class FamilyPortabilityTests(unittest.TestCase):
 
     def test_ui_routes_and_version(self):
         source=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "0.7.1"',source)
-        self.assertIn("family_controls(self)",source)
-        self.assertIn("Reexportar ZIP Android original",source)
+        self.assertIn('VERSION = "0.7.7"',source)
+        self.assertIn("render_backup(self)",source)
+        self.assertIn("from windows.backup_ui_v072 import render_backup",source)
         ui=(Path(__file__).resolve().parents[1]/"family_ui_v064.py").read_text(encoding="utf-8")
         for keyword in ("Confirmar importação familiar","Backup completo encriptado",
                         "Importar ZIP familiar completo","askyesno","plan_family_archive"):

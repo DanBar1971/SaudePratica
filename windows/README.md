@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.7.7**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.7-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.7.8**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.8-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.7-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.8-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -54,8 +54,8 @@ O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
 O workflow de compilação cria o instalador com Inno Setup 6. A versão experimental
-`windows-v0.7.7-preview` foi publicada com base no código testado no ramo
-`release/windows-074-profiles-fast-20261102`, através do workflow
+`windows-v0.7.8-preview` foi publicada com base no código testado no ramo
+`release/windows-078-loading-medphotos-20261102`, através do workflow
 `publish-windows-075-approved.yml`. O código do `main` será integrado após validação.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
@@ -140,3 +140,7 @@ A Agenda apresenta os quatro filtros funcionais no topo: **Todas | Pendentes | R
 ## Windows 0.7.1 — Avisos de Agenda
 
 A ficha permite selecionar avisos **1 dia, 2 horas, 1 hora, 30 minutos antes e na hora da consulta**, usando os mesmos valores numéricos `reminders_minutes` do Android. Um processo auxiliar do Windows, iniciado automaticamente com a sessão, apresenta avisos locais mesmo com a janela principal fechada. É necessário que a conta esteja iniciada, o PC ligado/acordado e as notificações permitidas. Intervalos adicionais antigos continuam preservados. O Android continua com os avisos que já tinha configurados; **não existe sincronização automática** e modificar a configuração no Windows não a altera no telemóvel. Os alarmes da medicação continuam apenas no Android.
+
+## Windows 0.7.8 — carregamento e medicação Android
+
+O seletor de perfis apresenta uma seta mais visível. O cursor de espera surge enquanto os módulos carregam. Fotografias existentes como anexos encriptados do backup Android podem ser recuperadas nos cartões e fichas da medicação, respeitando sempre o perfil selecionado. Informação adicional de prescrição, repetição ou suspensão surge apenas para consulta quando foi recebida do Android; não são criados valores fictícios nem alarmes Windows. O instalador inclui o agente de Avisos sem splash.

@@ -123,8 +123,10 @@ def render_backup(app):
     app._button(inner,"Backup .spbackup · Família",
         lambda:export(),True,width=360,height=44).pack(anchor="w",pady=5)
     selected=app.active_id if app.active_id and app.store.get_profile(app.active_id) else None
-    app._button(inner,"Backup .spbackup · Perfil selecionado",
-        lambda:export(selected),width=360,height=44).pack(anchor="w",pady=5)
+    profile_button=app._button(inner,"Backup .spbackup · Perfil selecionado",
+        lambda:export(selected),width=360,height=44)
+    profile_button.pack(anchor="w",pady=5)
+    if selected is None: profile_button.configure(state="disabled")
     app._button(inner,"Restaurar .spbackup · Família ou Perfil",
         restore,width=360,height=44).pack(anchor="w",pady=(15,5))
     app._label(inner,

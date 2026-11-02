@@ -183,6 +183,9 @@ replacement='''    private fun inspectWindowsBackup(uri:Uri,pwd:CharArray){
             .setMessage("A autenticar palavra-passe e todos os ficheiros…")
             .setCancelable(false).show()
         Thread{
+            // inspect() wipes the original input password after AES-GCM check;
+            // the independent copy is needed for an encrypted rollback backup.
+            val recoveryPassword=pwd.copyOf()
             val result=runCatching{
                 val preview=PortableWindowsBackup(this).inspect(uri,pwd)
                 try{
@@ -203,19 +206,29 @@ replacement='''    private fun inspectWindowsBackup(uri:Uri,pwd:CharArray){
                             "Os restantes dados do telemóvel ficam preservados. "+
                             "É criada uma cópia de segurança antes da alteração. "+
                             "Confirma que o destino de cada perfil está correto.")
-                        .setNegativeButton("Cancelar"){_,_->preview.discard()}
-                        .setPositiveButton("Confirmar restauro"){_,_->
-                            restoreWindowsEdited(preview,plan)
+                        .setNegativeButton("Cancelar"){_,_->
+                            preview.discard()
+                            recoveryPassword.fill(0.toChar())
                         }
-                        .setOnCancelListener{preview.discard()}
+                        .setPositiveButton("Confirmar restauro"){_,_->
+                            restoreWindowsEdited(preview,plan,recoveryPassword)
+                        }
+                        .setOnCancelListener{
+                            preview.discard()
+                            recoveryPassword.fill(0.toChar())
+                        }
                         .show()
-                }.onFailure{showError("Backup inválido: "+it.message)}
+                }.onFailure{
+                    recoveryPassword.fill(0.toChar())
+                    showError("Backup inválido: "+it.message)
+                }
             }
         }.start()
     }
     private fun restoreWindowsEdited(
         preview:PortableWindowsBackup.Preview,
-        plan:PortableWindowsClinicalRestore.Plan
+        plan:PortableWindowsClinicalRestore.Plan,
+        password:CharArray
     ){
         val busy=MaterialAlertDialogBuilder(this)
             .setTitle("A restaurar dados confirmados")
@@ -223,8 +236,12 @@ replacement='''    private fun inspectWindowsBackup(uri:Uri,pwd:CharArray){
             .setCancelable(false).show()
         Thread{
             val result=runCatching{
-                try{PortableWindowsClinicalRestore(this).restore(preview,plan)}
-                finally{preview.discard()}
+                try{PortableWindowsClinicalRestore(this).restore(
+                    preview,plan,password)}
+                finally{
+                    preview.discard()
+                    password.fill(0.toChar())
+                }
             }
             runOnUiThread{
                 if(!isFinishing)busy.dismiss()

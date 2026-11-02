@@ -88,7 +88,8 @@ begin
     SetEvent(handle);
     CloseHandle(handle);
     Sleep(1600);
-  end else begin
+  end;
+  begin
     { For installations upgrading from v0.7.2: the legacy helper did not
       implement the stop event. Stop only its resident background instance,
       using the exact EXE path and the --reminder-agent command-line flag.

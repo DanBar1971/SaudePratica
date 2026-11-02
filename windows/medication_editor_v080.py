@@ -80,7 +80,7 @@ def apply_extras(old, inputs):
         if not isinstance(value,str) or len(value.strip())>ALL_FIELDS[key]:
             raise ValueError("Campo demasiado longo: "+key)
         value=value.strip()
-        if old is not None and value==source_value(old,key):
+        if value==source_value(old or {},key):
             continue  # preserving int/float and Android native schema
         result[key]=value
     return result

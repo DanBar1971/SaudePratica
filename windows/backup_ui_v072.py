@@ -6,6 +6,7 @@ explicit, non-duplicating, and creates an encrypted safety copy first.
 from pathlib import Path
 from tkinter import filedialog,messagebox
 import customtkinter as ctk
+from windows.progress_dialog_v073 import run_progress
 
 def render_backup(app):
     app._heading("Backup e Restauro",
@@ -39,45 +40,54 @@ def render_backup(app):
             messagebox.showerror("Backup","Seleciona um perfil existente.",parent=app);return
         people=profiles if selected is None else [app.store.get_profile(selected)]
         category="Família" if selected is None else "Perfil"
-        medals=sum(len(p.get("medications",[])) for p in people)
+        meds=sum(len(p.get("medications",[])) for p in people)
         agendas=sum(len(p.get("appointments",[])) for p in people)
         docs=sum(len(app.store.imported_assets(p["id"])) for p in people)
         if not messagebox.askyesno("Validar backup",
-            f"{category}: {len(people)} perfis; {medals} medicamentos; "
+            f"{category}: {len(people)} perfis; {meds} medicamentos; "
             f"{agendas} agendamentos; {docs} anexos conhecidos.\n\n"
-            "Confirma que estes números correspondem ao esperado. "
-            "Não continues se faltarem registos!",parent=app):
-            return
+            "Confirma que estes números correspondem ao esperado.",
+            parent=app):return
         name=("familia" if selected is None else
               "perfil-"+people[0]["name"].strip().replace(" ","_")[:30])
         dest=filedialog.asksaveasfilename(parent=app,
             defaultextension=".spbackup",initialfile=f"SaudePratica-{name}.spbackup",
             filetypes=[("Backup SaúdePrática encriptado","*.spbackup")])
         if not dest:return
-        try:
+        target=Path(dest)
+        if target.exists() and not messagebox.askyesno("Substituir",
+            "Já existe um ficheiro com este nome. Substituir?",parent=app):return
+
+        def work(progress):
+            progress(5,"Etapa 1/4 · Recolher e cifrar dados...")
             payload=app.store.export_backup(pwd,selected)
+            progress(55,"Etapa 2/4 · Verificar ficheiro encriptado e perfis...")
             verified=app.store.inspect_portable_backup(payload,pwd)
             if len(verified.people)!=len(people):
                 raise ValueError("O backup produzido perdeu perfis.")
-            target=Path(dest)
-            if target.exists() and not messagebox.askyesno("Substituir",
-                "Já existe um ficheiro com este nome. Substituir?",parent=app):return
-            # Same-directory atomic export; no truncated file advertised.
+            progress(75,"Etapa 3/4 · Guardar ficheiro em segurança...")
             import os,tempfile
             fd,tmp=tempfile.mkstemp(prefix=".spbackup_",dir=target.parent)
             try:
                 with os.fdopen(fd,"wb") as out:
-                    out.write(payload);out.flush();os.fsync(out.fileno())
+                    out.write(payload)
+                    out.flush()
+                    os.fsync(out.fileno())
                 os.replace(tmp,target)
             finally:
                 if os.path.exists(tmp):os.unlink(tmp)
+            progress(100,"Etapa 4/4 · Backup concluído e verificado")
+            return len(verified.people),target
+        def success(result):
+            count,location=result
             messagebox.showinfo("Backup verificado",
-                f"Ficheiro encriptado criado e novamente verificado: "
-                f"{len(verified.people)} perfis.\n{target}",parent=app)
-        except Exception as exc:
-            messagebox.showerror("Falha no backup",
-                str(exc)+"\nNenhum backup foi anunciado como concluído.",
+                f"Backup encriptado e verificado: {count} perfis.\n{location}",
                 parent=app)
+        def failure(exc):
+            messagebox.showerror("Falha no backup",
+                str(exc)+"\nO ficheiro não foi anunciado como concluído.",
+                parent=app)
+        run_progress(app,"A criar backup encriptado",work,success,failure)
 
     def restore():
         pwd=password.get()
@@ -87,11 +97,19 @@ def render_backup(app):
         src=filedialog.askopenfilename(parent=app,
             filetypes=[("Backup SaúdePrática encriptado","*.spbackup")])
         if not src:return
-        try:
+
+        def inspect_work(progress):
+            progress(5,"Etapa 1/3 · Ler backup cifrado...")
             file=Path(src)
             if file.stat().st_size>520*1024*1024:
                 raise ValueError("O backup ultrapassa o limite de segurança.")
-            plan=app.store.inspect_portable_backup(file.read_bytes(),pwd)
+            blob=file.read_bytes()
+            progress(35,"Etapa 2/3 · Autenticar e verificar integridade...")
+            plan=app.store.inspect_portable_backup(blob,pwd)
+            progress(100,"Etapa 3/3 · Verificação concluída")
+            return plan
+
+        def inspected(plan):
             lines=[
                 f"{p.name}: {p.operation.upper()} → {p.target_id[:8]} "
                 f"({p.medications} medicamentos, {p.appointments} agenda, "
@@ -106,20 +124,30 @@ def render_backup(app):
                 "\n".join(lines)+
                 "\n\nIsto substitui os dados dos perfis correspondentes "
                 "e mantém os restantes. Será criada primeiro uma cópia "
-                "de segurança encriptada dos dados atuais. Continuar?",
+                "de segurança encriptada. Continuar?",
                 parent=app):return
-            result=app.store.restore_portable_backup(plan,pwd)
-            messagebox.showinfo("Restauro concluído",
-                f"Restaurados {result['profiles']} perfis; "
-                f"{result['replaced']} substituídos; {result['created']} criados.\n"+
-                (f"Cópia de segurança anterior: {result['recovery']}"
-                 if result["recovery"] else ""),
-                parent=app)
-            app._render()
-        except Exception as exc:
-            messagebox.showerror("Restauro interrompido",
-                str(exc)+"\nOs registos atuais devem permanecer intactos.",
-                parent=app)
+
+            def apply_work(progress):
+                progress(5,"Etapa 1/3 · Validar destino e perfis...")
+                progress(20,"Etapa 2/3 · Guardar cópia de segurança e restaurar...")
+                result=app.store.restore_portable_backup(plan,pwd)
+                progress(100,"Etapa 3/3 · Registos gravados e verificados")
+                return result
+            def finished(result):
+                messagebox.showinfo("Restauro concluído",
+                    f"Restaurados {result['profiles']} perfis; "
+                    f"{result['replaced']} substituídos; "
+                    f"{result['created']} criados.\n"+
+                    (f"Cópia anterior: {result['recovery']}"
+                     if result["recovery"] else ""),parent=app)
+                app._render()
+            run_progress(app,"A restaurar perfis e registos",apply_work,finished,
+                lambda exc:messagebox.showerror("Restauro interrompido",
+                    str(exc)+"\nOs dados atuais devem permanecer intactos.",
+                    parent=app))
+        run_progress(app,"A verificar ficheiro .spbackup",inspect_work,inspected,
+            lambda exc:messagebox.showerror("Backup inválido",
+                str(exc)+"\nNenhum dado foi alterado.",parent=app))
     app._button(inner,"Backup .spbackup · Família",
         lambda:export(),True,width=360,height=44).pack(anchor="w",pady=5)
     selected=app.active_id if app.active_id and app.store.get_profile(app.active_id) else None

@@ -178,8 +178,13 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
     selected=set(target_to_source)
     docs=[x for x in proposed.get("imported_files",[])
           if x.get("profile_id") not in selected]
-    archives=[copy.deepcopy(x) for x in proposed.get("android_family_archives",[])
-              if not any(pid in selected for pid in x.get("profile_ids",[]))]
+    archives=[]
+    for row in proposed.get("android_family_archives",[]):
+        kept=copy.deepcopy(row)
+        kept["profile_ids"]=[pid for pid in kept.get("profile_ids",[])
+                             if pid not in selected]
+        if kept["profile_ids"]:
+            archives.append(kept)
     assets=[]
     for member in plan.people:
         person,meds,appointments,attachments,originals=persons[member.source_id]
@@ -206,8 +211,9 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
             assets.append((digest,plan.files[f"attachments/{digest[:2]}/{digest}.bin"]))
         for raw in originals:
             copyrow=copy.deepcopy(raw)
-            copyrow["profile_ids"]=[
-                source_to_target.get(val,val) for val in copyrow["profile_ids"]]
+            # In a profile restore retain only the selected owner; never
+            # associate a family archive with unrelated profiles.
+            copyrow["profile_ids"]=[pid]
             digest=copyrow["sha256"]
             old=next((x for x in archives if x.get("sha256")==digest),None)
             if old:

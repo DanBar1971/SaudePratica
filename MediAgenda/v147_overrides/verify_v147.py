@@ -23,10 +23,13 @@ assert 'profiles=ProfileStore(context).all()' in portable
 assert 'filter{onlyProfile==null||it.id==onlyProfile}' in portable
 assert 'put("scope",if(onlyProfile==null)"family" else "profile")' in portable
 assert 'val source=preview.decrypted' not in restore
-assert 'fun restore(preview:PortableWindowsBackup.Preview,expected:Plan)' in restore
-assert 'val safety=File.createTempFile' in restore
-assert 'FamilyBackupStore(context)' in restore and '.export(Uri.fromFile(safety))' in restore
-assert 'FamilyBackupStore(context).restore(Uri.fromFile(safety))' in restore
+assert 'fun restore(preview:PortableWindowsBackup.Preview,expected:Plan,recoveryPassword:CharArray)' in restore
+assert 'val safety=File.createTempFile("pre_restore_",".spbackup",recoveryDir)' in restore
+assert 'sp_recovery_private' in restore
+assert 'PortableWindowsBackup(context).export(Uri.fromFile(safety)' in restore
+assert 'PortableWindowsBackup(context).restoreOriginal(verified,0)' in restore
+assert 'rollbackPassword=recoveryPassword.copyOf()' in restore
+assert 'recoveryPassword.fill(0.toChar())' in restore
 assert 'photos' in portable and 'photo_b64' in restore
 assert 'fun chooseWindowsExport(onlyProfile:String?=null)' in main
 assert '"Backup .spbackup · Família"' in main
@@ -37,7 +40,9 @@ for deleted in ("Backup completo da família","Restaurar backup completo",
     '"Exportar JSON"','"Importar JSON"','"Exportar para Excel"'):
     assert deleted not in backup,deleted
 assert 'PortableWindowsClinicalRestore(this).inspect(preview)' in main
-assert 'PortableWindowsClinicalRestore(this).restore(preview,plan)' in main
+assert 'PortableWindowsClinicalRestore(this).restore(' in main
+assert 'preview,plan,password' in main
+assert 'recoveryPassword.fill(0.toChar())' in main
 assert 'NotificationScheduler(this).scheduleAllProfiles()' in main
 for file in ("notifications/MedicationAlarmService.kt",
  "notifications/NotificationScheduler.kt",

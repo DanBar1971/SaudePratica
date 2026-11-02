@@ -42,7 +42,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.4"
+VERSION = "0.7.5"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -514,6 +514,13 @@ class Desktop(ctk.CTk):
                     field=self.profile_widgets.get(key)
                     if field is not None and isinstance(value,str) and not field.get().strip():
                         field.insert(0,value)
+                # The selected Android caregiver is stored in a global
+                # preference, not as a text field. Apply to the switch only
+                # when it has not been changed by the user while loading.
+                if isinstance(fields.get("caregiver"),bool):
+                    if (self.profile_caregiver.get()==self._caregiver_initial
+                            and self._caregiver_source_id==pid):
+                        self.profile_caregiver.set(fields["caregiver"])
                 self.cc_photo_bytes=photos
                 self._refresh_cc_previews()
         except queue.Empty:
@@ -620,7 +627,9 @@ class Desktop(ctk.CTk):
         self.cc_photo_host.pack(side="left",fill="x",expand=True,anchor="n")
         self._refresh_cc_previews()
 
-        self.profile_caregiver=ctk.BooleanVar(value=bool(fields.get("caregiver",False)))
+        self._caregiver_initial=bool(fields.get("caregiver",False))
+        self._caregiver_source_id=current["id"] if current else None
+        self.profile_caregiver=ctk.BooleanVar(value=self._caregiver_initial)
         ctk.CTkSwitch(scroll,text="🙌 Este perfil é o cuidador da família",
             variable=self.profile_caregiver,progress_color=TEAL,
             button_color=TEAL,fg_color=self.p["panel2"],
@@ -632,8 +641,6 @@ class Desktop(ctk.CTk):
             row=12,column=0,columnspan=2,sticky="w",padx=9,pady=(13,7))
         self._label(scroll,"Morada e contactos",16,True,color=TEAL).grid(
             row=16,column=0,columnspan=2,sticky="w",padx=9,pady=(13,7))
-        self._label(scroll,"Contacto SOS",16,True,color=TEAL).grid(
-            row=20,column=0,columnspan=2,sticky="w",padx=9,pady=(13,7))
 
         # Names/identifiers precisely correspond to editable Android fields.
         layout=[
@@ -657,21 +664,13 @@ class Desktop(ctk.CTk):
             ("postal_code",18,0,1,"Código postal"),
             ("city",18,1,1,"Localidade"),
             ("phone",19,0,1,"Telemóvel / telefone pessoal"),
-            ("email",19,1,1,"Email"),
-            ("emergency_name",21,0,1,"Nome do contacto SOS"),
-            ("emergency_phone",21,1,1,"Telefone SOS")
+            ("email",19,1,1,"Email")
         ]
         for key,row,col,span,label in layout:
             self.profile_widgets[key]=self._text_field(
                 scroll,label,fields.get(key,""),row,col,span)
-        self._label(scroll,"Notas",12,True,color=self.p["muted"]).grid(
-            row=22,column=0,columnspan=2,sticky="w",padx=9,pady=(8,4))
-        self.profile_notes=ctk.CTkTextbox(scroll,height=82,corner_radius=12,
-            fg_color=self.p["field"],border_width=1,
-            border_color=self.p["line"],text_color=self.p["text"])
-        self.profile_notes.grid(row=23,column=0,columnspan=2,
-            sticky="ew",padx=8,pady=(4,14))
-        self.profile_notes.insert("1.0",fields.get("notes",""))
+        # Android's profile editor does not contain a generic notes field.
+        # Medication notes and emergency notes belong to their own modules.
 
         footer=ctk.CTkFrame(frame,fg_color="transparent")
         footer.pack(fill="x",padx=16,pady=(0,9))
@@ -712,7 +711,9 @@ class Desktop(ctk.CTk):
     def _save_profile(self):
         fields={key:entry.get() for key,entry in self.profile_widgets.items()}
         fields["caregiver"]=self.profile_caregiver.get()
-        fields["notes"]=self.profile_notes.get("1.0","end-1c")
+        # Preserve any old Windows-only note without copying medication notes.
+        current=self.store.get_profile(self.editing_profile) if self.editing_profile else None
+        fields["notes"]=current.get("notes","") if current else ""
         fields["photo_b64"]=self.photo_draft
         try:
             saved=self.store.save_profile(fields,self.editing_profile)

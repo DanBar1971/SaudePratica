@@ -115,7 +115,7 @@ class AndroidWriterShapeCompatibilityTests(unittest.TestCase):
     def test_android_layout_to_windows_then_reexport_with_all_images(self):
         data,pid,original,medimage,avatar=synthetic_android_backup()
         source=read_backup(data,PASSWORD)
-        self.assertEqual(len(source),9)
+        self.assertEqual(len(source),10)
         target=self.store()
         plan=target.inspect_portable_backup(data,PASSWORD)
         self.assertEqual(len(plan.people),1)

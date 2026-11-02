@@ -34,7 +34,7 @@ class MedicationImageRegression(unittest.TestCase):
         med={"id":"med1","name":"Medicação exemplo",
              "android_original":{"images":["content://example/box.jpg"]}}
         first=Desktop._med_photo_b64(model,med)
-        self.assertTrue(base64.b64decode(first).startswith(b"\\xff\\xd8\\xff"))
+        self.assertTrue(base64.b64decode(first).startswith(b"\xff\xd8\xff"))
         self.assertEqual(first,Desktop._med_photo_b64(model,med))
         self.assertEqual(store.requests,[("list","profileA"),("read","profileA")])
         model.active_id="profileB"

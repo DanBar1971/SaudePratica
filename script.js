@@ -73,7 +73,14 @@
          !/^windows-v\d+\.\d+\.\d+(?:-preview)?$/.test(release.tag_name))return false;
       return Array.isArray(release.assets) && release.assets.some(asset=>asset.name==='SaudePratica-Setup.exe');
     });
-    candidates.sort((a,b)=>Date.parse(b.published_at||0)-Date.parse(a.published_at||0));
+    // The newest *version* wins, not the most recently uploaded old preview.
+    // A delayed CI job for 0.7.1 must never override an already published 0.7.8.
+    candidates.sort((a,b)=>{
+      const parts=tag=>tag.match(/^windows-v(\d+)\.(\d+)\.(\d+)/).slice(1).map(Number);
+      const aa=parts(a.tag_name),bb=parts(b.tag_name);
+      for(let i=0;i<3;i++)if(aa[i]!==bb[i])return bb[i]-aa[i];
+      return Date.parse(b.published_at||0)-Date.parse(a.published_at||0);
+    });
     const item=candidates[0];
     if(!item)return;
     const asset=item.assets.find(a=>a.name==='SaudePratica-Setup.exe');

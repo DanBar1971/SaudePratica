@@ -311,7 +311,7 @@ s=s.replace(notice,'''        val chosen=ProfileStore(this).all()
         }
         val dialog=MaterialAlertDialogBuilder(this)
             .setTitle(if(onlyProfile==null)"Backup Família · .spbackup"''',1)
-const message='''            .setMessage(if(onlyProfile==null)
+message='''            .setMessage(if(onlyProfile==null)
                 "Copia os dados da família inteira, incluindo fotos e documentos. "+
                 "O ficheiro é encriptado e compatível com Windows e futuro macOS."
                 else "Copia APENAS os dados do perfil atual, incluindo fotografias "+

@@ -59,6 +59,10 @@ class AndroidMedicationSemantics(unittest.TestCase):
         self.assertTrue(active_reminder(edited))
         self.assertNotEqual(next_medication_label(edited),"Medicação suspensa")
         self.assertFalse(no_alarm({**self.disabled,"no_alarm":False}))
+        cleared={**self.alert,"reminder_time":"","suspended":False}
+        self.assertEqual(reminder_clock(cleared),"")
+        self.assertFalse(active_reminder(cleared))
+        self.assertEqual(cleared["android_original"]["reminder_time"],"07:00")
 
     def test_export_and_restore_does_not_lose_android_source_flags(self):
         with tempfile.TemporaryDirectory() as temp:

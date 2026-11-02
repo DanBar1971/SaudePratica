@@ -103,6 +103,30 @@ class BackupRuntimeTest {
                 }finally{nested.delete()}
             }
         }finally{only.discard()}
+        // Exercise the real destructive restore path on synthetic profiles.
+        // Never accept a plaintext recovery snapshot after a successful write.
+        val toRestore=writer.inspect(Uri.fromFile(one),
+            "fictitious strong password".toCharArray())
+        try{
+            val bridge=PortableWindowsClinicalRestore(app)
+            val plan=bridge.inspect(toRestore)
+            assertEquals(1,bridge.restore(toRestore,plan,
+                "fictitious strong password".toCharArray()))
+            assertEquals(2,registry.all().size)
+            val restored=JSONObject(data(bPath+"medicacao.json").readText())
+                .getJSONArray("medications")
+            assertEquals("fake_med_b",restored.getJSONObject(0).getString("id"))
+            assertEquals("Medicamento fictício B",
+                restored.getJSONObject(0).getString("medication"))
+            val recovery=File(app.filesDir,"sp_recovery_private")
+                .listFiles()?.filter{it.extension=="spbackup"}.orEmpty()
+            assertTrue("Encrypted safety copy missing",recovery.isNotEmpty())
+            val snapshot=writer.inspect(Uri.fromFile(recovery.last()),
+                "fictitious strong password".toCharArray())
+            try{
+                assertEquals(2,bridge.inspect(snapshot).people.size)
+            }finally{snapshot.discard()}
+        }finally{toRestore.discard()}
         try{
             writer.inspect(Uri.fromFile(whole),
                 "incorrect password 2026".toCharArray())

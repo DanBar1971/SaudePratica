@@ -24,8 +24,7 @@ def _agent_command():
         helper=here.parent/"Avisos"/"SaudePraticaAvisos.exe"
         if helper.is_file():
             return [str(helper)]
-        # Legacy deployments before the standalone Avisos binary.
-        return [str(here),"--reminder-agent"]
+        raise FileNotFoundError('SaudePraticaAvisos.exe não encontrado.')
     return [sys.executable,str(Path(__file__).with_name("desktop_v04.py")),"--reminder-agent"]
 
 def _icon_path():

@@ -303,6 +303,11 @@ class SecureStore:
         # dose simply to change their suspended/active status.
         if len(time)>100 or len(dose_pattern)>120:
             raise LocalStoreError("Campo da medicação demasiado comprido.")
+        from windows.medication_flags_v076 import CLOCK
+        reminder_supplied="reminder_time" in fields
+        reminder_time=str(fields.get("reminder_time","")).strip()
+        if reminder_supplied and reminder_time and not CLOCK.fullmatch(reminder_time):
+            raise LocalStoreError("A hora de aviso deve ser HH:MM, por exemplo 07:00.")
         no_alarm = bool(fields.get("no_alarm", False)) or dose_pattern == "SOS"
         # The desktop may save an authentic photo of the medication package.
         # Keep legacy image/attachment fields untouched when the editor does
@@ -332,6 +337,8 @@ class SecureStore:
             "dose_pattern": dose_pattern, "indication": indication, "notes": notes,
             "no_alarm": no_alarm, "suspended": suspended,
         })
+        if reminder_supplied:
+            new["reminder_time"]=reminder_time
         if supplied_photo:
             new["photo_b64"] = photo_b64
         if old is None:

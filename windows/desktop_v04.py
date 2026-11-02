@@ -37,12 +37,13 @@ from windows.backup_ui_v072 import render_backup
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
+from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as is_no_alarm, configured_reminder, active_reminder, reminder_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.5"
+VERSION = "0.7.6"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -740,11 +741,18 @@ class Desktop(ctk.CTk):
             med=next((m for m in meds if m.get("id")==self.editing_med),None)
             self._med_form(frame,med)
             return
+        all_meds=self.store.get_profile(self.active_id).get("medications",[])
+        total_suspended=sum(1 for m in all_meds if is_suspended(m))
+        total_active_alerts=sum(1 for m in all_meds if active_reminder(m))
+        total_configured=sum(1 for m in all_meds if configured_reminder(m))
         bar=ctk.CTkFrame(self.body,fg_color="transparent",height=35)
         bar.pack(fill="x",pady=(0,6))
         self._label(bar,self.t("medication_list"),15,True).pack(side="left",padx=(1,15))
         self._button(bar,"+ "+self.t("new_medication"),self._new_med,
                      True,width=160,height=32).pack(side="right",padx=(8,0))
+        summary=(f"{len(all_meds)} medicamentos  ·  {total_suspended} suspensos  ·  "
+                 f"{total_active_alerts} com aviso ativo  ·  {total_configured} com hora guardada")
+        self._label(self.body,summary,12,color=self.p["muted"]).pack(anchor="w",pady=(0,6))
         # Keep the background inside every medicine card, not wallpaper glass.
         self.wallpaper_shell.glass_enabled=False
         query_var=ctk.StringVar(value=self.med_gallery_query)
@@ -753,7 +761,7 @@ class Desktop(ctk.CTk):
         filters=ctk.CTkFrame(self.body,fg_color="transparent")
         filters.pack(fill="x",pady=(0,8))
         for key,label in (("all","Todos"),("active","Ativos"),("suspended","Suspensos"),
-                          ("no_alarm","Sem alarme"),("undefined","Sem definição")):
+                          ("with_alarm","Com aviso"),("no_alarm","Sem alarme"),("undefined","Sem definição")):
             self._button(filters,label,lambda k=key:self._set_med_filter(k),
                 accent=(self.med_gallery_state==key),width=116 if key=="undefined" else 100,height=29).pack(
                     side="left",padx=(0,5))
@@ -812,7 +820,7 @@ class Desktop(ctk.CTk):
             title=self._label(tile,med.get("name",""),14,True,wrap=available)
             title.pack(anchor="w",fill="x",padx=12)
             meta="  ·  ".join(str(x) for x in
-                (med.get("dose"),med.get("time")) if x)
+                (med.get("dose"),reminder_clock(med) or med.get("time")) if x)
             subtitle=self._label(tile,meta,11,color=self.p["muted"],wrap=available)
             subtitle.pack(anchor="w",fill="x",padx=12,pady=(2,1))
             dose_info=next_medication_label(med)
@@ -865,9 +873,12 @@ class Desktop(ctk.CTk):
         self.med_widgets={}
         for k,label,row,col,span in [
             ("name","med_name",0,0,2),("dose","dose",1,0,1),
-            ("time","time",1,1,1),("indication","indication",4,0,2)
+            ("reminder_time","Hora de aviso Android (HH:MM)",1,1,1),
+            ("time","Tipo / indicação da toma",4,1,1),
+            ("indication","indication",4,0,1)
         ]:
-            self.med_widgets[k]=self._text_field(body,label,fields.get(k,""),row,col,span)
+            value=reminder_clock(fields) if k=="reminder_time" else fields.get(k,"")
+            self.med_widgets[k]=self._text_field(body,label,value,row,col,span)
         route_name=next((key for key,val in ROUTES.items()
                          if val==fields.get("administration_route","")),"Não indicada")
         injection_name=next((key for key,val in INJECTIONS.items()
@@ -887,8 +898,8 @@ class Desktop(ctk.CTk):
                 height=33,fg_color=self.p["field"],button_color=BLUE,
                 dropdown_fg_color=self.p["panel2"],text_color=self.p["text"],
                 dropdown_text_color=self.p["text"]).pack(fill="x")
-        self.no_alarm_var=ctk.BooleanVar(value=fields.get("no_alarm",False))
-        self.suspended_var=ctk.BooleanVar(value=fields.get("suspended",False))
+        self.no_alarm_var=ctk.BooleanVar(value=is_no_alarm(fields))
+        self.suspended_var=ctk.BooleanVar(value=is_suspended(fields))
         toggles=ctk.CTkFrame(body,fg_color="transparent")
         toggles.grid(row=5,column=0,columnspan=2,sticky="w",padx=7,pady=(8,5))
         for k,var in [("no_alarm",self.no_alarm_var),("suspended",self.suspended_var)]:

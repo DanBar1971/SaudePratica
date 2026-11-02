@@ -156,23 +156,24 @@ p=once(p,'''            parts+=Part("attachments/"+digest.take(2)+"/"+digest+".b
                 while(entries.hasMoreElements()){
                     val entry=entries.nextElement()
                     if(entry.isDirectory||!entry.name.startsWith("data/"))continue
-                    if(entry.size !in 1..16_000_000)continue
+                    if(entry.size !in 1L..16_000_000L)continue
                     val name=entry.name.removePrefix("data/")
                     if(!name.matches(Regex("[A-Za-z0-9_./-]{3,210}")))continue
-                    val owner=profiles.firstOrNull{person->
+                    val owners=profiles.filter{person->
                         name in (photoRefs[person.id]?:emptySet<String>()) ||
                         name.startsWith("saudepratica_identity/"+person.id+"/") ||
                         name.startsWith("saudepratica_documents/"+person.id+"/") ||
                         name.startsWith("saudepratica_labs/"+person.id+"/") ||
                         name.startsWith("saudepratica_workplace/"+person.id+"/")
-                    }?:continue
+                    }
+                    if(owners.isEmpty())continue
                     if(name.endsWith(".json"))continue
                     val bytes=archive.getInputStream(entry).use{it.readBytes()}
                     require(bytes.size.toLong()==entry.size){"Anexo incompleto."}
                     val hash=sha(bytes)
                     val asset="attachments/"+hash.take(2)+"/"+hash+".bin"
                     blobs.putIfAbsent(asset,Part(asset,bytes))
-                    perPerson[owner.id]!!.put(JSONObject()
+                    for(owner in owners)perPerson[owner.id]!!.put(JSONObject()
                         .put("profile_id",winIds[profiles.indexOf(owner)])
                         .put("path",name)
                         .put("filename",name.substringAfterLast('/'))

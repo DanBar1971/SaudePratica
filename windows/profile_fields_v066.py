@@ -25,9 +25,6 @@ FIELD_ALIASES = {
     "city": ("city", "localidade", "locality"),
     "postal_code": ("postal_code", "postalCode", "zipCode",
                     "codigoPostal", "codigo_postal"),
-    "emergency_name": ("emergency_name", "emergencyName"),
-    "emergency_phone": ("emergency_phone", "emergencyPhone"),
-    "notes": ("notes", "notas"),
 }
 
 LIMITS = {
@@ -38,8 +35,7 @@ LIMITS = {
     "cc_number": 40, "cc_valid_until": 24,
     "birth_date": 10, "phone": 50, "email": 160, "niss": 40,
     "health_unit": 180, "address": 250, "city": 100,
-    "postal_code": 24, "emergency_name": 120,
-    "emergency_phone": 50, "notes": 3000,
+    "postal_code": 24,
 }
 
 def mapped_fields(original: dict) -> dict[str, str]:
@@ -50,19 +46,11 @@ def mapped_fields(original: dict) -> dict[str, str]:
     """
     if not isinstance(original, dict):
         return {}
-    # Profile values have moved between fields across Android versions.
-    # Inspect only bounded profile dictionaries (not arbitrary encrypted prefs).
-    sources=[]
-    def collect(node,depth=0):
-        if depth>4 or len(sources)>100:return
-        if isinstance(node,dict):
-            sources.append(node)
-            for value in node.values():
-                if isinstance(value,(dict,list)):
-                    collect(value,depth+1)
-        elif isinstance(node,list):
-            for value in node[:30]:collect(value,depth+1)
-    collect(original)
+    sources=[original]
+    for group in ("personal","profile","identity","dados_pessoais"):
+        part=original.get(group)
+        if isinstance(part,dict):
+            sources.append(part)
     result={}
     normalized=lambda key: "".join(c.lower() for c in key if c.isalnum())
     for field,aliases in FIELD_ALIASES.items():

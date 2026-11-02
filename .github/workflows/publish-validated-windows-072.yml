@@ -21,9 +21,9 @@ jobs:
         run: |
           set -euo pipefail
           REPO="$GITHUB_REPOSITORY"
-          VALIDATED_SHA="7040ef9c1d4f8da02e219622ddc5e4271f90860d"
-          ANDROID_RUN="41422277357"
-          WINDOWS_RUN="41422277067"
+          VALIDATED_SHA="1ad3868bf978b1afd8020e18127d6550768b701b"
+          ANDROID_RUN="41423597788"
+          WINDOWS_RUN="41423597783"
           for RUN in "$ANDROID_RUN" "$WINDOWS_RUN"; do
             STATUS=$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.conclusion')
             SHA=$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.head_sha')
@@ -38,7 +38,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh run download 41422277067 --repo "$GITHUB_REPOSITORY" \
+          gh run download 41423597783 --repo "$GITHUB_REPOSITORY" \
             --name SaudePratica-Windows-INSTALADOR-EXPERIMENTAL --dir installer
           FILE=installer/SaudePratica-Setup.exe
           test -s "$FILE"
@@ -58,7 +58,7 @@ jobs:
           fi
           gh release create "$TAG" installer/SaudePratica-Setup.exe SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
-            --target 7040ef9c1d4f8da02e219622ddc5e4271f90860d \
+            --target 1ad3868bf978b1afd8020e18127d6550768b701b \
             --title "SaúdePrática Windows 0.7.2 — pré-visualização de backups Família e Perfil" \
             --notes-file windows/RELEASE_NOTES_PREVIEW.md --prerelease --latest=false
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \

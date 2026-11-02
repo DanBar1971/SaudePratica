@@ -244,6 +244,16 @@ jobs:
               raise SystemExit("App artwork missing from APK; blocking this release: "+repr(branded))
           print("Branded graphics packaged:",branded)
           PY
+      - name: Emulador Android - backup cifrado Família/Perfil com dados fictícios
+        if: github.event_name == 'pull_request'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          script: cd build-src/MediAgenda_Android_v1 && gradle --no-daemon connectedDebugAndroidTest
       - name: Check version and stable app identity
         run: |
           python3 - <<'PY'

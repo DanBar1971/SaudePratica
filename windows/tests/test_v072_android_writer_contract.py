@@ -34,21 +34,24 @@ def synthetic_android_backup():
         (f"saudepratica_identity/{android_id}/avatar.jpg",avatar,"documento"),
         (f"saudepratica_documents/{android_id}/report.pdf",document,"documento"),
     ]
+    android_files={path:raw for path,raw,_ in medias}
+    android_files[f"saudepratica_profiles/{android_id}/medicacao.json"]=json.dumps({
+        "medications":[{"id":"med-1","medication":"Medicamento fictício",
+            "dose":"5 mg","images":["medication_photos/medphoto.jpg"]}]}).encode()
+    android_files[f"saudepratica_profiles/{android_id}/agenda.json"]=json.dumps({
+        "appointments":[{"id":"apt-1","date":"2026-11-20",
+            "activity":"Consulta fictícia","time":"09:30"}]}).encode()
+    # This manifest is deliberately identical to FamilyBackupStore.export().
+    manifest={"kind":"saudepratica-complete-backup","format":1,
+        "package":"com.mediagenda.app.stable","profiles":1,"prefs":{},
+        "files":[{"path":path,"size":len(raw),
+                  "sha256":hashlib.sha256(raw).hexdigest()}
+                 for path,raw in android_files.items()]}
     original=io.BytesIO()
     with zipfile.ZipFile(original,"w",zipfile.ZIP_DEFLATED) as arc:
-        for path,raw,_ in medias:
+        for path,raw in android_files.items():
             arc.writestr("data/"+path,raw)
-        arc.writestr(
-            f"data/saudepratica_profiles/{android_id}/medicacao.json",
-            json.dumps({"medications":[{"id":"med-1","medication":"Medicamento fictício",
-                 "dose":"5 mg","images":["medication_photos/medphoto.jpg"]}]}))
-        arc.writestr(
-            f"data/saudepratica_profiles/{android_id}/agenda.json",
-            json.dumps({"appointments":[{"id":"apt-1","date":"2026-11-20",
-                "activity":"Consulta fictícia","time":"09:30"}]}))
-        arc.writestr("backup.json",json.dumps({
-            "kind":"saudepratica-complete-backup","format":1,"profiles":1,
-            "files":[],"prefs":{}}))
+        arc.writestr("backup.json",json.dumps(manifest))
     rawzip=original.getvalue()
     digest=hashlib.sha256(rawzip).hexdigest()
     descriptor={

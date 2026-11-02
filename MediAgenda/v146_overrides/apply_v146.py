@@ -21,10 +21,17 @@ s=once(s,"    fun export(destination:Uri):FamilyBackupSummary {\n        val fil
 '''    fun export(destination:Uri):FamilyBackupSummary {
         val allProfiles=ProfileStore(context).all()
         require(allProfiles.isNotEmpty()){"Não existem perfis para guardar."}
-        // Ensure original clinical JSON exists BEFORE collecting the file list.
-        // This blocks a misleading 5 KB metadata-only archive.
+        // Fail closed when original source files are missing. Never create empty replacements.
         for(person in allProfiles){
-            DataRepository(context,person.id).ensureFiles()
+            val prefix=if(person.id=="legacy")"" else
+                "saudepratica_profiles/"+person.id+"/"
+            // NEVER call ensureFiles(): it would CREATE empty med/agenda
+            // documents and camouflage missing patient records.
+            require(File(root,prefix+"medicacao.json").isFile &&
+                    File(root,prefix+"agenda.json").isFile){
+                "Ficheiros clínicos em falta para "+person.name+
+                ". Exportação cancelada para evitar um ZIP de 5 KB."
+            }
         }
         val files=paths()
         for(person in allProfiles){

@@ -181,6 +181,23 @@ class AndroidWriterShapeCompatibilityTests(unittest.TestCase):
         self.assertIn('row.put("activity",item.getString("title"))',kotlin)
         self.assertIn('"dose","time","reminder_time"',kotlin)
 
+    def test_imported_single_patient_can_reexport_private_profile_backup(self):
+        data,pid,*_=synthetic_android_backup()
+        store=self.store()
+        plan=store.inspect_portable_backup(data,PASSWORD)
+        store.restore_portable_backup(plan,PASSWORD)
+        single=store.export_backup(PASSWORD,pid)
+        verified=read_backup(single,PASSWORD)
+        profiles=[name for name in verified if name.endswith("/profile.json")]
+        self.assertEqual(profiles,[f"profiles/{pid}/profile.json"])
+        scope=json.loads(verified[f"profiles/{pid}/backup_scope.json"])
+        self.assertEqual(scope["scope"],"profile")
+        self.assertEqual(scope["profile_count"],1)
+        index=json.loads(verified[f"profiles/{pid}/android_archives.json"])
+        self.assertEqual(len(index),1)
+        self.assertEqual(index[0]["profile_ids"],[pid])
+        self.assertEqual(len(store.inspect_portable_backup(single,PASSWORD).people),1)
+
     def test_incomplete_portable_metadata_does_not_replace_patients(self):
         data,pid,*_=synthetic_android_backup()
         store=self.store()

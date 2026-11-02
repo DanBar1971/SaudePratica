@@ -1,0 +1,53 @@
+name: Publicar Windows 0.7.3 após testes e correção do instalador
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-windows-073-approved.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Confirmar código e execução de testes Windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          RUN=41440065581
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.conclusion')" = success
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.head_sha')" = 206dd0b5e400c4292d69d7bc1656fd4587accbd4
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.event')" = pull_request
+          echo 'A compilação, testes sintéticos, arranque real da app e compilação Inno Setup 0.7.3 passaram.'
+      - name: Descarregar o instalador testado e confirmar SHA-256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 41440065581 --repo "$GITHUB_REPOSITORY" \
+            --name SaudePratica-Windows-INSTALADOR-EXPERIMENTAL --dir installer
+          test -s installer/SaudePratica-Setup.exe
+          echo "078f9f377a3f90c93cdf0e22608b55cae5f3271f63c329fe04f3dde3b1741307  installer/SaudePratica-Setup.exe" | sha256sum -c -
+          cp installer/SaudePratica-Setup.exe SaudePratica-Setup.exe
+          sha256sum SaudePratica-Setup.exe > SHA256SUMS.txt
+      - name: Publicar Windows 0.7.3 no GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TAG=windows-v0.7.3-preview
+          TARGET=release/windows-073-profile-full-20261102
+          gh api "repos/$REPO/contents/windows/RELEASE_NOTES_073.md?ref=$TARGET" --jq .content | base64 --decode > release-notes.md
+          if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release create "$TAG" SaudePratica-Setup.exe SHA256SUMS.txt \
+              --repo "$REPO" --target "$TARGET" \
+              --title "SaúdePrática Windows v0.7.3 — perfis Android completos e instalador corrigido" \
+              --notes-file release-notes.md --prerelease --latest=false
+          fi
+          gh release view "$TAG" --repo "$REPO" --json isDraft,isPrerelease,assets \
+            --jq '(.isDraft|not) and .isPrerelease and any(.assets[]; .name=="SaudePratica-Setup.exe")' | grep -Fx true

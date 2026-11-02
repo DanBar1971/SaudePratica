@@ -23,8 +23,7 @@ def unwrap_typed_profile(prefs:dict, source_id:str) -> tuple[dict,tuple]:
         if len(source_id)>48 or not all(c.isascii() and (c.isalnum() or c=="-") for c in source_id):
             return {},()
         names=("saudepratica_profile_"+source_id,
-               "saudepratica_body_"+source_id,
-               "saudepratica_emergency_"+source_id)
+               "saudepratica_body_"+source_id)
     rows=[]
     combined={}
     for name in names:

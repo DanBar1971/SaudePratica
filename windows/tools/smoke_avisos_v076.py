@@ -31,7 +31,7 @@ def main():
                 if proc.poll() is not None:
                     raise RuntimeError("Avisos agent exited unexpectedly: "+str(proc.returncode))
                 try:
-                    handle=win32event.OpenEvent(win32con.EVENT_MODIFY_STATE,False,STOP_EVENT_NAME)
+                    handle=win32event.OpenEvent(win32event.EVENT_MODIFY_STATE,False,STOP_EVENT_NAME)
                     break
                 except Exception:
                     time.sleep(0.25)

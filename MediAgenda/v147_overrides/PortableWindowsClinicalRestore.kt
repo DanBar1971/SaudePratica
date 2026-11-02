@@ -164,7 +164,8 @@ class PortableWindowsClinicalRestore(private val context:Context) {
      */
     private fun originalExtraFiles(
         outer:ZipFile,preview:PortableWindowsBackup.Preview,
-        plan:Plan,pending:MutableMap<String,ByteArray>
+        plan:Plan,pending:MutableMap<String,ByteArray>,
+        profileSettings:MutableMap<String,JSONObject>
     ){
         if(preview.originals.isEmpty())return
         val newborn=plan.people.filter{it.create}
@@ -209,6 +210,31 @@ class PortableWindowsClinicalRestore(private val context:Context) {
                         "saudepratica-complete-backup"&&
                         header.optInt("format")==1){
                         "Formato Android original inválido."
+                    }
+                    // Restore patient-specific health and identity fields,
+                    // never device-wide PIN, notification, routing or theme.
+                    val originalPrefs=header.optJSONObject("prefs")
+                    if(originalPrefs!=null){
+                        for((oldId,newId) in sourceToDestination){
+                            val names= arrayOf(
+                                if(oldId=="legacy")"mediagenda_profile"
+                                    else "saudepratica_profile_"+oldId,
+                                "saudepratica_body_"+oldId,
+                                "saudepratica_cycle_"+oldId,
+                                "saudepratica_emergency_"+oldId)
+                            for(name in names){
+                                val old=originalPrefs.optJSONObject(name)?:continue
+                                val newName=when{
+                                    name=="mediagenda_profile" ||
+                                    name.startsWith("saudepratica_profile_")->
+                                        if(newId=="legacy")"mediagenda_profile"
+                                        else "saudepratica_profile_"+newId
+                                    else->name.removeSuffix("_"+oldId)+"_"+newId
+                                }
+                                if(!profileSettings.containsKey(newName))
+                                    profileSettings[newName]=JSONObject(old.toString())
+                            }
+                        }
                     }
                     val records=header.getJSONArray("files")
                     require(records.length()<=3500)
@@ -341,8 +367,28 @@ class PortableWindowsClinicalRestore(private val context:Context) {
                 pending.putAll(photos)
             }
         }
+        val profileSettings=linkedMapOf<String,JSONObject>()
         ZipFile(preview.decrypted).use{original->
-            originalExtraFiles(original,preview,expected,pending)
+            originalExtraFiles(original,preview,expected,pending,profileSettings)
+            val allowed=arrayOf("name","nif","sns_number","full_name",
+                "birth_date","gender","height_cm","adse","niss","address",
+                "postal_code","health_unit","observation_number","phone","email",
+                "nationality","birth_place")
+            for(person in expected.people){
+                val metadata=JSONObject(String(bytes(original,person.source,
+                    "profile.json")))
+                val name=if(person.destination=="legacy")"mediagenda_profile"
+                    else "saudepratica_profile_"+person.destination
+                val values=profileSettings.getOrPut(name){JSONObject()}
+                for(key in allowed){
+                    val value=if(key=="name")person.name
+                        else metadata.optString(key)
+                    if(value.isNotBlank()){
+                        values.put(key,JSONObject().put("t","s")
+                            .put("v",value.take(1000)))
+                    }
+                }
+            }
         }
         require(pending.values.sumOf{it.size.toLong()}<=260L*1024*1024){
             "Demasiados dados para restaurar."
@@ -373,6 +419,39 @@ class PortableWindowsClinicalRestore(private val context:Context) {
                         "Erro ao substituir dados."
                     }
                 }finally{temporary.delete()}
+            }
+            // Typed profile preferences are imported for selected people
+            // only. No alarm/PIN/login/device-routing shared preferences.
+            for((name,values) in profileSettings){
+                require(name=="mediagenda_profile" ||
+                    name.matches(Regex("saudepratica_(profile|body|cycle|emergency)_[a-fA-F0-9-]{36}"))){
+                    "Preferências fora do perfil."
+                }
+                val editor=context.getSharedPreferences(name,
+                    Context.MODE_PRIVATE).edit()
+                val keys=values.keys()
+                while(keys.hasNext()){
+                    val key=keys.next()
+                    require(key.length in 1..120 &&
+                        !key.contains("pin",true) &&
+                        !key.contains("password",true) &&
+                        !key.contains("token",true)){"Definição sensível."}
+                    val item=values.getJSONObject(key)
+                    when(item.getString("t")){
+                        "s"->editor.putString(key,item.getString("v"))
+                        "b"->editor.putBoolean(key,item.getBoolean("v"))
+                        "i"->editor.putInt(key,item.getInt("v"))
+                        "l"->editor.putLong(key,item.getLong("v"))
+                        "f"->editor.putFloat(key,item.getDouble("v").toFloat())
+                        "set"->{
+                            val a=item.getJSONArray("v")
+                            editor.putStringSet(key,(0 until a.length())
+                                .map{a.getString(it)}.toSet())
+                        }
+                        else->error("Tipo de campo inválido no backup.")
+                    }
+                }
+                check(editor.commit()){"Não foi possível guardar os dados do perfil."}
             }
             val registry=JSONArray()
             merged.forEach{registry.put(JSONObject().put("id",it.id)

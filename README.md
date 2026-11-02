@@ -2,6 +2,8 @@
 
 Website público e repositório multiplataforma **SaúdePrática**, em português de Portugal. Android disponível, Windows experimental com instalador e iOS planeado.
 
+**Continuidade do projeto:** [Estado atual, releases, builds e regras para os próximos chats](ESTADO_ATUAL.md). Consultar antes de iniciar novos trabalhos ou pedir novamente ficheiros e chaves.
+
 ## Descargas diretas
 
 | Plataforma | Estado | Instalação |
@@ -29,4 +31,4 @@ Em **Settings → Pages → Build and deployment → Source**, selecionar **GitH
 
 O projeto principal reúne o código-fonte Android em `MediAgenda/`, as 43 releases Android históricas, o website e as pastas `windows/`, `ios/` e `shared/`. O Windows tem uma primeira versão experimental com instalador; iPhone ainda não está disponível.
 
-O processo de assinatura Android depende do mesmo certificado original e de um segredo configurado neste repositório. Não criar outra identidade de assinatura.
+Todas as APKs Android de atualização devem conservar o **certificado original** e ser verificadas antes da release. Não guardar chaves privadas, passwords ou códigos de recuperação neste repositório público. A pré-visualização 1.9.127 foi reconstruída e publicada com delta público sem segredos.

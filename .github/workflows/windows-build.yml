@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 env:
-  WINDOWS_APP_VERSION: "0.7.1"
+  WINDOWS_APP_VERSION: "0.7.6"
 
 jobs:
   windows-preview:
@@ -56,6 +56,16 @@ jobs:
           if (!(Test-Path "dist/SaudePraticaDesktop/SaudePraticaDesktop.exe")) { throw "EXE em falta" }
           if (!(Test-Path "dist/SaudePraticaDesktop/_internal")) { throw "Bibliotecas da instalação rápida ausentes" }
           Get-FileHash "dist/SaudePraticaDesktop/SaudePraticaDesktop.exe" -Algorithm SHA256
+      - name: Compilar Avisos autónomo SEM splash (com o ícone oficial)
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onedir --windowed --name SaudePraticaAvisos --icon dist/saude_icon.ico --paths . windows/avisos_main.py
+          if ($LASTEXITCODE -ne 0) { throw "Falhou a compilação do agente sem splash" }
+          if (!(Test-Path "dist/SaudePraticaAvisos/SaudePraticaAvisos.exe")) { throw "EXE de Avisos em falta" }
+          if (!(Test-Path "dist/SaudePraticaAvisos/_internal")) { throw "Bibliotecas Avisos em falta" }
+          Get-FileHash "dist/SaudePraticaAvisos/SaudePraticaAvisos.exe" -Algorithm SHA256
+      - name: Ensaiar agente Avisos independente, sem splash, e encerramento seguro
+        run: python windows/tools/smoke_avisos_v076.py
       - name: Testar executável Windows empacotado antes de publicar
         run: python windows/tools/smoke_windows.py --exe
       - name: Instalar Inno Setup 6 no runner Windows

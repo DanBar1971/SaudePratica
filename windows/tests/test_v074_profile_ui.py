@@ -69,7 +69,7 @@ class ProfileV074Tests(unittest.TestCase):
         self.assertIn("cc_photo_host",method)
         self.assertIn("self.profile_edit_open=False",src)
         self.assertIn("threading.Thread(target=read,daemon=True)",src)
-        self.assertIn('VERSION = "0.7.9"',src)
+        self.assertIn('VERSION = "0.8.0"',src)
 
 if __name__=="__main__":
     unittest.main()

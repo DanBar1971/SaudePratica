@@ -705,6 +705,9 @@ class SecureStore:
             # metadata) while keeping medication and agenda as separate payloads.
             metadata = {k: v for k, v in p.items()
                         if k not in ("medications", "appointments")}
+            from windows.profile_data_guard_v075 import overlaps_medication
+            if overlaps_medication(p,metadata.get("notes")):
+                metadata.pop("notes",None)
             files[prefix+"profile.json"] = json.dumps(
                 metadata, ensure_ascii=False).encode("utf-8")
             files[prefix+"backup_scope.json"]=json.dumps({

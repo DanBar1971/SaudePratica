@@ -37,14 +37,14 @@ from windows.backup_ui_v072 import render_backup
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
-from windows.medication_details_v078 import additional_medication_fields
+from windows.medication_editor_v080 import GROUPS, source_value, medication_document_assets, medication_document_option
 from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as is_no_alarm, configured_reminder, active_reminder, reminder_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.9"
+VERSION = "0.8.0"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -1026,25 +1026,53 @@ class Desktop(ctk.CTk):
             self._choose_med_photo,width=207,height=31).pack(side="left",padx=8)
         self._button(photo_row,"Remover foto",self._remove_med_photo,
             width=100,height=31).pack(side="left",padx=4)
-        # Only the selected medication's original Android metadata is shown.
-        # Read-only until these fields have a validated Windows editor.
-        detail_rows=additional_medication_fields(fields)
-        details_start=9
-        if detail_rows:
-            extra=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
-            extra.grid(row=details_start,column=0,columnspan=2,sticky="ew",padx=7,pady=(12,4))
-            self._label(extra,"Informação adicional importada do Android (consulta)",
-                        13,True,color=TEAL).pack(anchor="w",padx=7)
-            for label,value in detail_rows:
-                self._label(extra,label+": "+value,11,color=self.p["text"],wrap=740).pack(
-                    anchor="w",padx=9,pady=2)
-            details_start+=1
-        # Still-unimplemented editors are explicitly labelled as such.
-        for i,key in enumerate(("prescription","repetitions","leaflet","more_info")):
-            p=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
-            p.grid(row=details_start+i,column=0,columnspan=2,sticky="ew",padx=6,pady=3)
-            self._label(p,self.t(key)+"  ·  "+self.t("coming"),11,
-                        color=self.p["muted"]).pack(anchor="w",padx=11,pady=7)
+        self.med_extra_widgets={}
+        for group_row,(heading,entries) in enumerate(GROUPS,start=9):
+            section=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
+            section.grid(row=group_row,column=0,columnspan=2,sticky="ew",
+                         padx=7,pady=(12,5))
+            self._label(section,heading,16,True,color=TEAL).pack(
+                anchor="w",padx=8,pady=(5,7))
+            entry_grid=ctk.CTkFrame(section,fg_color="transparent")
+            entry_grid.pack(fill="x",padx=3)
+            entry_grid.grid_columnconfigure(0,weight=1)
+            entry_grid.grid_columnconfigure(1,weight=1)
+            for index,(key,label,_limit) in enumerate(entries):
+                self.med_extra_widgets[key]=self._text_field(
+                    entry_grid,label,source_value(fields,key),
+                    index//2,index%2,1)
+        self.med_doc_assets=medication_document_assets(
+            self.store.imported_assets(self.active_id))
+        self.med_doc_vars={}
+        self.med_doc_choices={}
+        for key,label,group_row in (
+            ("prescription_asset_sha256","Documento da prescrição",9),
+            ("leaflet_asset_sha256","Bula digitalizada (PDF ou fotografia)",12)):
+            parent=body.grid_slaves(row=group_row,column=0)[0]
+            self._label(parent,label,12,True,color=self.p["muted"]).pack(
+                anchor="w",padx=12,pady=(10,4))
+            chooser=ctk.CTkFrame(parent,fg_color="transparent")
+            chooser.pack(fill="x",padx=9,pady=(0,8))
+            choices={"Sem documento":""}
+            for entry in self.med_doc_assets:
+                name=str(entry.get("display_name") or entry.get("filename") or "Documento")
+                choices[f"{name[:60]} · {entry['sha256'][:10]}"]=entry["sha256"]
+            self.med_doc_choices[key]=choices
+            initial=next((text for text,digest in choices.items()
+                          if digest and digest==fields.get(key)),"Sem documento")
+            variable=ctk.StringVar(value=initial)
+            self.med_doc_vars[key]=variable
+            dropdown=ctk.CTkOptionMenu(chooser,values=list(choices),
+                variable=variable,width=280,height=32,fg_color=self.p["field"],
+                button_color=BLUE,dropdown_fg_color=self.p["panel2"],
+                text_color=self.p["text"],dropdown_text_color=self.p["text"])
+            dropdown.pack(side="left",fill="x",expand=True,padx=(0,8))
+            self._button(chooser,"Anexar",
+                lambda k=key,menu=dropdown:self._attach_med_document(k,menu),
+                width=90,height=32).pack(side="left",padx=(0,5))
+            self._button(chooser,"Guardar cópia",
+                lambda k=key:self._export_med_document(k),
+                width=115,height=32).pack(side="left")
         footer=ctk.CTkFrame(frame,fg_color="transparent")
         footer.pack(fill="x",padx=16,pady=7)
         self._button(footer,self.t("save"),self._save_med,True,width=135,height=33).pack(side="right")

@@ -217,21 +217,9 @@ jobs:
         run: python3 MediAgenda/v145_overrides/apply_v145.py
       - name: Verify transport-only Nearby changes and unchanged clinical alarms
         run: python3 MediAgenda/v145_overrides/verify_v145.py
-      - name: Apply v1.9.126 photo-complete portable backup checks
-        run: python3 MediAgenda/v146_overrides/apply_v146.py
-      - name: Verify backup contains clinical source and photo exports
-        run: python3 MediAgenda/v146_overrides/verify_v146.py
-      - name: Apply v1.9.127 two portable backup scopes and Windows restore
-        run: python3 MediAgenda/v147_overrides/apply_v147.py
-      - name: Verify v1.9.127 portable backup & edited Windows restore
-        run: python3 MediAgenda/v147_overrides/verify_v147.py
-      - name: Apply Android 1.9.128 measured backup progress and larger confirmation
-        run: python3 MediAgenda/v148_overrides/apply_v148.py
-      - name: Verify Android 1.9.128 backup progress and app identity
-        run: python3 MediAgenda/v148_overrides/verify_v148.py
       - name: Require original app artwork (background, icon and splash)
         run: python3 MediAgenda/tools/verify_graphics.py
-      - name: Compile Android 1.9.128
+      - name: Compile Android 1.9.125
         working-directory: build-src/MediAgenda_Android_v1
         run: gradle --no-daemon assembleRelease
       - name: Check branded graphics exist inside compiled APK
@@ -248,27 +236,6 @@ jobs:
               raise SystemExit("App artwork missing from APK; blocking this release: "+repr(branded))
           print("Branded graphics packaged:",branded)
           PY
-      # Hosted Linux runners have /dev/kvm, but the emulator action defaults
-      # to -accel off in this environment. Software x86_64 boot stalled for
-      # >6 minutes and returned 'No service published for: input' (run 41415552389).
-      - name: Enable KVM for Android device integration tests
-        if: github.event_name == 'pull_request'
-        run: |
-          test -c /dev/kvm || { echo '::error::No /dev/kvm on hosted runner'; exit 1; }
-          sudo chmod 666 /dev/kvm
-          test -r /dev/kvm && test -w /dev/kvm
-          echo 'KVM device accessible; do not fall back to software emulation'
-      - name: Emulador Android - backup cifrado Família/Perfil com dados fictícios
-        if: github.event_name == 'pull_request'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          target: google_apis
-          arch: x86_64
-          disable-linux-hw-accel: false
-          disable-animations: true
-          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
-          script: cd build-src/MediAgenda_Android_v1 && gradle --no-daemon connectedDebugAndroidTest
       - name: Check version and stable app identity
         run: |
           python3 - <<'PY'
@@ -291,7 +258,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: SaudePratica-v1.9.128-FULL-SOURCE
+          name: SaudePratica-v1.9.125-FULL-SOURCE
           path: build-src/MediAgenda_Android_v1/
           retention-days: 7
       - name: Export Android signing tools (no certificates or passwords)
@@ -309,7 +276,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
-          name: SaudePratica-v1.9.128-UNSIGNED
+          name: SaudePratica-v1.9.125-UNSIGNED
           path: build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 7
       - name: Confirmar se a chave de assinatura original está configurada

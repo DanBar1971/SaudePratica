@@ -1,0 +1,105 @@
+name: Publicar Android 1.9.127 pré-visualização assinada
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-android-19127-preview.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Instalar ferramentas públicas de verificação Android
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zstd
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Validar execução real de testes e versão de origem
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN=41425615910
+          REPO="$GITHUB_REPOSITORY"
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.conclusion')" = success
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.head_sha')" = 00b771ed784eff4d5d5f154301f0ea4f7b4673c1
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.event')" = pull_request
+      - name: Obter APK unsigned do Android que passou os testes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 41425615910 --repo "$GITHUB_REPOSITORY" \
+            --name SaudePratica-v1.9.127-UNSIGNED --dir original-unsigned
+          test "$(find original-unsigned -name '*.apk' -type f | wc -l)" -eq 1
+          cp "$(find original-unsigned -name '*.apk' -type f | head -n 1)" original-unsigned.apk
+          echo "f43098461c41c7a686721af65e25e2a987ca8a690f4539d7470db035f6d01aa4  original-unsigned.apk" | sha256sum -c -
+      - name: Reconstruir APK assinado usando delta público (sem qualquer chave privada)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PREVIEW_BRANCH=release/windows-072-android-127-preview
+          gh api "repos/$GITHUB_REPOSITORY/contents/MediAgenda/release-verified/v1.9.127/signed.patch.zst.b64?ref=$PREVIEW_BRANCH" --jq .content | base64 --decode > signed.patch.zst.b64
+          base64 --decode signed.patch.zst.b64 > signed.patch.zst
+          echo "4b2a4c8909b51f94d5d2914938ad60713565facd7d42647c0060fefd1a37ffe5  signed.patch.zst" | sha256sum -c -
+          zstd --long=28 --decompress --patch-from=original-unsigned.apk signed.patch.zst -o SaudePratica.apk
+          echo "aaf211b5ca48fa0701ce2199f662ffd30efa5678fded203a073e999550701edb  SaudePratica.apk" | sha256sum -c -
+      - name: Confirmar assinatura original, app Android e versão 1.9.127
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee apk-signature.txt
+          grep -F "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a" apk-signature.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" apk-signature.txt
+          grep -F "Verified using v3 scheme (APK Signature Scheme v3): true" apk-signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | head -n 1 | tee apk-identity.txt
+          grep -F "name='com.mediagenda.app.stable'" apk-identity.txt
+          grep -F "versionName='1.9.127'" apk-identity.txt
+          grep -F "versionCode='137'" apk-identity.txt
+      - name: Publicar pré-visualização sem alterar a última versão estável Android
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=v1.9.127-preview
+          PREVIEW_BRANCH=release/windows-072-android-127-preview
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+              --jq '[.assets[].name] | index("SaudePratica.apk") != null' | grep -Fx true
+            echo "A release experimental assinada já existe."
+            exit 0
+          fi
+          git fetch --depth=1 origin "refs/heads/$PREVIEW_BRANCH"
+          git archive --format=zip --output=SaudePratica-v1.9.127-CODIGO-FONTE.zip FETCH_HEAD
+          sha256sum SaudePratica.apk SaudePratica-v1.9.127-CODIGO-FONTE.zip > SHA256SUMS.txt
+          cat > release-notes.md <<'EOF'
+          # SaúdePrática Android 1.9.127 — experimental
+
+          - Pré-visualização do restauro manual entre Android e Windows 0.7.2, com backups .spbackup cifrados e validações de integridade.
+          - Verificações automáticas e ensaio com emulador Android aprovados no código de origem 00b771ed784eff4d5d5f154301f0ea4f7b4673c1.
+          - APK reconstruído e verificado byte a byte, assinado com o certificado original (Android v2 e v3). Compatível com atualizações da app instalada usando o mesmo certificado.
+          - Ainda é necessário validar o restauro com equipamentos reais e dados de teste; fazer uma cópia de segurança antes de experimentar.
+          - Não existe sincronização automática em tempo real. Os alarmes existentes não foram intencionalmente modificados.
+          - Esta é uma pré-release: a versão Android 1.9.125 mantém-se como última versão estável.
+          EOF
+          gh release create "$TAG" SaudePratica.apk SaudePratica-v1.9.127-CODIGO-FONTE.zip SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$PREVIEW_BRANCH" \
+            --title "SaúdePrática Android 1.9.127 — backup interoperável (experimental)" \
+            --notes-file release-notes.md --prerelease --latest=false
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isPrerelease,assets \
+            --jq '.tagName=="v1.9.127-preview" and .isPrerelease and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true

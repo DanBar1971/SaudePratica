@@ -1,0 +1,62 @@
+name: Publicar instalador Windows 0.7.2 aprovado
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-windows-072-approved.yml"
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Verificar testes Windows e Android no mesmo commit de desenvolvimento
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          VERIFIED_SHA="1ad3868bf978b1afd8020e18127d6550768b701b"
+          for RUN in 41423597788 41423597783; do
+            STATUS=$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.conclusion')
+            SHA=$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.head_sha')
+            EVENT=$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.event')
+            test "$STATUS" = success || { echo "::error::Run $RUN failed"; exit 1; }
+            test "$SHA" = "$VERIFIED_SHA" || { echo "::error::Run $RUN has wrong SHA"; exit 1; }
+            test "$EVENT" = pull_request || { echo "::error::Run $RUN not PR tested"; exit 1; }
+          done
+          echo "CI Android emulator + Windows installer verified at $VERIFIED_SHA"
+      - name: Descarregar o EXE aprovado e confirmar integridade
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 41423597783 --repo "$GITHUB_REPOSITORY" --name SaudePratica-Windows-INSTALADOR-EXPERIMENTAL --dir installer
+          FILE=installer/SaudePratica-Setup.exe
+          test -s "$FILE"
+          test "$(wc -c < "$FILE")" -gt 5000000
+          test "$(head -c 2 "$FILE")" = MZ
+          echo "9f2f81a74b8c0dcd973bf247649138ec0d97c1990d010112559161585bb552be  $FILE" | sha256sum -c -
+          sha256sum "$FILE" > SHA256SUMS.txt
+      - name: Publicar em Releases a pré-visualização Windows 0.7.2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=windows-v0.7.2-preview
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | map(.name) | index("SaudePratica-Setup.exe") != null' | grep -Fx true
+            echo 'Release already exists and has expected installer.'
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/contents/windows/RELEASE_NOTES_PREVIEW.md?ref=release/windows-072-android-127-preview" --jq .content | base64 -d > windows-072-notes.md
+          gh release create "$TAG" installer/SaudePratica-Setup.exe SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target release/windows-072-android-127-preview \
+            --title "SaúdePrática Windows 0.7.2 — backup Família e Perfil (experimental)" \
+            --notes-file windows-072-notes.md --prerelease --latest=false
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | map(.name) | index("SaudePratica-Setup.exe") != null' | grep -Fx true

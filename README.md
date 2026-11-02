@@ -8,8 +8,7 @@ Website público e repositório multiplataforma **SaúdePrática**, em portuguê
 
 | Plataforma | Estado | Instalação |
 | --- | --- | --- |
-| **Android** | Disponível | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
-| **Android (testes)** | **Experimental 1.9.127** | [**SaudePratica.apk — versão experimental assinada**](https://github.com/DanBar1971/SaudePratica/releases/download/v1.9.127-preview/SaudePratica.apk) |
+| **Android v1.9.127** | Atualização normal | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
 | **Windows 10/11 (x64)** | **Experimental 0.7.2** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.2-preview/SaudePratica-Setup.exe) |
 | **iPhone / iOS** | Planeado | Ainda sem aplicação para descarregar |
 
@@ -19,9 +18,13 @@ Para Windows, consultar também a [release Windows específica](https://github.c
 
 **Código e APKs da aplicação:** https://github.com/DanBar1971/SaudePratica
 
-A página apresenta as três plataformas. O download Android usa a última release estável; o Windows tem releases experimentais independentes e um instalador `SaudePratica-Setup.exe`. A APK mais recente encontra-se em `https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk`.
+A página apresenta as três plataformas. O download Android usa sempre a última release normal v1.9.xxx; o Windows tem releases experimentais independentes e um instalador `SaudePratica-Setup.exe`. A APK mais recente encontra-se em `https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk`.
 
 As três imagens de marca oficiais estão em `assets/` e foram recuperadas do repositório original. As demonstrações usam **dados fictícios**, não dados reais de saúde. O website não guarda nem recebe registos médicos. **Não colocar ficheiros de assinatura, chaves privadas, API keys ou dados de pacientes neste repositório público.**
+
+## Regra de versões Android
+
+Enquanto a SaúdePrática Android estiver em desenvolvimento, **todas as versões são publicadas com a numeração v1.9.xxx como releases normais**, visíveis em `releases/latest` e ao verificador de atualizações dentro da app. **Não usar tags `-preview` nem marcar versões Android como prerelease.** O salto para **v2.0** só acontece quando o utilizador determinar que o desenvolvimento está concluído. Preservar sempre o mesmo package name, certificado original e um versionCode crescente para instalar por cima das versões anteriores. O Windows continua a ter numeração e estado de publicação próprios.
 
 ## Publicação
 
@@ -31,4 +34,4 @@ Em **Settings → Pages → Build and deployment → Source**, selecionar **GitH
 
 O projeto principal reúne o código-fonte Android em `MediAgenda/`, as 43 releases Android históricas, o website e as pastas `windows/`, `ios/` e `shared/`. O Windows tem uma primeira versão experimental com instalador; iPhone ainda não está disponível.
 
-Todas as APKs Android de atualização devem conservar o **certificado original** e ser verificadas antes da release. Não guardar chaves privadas, passwords ou códigos de recuperação neste repositório público. A pré-visualização 1.9.127 foi reconstruída e publicada com delta público sem segredos.
+Todas as APKs Android de atualização devem conservar o **certificado original** e ser verificadas antes da release. Não guardar chaves privadas, passwords ou códigos de recuperação neste repositório público. A versão 1.9.127 foi reconstruída a partir da APK assinada com o certificado original, usando um delta público sem segredos, e promovida a release normal.

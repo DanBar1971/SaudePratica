@@ -196,6 +196,19 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
         restored["appointments"]=copy.deepcopy(appointments)
         if source_id:
             restored["android_zip_source_id"]=source_id
+        # Android keeps the identity/health profile fields inside typed
+        # SharedPreferences of its original ZIP, not in the portable summary.
+        # Recover ONLY the source person's fields before storing this profile.
+        # Existing Windows edits in the portable profile.json take precedence.
+        if source_id and originals:
+            from windows.android_profile_v067 import read_profile_extras
+            from windows.profile_fields_v066 import missing_profile_fields
+            for original_archive in originals:
+                raw_digest=original_archive["sha256"]
+                original_zip=plan.files[
+                    f"attachments/{raw_digest[:2]}/{raw_digest}.bin"]
+                extra_fields,_=read_profile_extras(original_zip,source_id)
+                restored.update(missing_profile_fields(restored,extra_fields))
         if member.operation=="replace":
             # Keep the stable local ID and original source identity. Replace
             # clinical fields only when explicitly confirmed in the UI.

@@ -655,6 +655,20 @@ class SecureStore:
         if not selected or any(p is None for p in selected):
             raise LocalStoreError("Escolhe um perfil válido ou a família inteira.")
         scope="profile" if profile_id is not None else "family"
+        if profile_id is not None:
+            # An original Android archive can contain all family members.
+            # Never hide unrelated patients in a nominally single-profile
+            # backup. Fail until a verified filtered source snapshot exists.
+            for original in self.android_archives():
+                owners=original.get("profile_ids",[])
+                if profile_id in owners and (
+                    len(owners)!=1 or owners[0]!=profile_id):
+                    raise LocalStoreError(
+                        "Este perfil ainda depende de um backup Android "
+                        "com dados de outras pessoas. Para preservar a "
+                        "privacidade e não perder dados, usa por agora "
+                        "Backup Família. O backup Perfil será ativado "
+                        "após separar todos os anexos por perfil.")
         files = {}
         for p in selected:
             pid = p["id"]

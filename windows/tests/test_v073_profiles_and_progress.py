@@ -23,7 +23,7 @@ PWD="Test-only fake password 2026"
 def synthetic_profile_zip():
     original=make_zip(_archive_files())
     buf=io.BytesIO()
-    with ZipFile(original) as old, ZipFile(buf,"w",ZIP_DEFLATED) as new:
+    with ZipFile(io.BytesIO(original)) as old, ZipFile(buf,"w",ZIP_DEFLATED) as new:
         for name in old.namelist():
             raw=old.read(name)
             if name=="backup.json":
@@ -104,7 +104,7 @@ class AndroidProfileV073(unittest.TestCase):
                 self.assertEqual(restored["sns_number"],"000000001")
 
     def test_current_profile_ui_contains_complete_editable_fields(self):
-        code=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text()
+        code=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text(encoding="utf-8")
         for token in ['"full_name"','"birth_place"','"sns_number"','"nif"','"adse_number"']:
             self.assertIn(token,code)
         self.assertIn("self.profile_widgets[key]",code)

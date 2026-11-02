@@ -95,7 +95,7 @@ class AndroidMedicationSemantics(unittest.TestCase):
         self.assertIn('("with_alarm","Com aviso")',text)
         self.assertIn('self.suspended_var=ctk.BooleanVar(value=is_suspended(fields))',text)
         self.assertIn('value=reminder_clock(fields) if k=="reminder_time"',text)
-        self.assertIn('VERSION = "0.7.6"',text)
+        self.assertIn('VERSION = "0.7.7"',text)
 
 if __name__=="__main__":
     unittest.main()

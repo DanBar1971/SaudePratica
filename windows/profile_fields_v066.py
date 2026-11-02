@@ -2,6 +2,18 @@
 from __future__ import annotations
 
 FIELD_ALIASES = {
+    "full_name": ("full_name","fullName","nome_completo","nomeCompleto"),
+    "gender": ("gender","sexo","sex"),
+    "height": ("height","height_cm","altura"),
+    "nationality": ("nationality","nacionalidade"),
+    "birth_place": ("birth_place","birthPlace","localNascimento","naturalidade"),
+    "father": ("father","father_name","fatherName","fathers_name","nomePai","filiacaoPai"),
+    "mother": ("mother","mother_name","motherName","mothers_name","nomeMae","filiacaoMae"),
+    "cc_number": ("cc_number","ccNumber","cartao_cidadao"),
+    "cc_valid_until": ("cc_valid_until","ccValidUntil","cc_expiry","ccValidity"),
+    "nif": ("nif","tax_number","taxNumber","numeroContribuinte"),
+    "sns_number": ("sns_number","snsNumber","numeroUtente","healthNumber","sns"),
+    "adse_number": ("adse_number","adseNumber","adse"),
     "birth_date": ("birth_date", "birthDate", "dateOfBirth", "dob", "dataNascimento"),
     "phone": ("phone", "phoneNumber", "mobile", "mobilePhone", "telemovel",
               "telefone", "contactPhone", "contact_phone"),
@@ -19,6 +31,11 @@ FIELD_ALIASES = {
 }
 
 LIMITS = {
+    "full_name": 160, "gender": 40, "height": 16,
+    "nationality": 80, "birth_place": 120,
+    "father": 160, "mother": 160,
+    "nif": 24, "sns_number": 40, "adse_number": 50,
+    "cc_number": 40, "cc_valid_until": 24,
     "birth_date": 10, "phone": 50, "email": 160, "niss": 40,
     "health_unit": 180, "address": 250, "city": 100,
     "postal_code": 24, "emergency_name": 120,
@@ -68,10 +85,16 @@ def mapped_fields(original: dict) -> dict[str, str]:
                 result[field]=found
                 break
     # The Windows birth date field only accepts strict ISO format.
-    from datetime import date
+    from datetime import date, datetime
     if "birth_date" in result:
-        try:date.fromisoformat(result["birth_date"])
-        except ValueError:result.pop("birth_date")
+        raw=result["birth_date"]
+        try:
+            parsed=(datetime.strptime(raw,"%d/%m/%Y").date()
+                    if "/" in raw else date.fromisoformat(raw))
+            if parsed>date.today():raise ValueError("future date")
+            result["birth_date"]=parsed.isoformat()
+        except ValueError:
+            result.pop("birth_date")
     return result
 
 def missing_profile_fields(profile: dict, original: dict) -> dict[str, str]:

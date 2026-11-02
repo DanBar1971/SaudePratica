@@ -9,6 +9,8 @@ from __future__ import annotations
 import base64
 import json
 from io import BytesIO
+import threading
+import queue
 import os
 from datetime import datetime
 from pathlib import Path
@@ -40,7 +42,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.3"
+VERSION = "0.7.4"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -89,6 +91,10 @@ class Desktop(ctk.CTk):
         if not self.store.get_profile(self.active_id):
             self.active_id = self.store.profiles()[0]["id"] if self.store.profiles() else None
         self.editing_profile = self.active_id
+        self.profile_edit_open = False
+        self._profile_view_cache = {}
+        self._profile_source_queue = queue.Queue()
+        self.cc_photo_bytes = {}
         self.editing_med = None
         self.page = "home"
         self.profile_widgets = {}
@@ -114,6 +120,7 @@ class Desktop(ctk.CTk):
         self.android_zip_selected = ""
         self._assets()
         self._render()
+        self.after(120,self._poll_profile_sources)
 
     def t(self, key):
         return translate(self.lang, key)
@@ -273,6 +280,8 @@ class Desktop(ctk.CTk):
             self._label(texts,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(1,0))
 
     def navigate(self,page):
+        if page=="profiles" and self.page!="profiles":
+            self.profile_edit_open=False
         self.page=page
         self._render()
 
@@ -429,7 +438,17 @@ class Desktop(ctk.CTk):
                          width=34,height=30).pack(side="right",padx=(0,6))
             self._button(row,"›",lambda pid=profile["id"]:self._edit_profile(pid),
                          width=29,height=30).pack(side="right",padx=(0,3))
-        self._profile_form(right)
+        if self.profile_edit_open:
+            self._profile_form(right)
+        else:
+            note=ctk.CTkFrame(right,fg_color="transparent")
+            note.pack(fill="both",expand=True,padx=24,pady=22)
+            self._label(note,"Escolhe um perfil na lista à esquerda",20,True,
+                        color=TEAL).pack(anchor="w",pady=(20,12))
+            self._label(note,"A ficha e as fotografias só são carregadas quando abres "
+                        "o perfil. Os registos clínicos e os documentos continuam "
+                        "guardados nos respetivos módulos.",13,
+                        color=self.p["muted"],wrap=700).pack(anchor="w")
 
     def _delete_profile(self,pid):
         person=self.store.get_profile(pid)
@@ -459,13 +478,95 @@ class Desktop(ctk.CTk):
 
     def _new_profile(self):
         self.editing_profile=None
+        self.profile_edit_open=True
         self._render()
 
     def _edit_profile(self,pid):
         self.editing_profile=pid
         self.active_id=pid
+        self.profile_edit_open=True
         self.store.update_settings(active_profile=pid)
         self._render()
+        if pid not in self._profile_view_cache:
+            self._load_profile_source(pid)
+
+    def _load_profile_source(self,pid):
+        """Only an explicit edit starts a ZIP scan; never block the Tk thread."""
+        self._profile_view_cache[pid]=None
+        def read():
+            try:
+                fields,photos=self.store.profile_android_images_and_fields(pid)
+            except Exception:
+                fields,photos={},{}
+            self._profile_source_queue.put((pid,fields,photos))
+        threading.Thread(target=read,daemon=True).start()
+
+    def _poll_profile_sources(self):
+        try:
+            while True:
+                pid,fields,photos=self._profile_source_queue.get_nowait()
+                self._profile_view_cache[pid]=(fields,photos)
+                if not (self.page=="profiles" and self.profile_edit_open and
+                        self.editing_profile==pid):
+                    continue
+                # Don't overwrite anything the user has already entered.
+                for key,value in fields.items():
+                    field=self.profile_widgets.get(key)
+                    if field is not None and isinstance(value,str) and not field.get().strip():
+                        field.insert(0,value)
+                self.cc_photo_bytes=photos
+                self._refresh_cc_previews()
+        except queue.Empty:
+            pass
+        try:
+            if self.winfo_exists():
+                self.after(120,self._poll_profile_sources)
+        except tk.TclError:
+            pass
+
+    def _show_cc_photo(self,kind):
+        data=self.cc_photo_bytes.get(kind)
+        if not data:return
+        try:
+            with Image.open(BytesIO(data)) as src:
+                im=ImageOps.exif_transpose(src).convert("RGB")
+                im.thumbnail((950,650),Image.Resampling.LANCZOS)
+            viewer=ctk.CTkToplevel(self)
+            viewer.title("Cartão de Cidadão · "+("Frente" if kind=="cc_front" else "Verso"))
+            viewer.geometry(f"{max(400,im.width+42)}x{max(240,im.height+55)}")
+            preview=ctk.CTkImage(im,im,size=(im.width,im.height))
+            label=ctk.CTkLabel(viewer,image=preview,text="")
+            label.image=preview
+            label.pack(fill="both",expand=True,padx=16,pady=16)
+            viewer.transient(self)
+            viewer.lift()
+        except (OSError,ValueError,TypeError):
+            pass
+
+    def _refresh_cc_previews(self):
+        host=getattr(self,"cc_photo_host",None)
+        if host is None or not host.winfo_exists():return
+        for child in host.winfo_children():
+            child.destroy()
+        self.cc_thumbnails=[]
+        for kind,title in (("cc_front","Frente do CC"),("cc_back","Verso do CC")):
+            raw=self.cc_photo_bytes.get(kind)
+            if not raw:continue
+            try:
+                with Image.open(BytesIO(raw)) as source:
+                    image=ImageOps.contain(
+                        ImageOps.exif_transpose(source).convert("RGB"),
+                        (250,135),method=Image.Resampling.LANCZOS)
+                art=ctk.CTkImage(image,image,size=(image.width,image.height))
+                self.cc_thumbnails.append(art)
+                ctk.CTkButton(host,text=title,image=art,compound="top",
+                    fg_color=self.p["panel2"],text_color=self.p["text"],
+                    hover_color=self.p["line"],width=270,height=175,
+                    command=lambda k=kind:self._show_cc_photo(k)).pack(
+                    side="left",padx=(0,14),pady=5)
+            except (OSError,ValueError):
+                continue
+
 
     def _text_field(self,parent,label,initial="",row=0,col=0,columns=2):
         box=ctk.CTkFrame(parent,fg_color="transparent")

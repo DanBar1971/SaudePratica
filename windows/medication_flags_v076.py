@@ -32,6 +32,15 @@ def no_alarm(record):
     return False
 
 def reminder_clock(record):
+    # An explicit Windows edit wins over the unchanged Android source.
+    if "reminder_time" in record:
+        primary=record["reminder_time"]
+        if isinstance(primary,str) and CLOCK.fullmatch(primary.strip()):
+            return primary.strip()
+        legacy=record.get("time")
+        if isinstance(legacy,str) and CLOCK.fullmatch(legacy.strip()):
+            return legacy.strip()
+        return ""
     source=_original(record)
     for key in ("reminder_time","alarmTime","time"):
         for obj in (record,source):

@@ -149,6 +149,38 @@ class AndroidWriterShapeCompatibilityTests(unittest.TestCase):
         self.assertEqual(len(target.profiles()),1)
         self.assertEqual(len(target.imported_assets(pid)),3)
 
+    def test_windows_edits_are_in_portable_fields_not_only_stale_android_original(self):
+        data,pid,original,oldphoto,avatar=synthetic_android_backup()
+        store=self.store()
+        plan=store.inspect_portable_backup(data,PASSWORD)
+        store.restore_portable_backup(plan,PASSWORD)
+        person=store.get_profile(pid)
+        med=person["medications"][0]
+        self.assertEqual(med["android_original"]["dose"],"5 mg")
+        med["dose"]="10 mg"
+        med["name"]="Medicamento fictício atualizado"
+        med["photo_b64"]=base64.b64encode(b"fictitious replacement photo").decode("ascii")
+        person["appointments"][0]["title"]="Consulta atualizada no Windows"
+        person["appointments"][0]["time"]="15:00"
+        store.save()
+        encrypted=store.export_backup(PASSWORD)
+        contents=read_backup(encrypted,PASSWORD)
+        meds=json.loads(contents[f"profiles/{pid}/medicacao.json"])["medications"]
+        self.assertEqual(meds[0]["dose"],"10 mg")
+        self.assertEqual(meds[0]["name"],"Medicamento fictício atualizado")
+        self.assertEqual(meds[0]["android_original"]["dose"],"5 mg")
+        appointments=json.loads(contents[f"profiles/{pid}/agenda.json"])["appointments"]
+        self.assertEqual(appointments[0]["title"],"Consulta atualizada no Windows")
+        self.assertEqual(appointments[0]["time"],"15:00")
+        # The Kotlin importer must override stale android_original fields using
+        # the current Windows editor fields, not copy the original blindly.
+        root=Path(__file__).resolve().parents[2]
+        kotlin=(root/"MediAgenda/v147_overrides/PortableWindowsClinicalRestore.kt"
+                ).read_text(encoding="utf-8")
+        self.assertIn('row.put("medication",item.getString("name"))',kotlin)
+        self.assertIn('row.put("activity",item.getString("title"))',kotlin)
+        self.assertIn('"dose","time","reminder_time"',kotlin)
+
     def test_incomplete_portable_metadata_does_not_replace_patients(self):
         data,pid,*_=synthetic_android_backup()
         store=self.store()

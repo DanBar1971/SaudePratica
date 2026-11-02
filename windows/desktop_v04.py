@@ -191,6 +191,16 @@ class Desktop(ctk.CTk):
             child.destroy()
 
     def _render(self):
+        """Native Windows loading pointer on every module transition."""
+        self.configure(cursor="watch")
+        self.update_idletasks()
+        try:
+            self._render_content()
+            self.update_idletasks()
+        finally:
+            self.configure(cursor="")
+
+    def _render_content(self):
         self.p=self._palette()
         self.configure(fg_color=self.p["bg"])
         self._clear()
@@ -234,7 +244,7 @@ class Desktop(ctk.CTk):
         avatar_label.pack(side="left",padx=(5,4),pady=2)
         avatar_label.bind("<Button-1>",lambda _event:self._toggle_profile_menu())
         self.profile_select=ctk.CTkButton(
-            self.profile_pill,text=label+"  ⌄",
+            self.profile_pill,text=label+"   ▼",
             command=self._toggle_profile_menu,
             anchor="w",width=max(105,min(225,len(label)*9+35)),
             height=36,corner_radius=9,
@@ -342,6 +352,7 @@ class Desktop(ctk.CTk):
             self.profile_menu=None
         if pid==self.active_id:return
         self.active_id=pid
+        self._med_image_cache={}
         self.editing_profile=pid
         self.editing_med=None
         try:self.store.update_settings(active_profile=pid)
@@ -725,6 +736,51 @@ class Desktop(ctk.CTk):
         except (LocalStoreError,ValueError) as exc:
             messagebox.showerror(self.t("profile_save_error"),str(exc),parent=self)
 
+    def _med_photo_b64(self,med):
+        """Recover this profile's Android medication photo from protected assets."""
+        if med.get("photo_b64"):
+            return med["photo_b64"]
+        original=med.get("android_original")
+        if not isinstance(original,dict) or not self.active_id:
+            return ""
+        refs=original.get("images")
+        if not isinstance(refs,list):
+            return ""
+        candidates=set()
+        for ref in refs:
+            if isinstance(ref,str):
+                name=ref.split("?")[0].replace(chr(92),"/").rsplit("/",1)[-1]
+                if name and name not in (".",".."):
+                    candidates.add(name)
+        if not candidates:
+            return ""
+        cache=getattr(self,"_med_image_cache",None)
+        if cache is None:
+            self._med_image_cache={}
+            cache=self._med_image_cache
+        key=(self.active_id,med.get("id"))
+        if key in cache:
+            return cache[key]
+        result=""
+        for entry in self.store.imported_assets(self.active_id):
+            if (entry.get("filename") not in candidates or
+                    entry.get("category")!="fotografia de medicamento"):
+                continue
+            try:
+                raw=self.store.read_imported_asset(entry)
+                with Image.open(BytesIO(raw)) as image:
+                    image=ImageOps.exif_transpose(image).convert("RGB")
+                    image.thumbnail((750,750),Image.Resampling.LANCZOS)
+                    out=BytesIO()
+                    image.save(out,format="JPEG",quality=78,optimize=True)
+                    if out.tell()<=450000:
+                        result=base64.b64encode(out.getvalue()).decode("ascii")
+                        break
+            except (OSError,ValueError,LocalStoreError):
+                continue
+        cache[key]=result
+        return result
+
     def _medication(self):
         self._heading(self.t("medication"),
                       "Catálogo de medicação · " + self.t("not_alarm"))
@@ -803,7 +859,7 @@ class Desktop(ctk.CTk):
             tile.grid(row=r,column=c,sticky="nsew",padx=5,pady=5)
             # Auto-size content. Grid aligns cards in the same row.
             available=max(170,int((self.winfo_width()-110)/columns)-37)
-            photo=self._med_card_photo(med.get("photo_b64",""),available,137)
+            photo=self._med_card_photo(self._med_photo_b64(med),available,137)
             poster=ctk.CTkFrame(tile,fg_color=self.p["thumb"],height=137,
                                  corner_radius=10)
             poster.pack(fill="x",padx=8,pady=(8,7))
@@ -859,7 +915,7 @@ class Desktop(ctk.CTk):
 
     def _med_form(self,frame,med):
         fields=med or {}
-        self.med_photo_draft=fields.get("photo_b64","")
+        self.med_photo_draft=self._med_photo_b64(fields)
         head=ctk.CTkFrame(frame,fg_color="transparent")
         head.pack(fill="x",padx=15,pady=(8,4))
         self._label(head,self.t("edit_medication") if med else self.t("new_medication"),

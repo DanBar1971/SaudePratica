@@ -13,6 +13,7 @@ from .appointment_reminders_v071 import due_events,reminder_message
 RUN_KEY=r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_VALUE="SaudePraticaAgendaReminders"
 MUTEX_NAME=r"Local\SaudePraticaAgendaReminderAgent"
+STOP_EVENT_NAME=r"Local\SaudePraticaAgendaReminderAgentStop"
 
 def _agent_command():
     if getattr(sys,"frozen",False):
@@ -129,8 +130,13 @@ def run_reminder_agent():
     mutex=win32event.CreateMutex(None,False,MUTEX_NAME)
     if win32api.GetLastError()==winerror.ERROR_ALREADY_EXISTS:
         return
+    stop=win32event.CreateEvent(None,True,False,STOP_EVENT_NAME)
+    # An updater uses this same-session named event to stop this helper
+    # safely before replacing any of its installed EXE/DLL files.
     notifier=None
     try:
+        if win32event.WaitForSingleObject(stop,0)==win32event.WAIT_OBJECT_0:
+            return
         notifier=TrayNotifier()
         path=_sent_path()
         sent=_read_sent(path)
@@ -147,7 +153,9 @@ def run_reminder_agent():
                 # Patient data must never appear in public diagnostic logs.
                 pass
             notifier.pump()
-            time.sleep(20)
+            if win32event.WaitForSingleObject(stop,20_000)==win32event.WAIT_OBJECT_0:
+                break
     finally:
         if notifier:notifier.close()
+        win32api.CloseHandle(stop)
         win32api.CloseHandle(mutex)

@@ -1079,6 +1079,34 @@ class Desktop(ctk.CTk):
         self._button(footer,self.t("cancel"),self._back_to_med_gallery,
                      width=120,height=33).pack(side="right",padx=7)
 
+    def _attach_med_document(self,key,dropdown):
+        path=filedialog.askopenfilename(parent=self,title="Anexar documento à medicação",
+            filetypes=[("PDF e imagens","*.pdf *.jpg *.jpeg *.png *.webp")])
+        if not path:return
+        try:
+            from hashlib import sha256
+            digest=sha256(Path(path).read_bytes()).hexdigest()
+            self.store.import_local_document(self.active_id,Path(path))
+            self.med_doc_assets=medication_document_assets(
+                self.store.imported_assets(self.active_id))
+            entry=medication_document_option(self.med_doc_assets,digest)
+            if entry is None:
+                raise LocalStoreError("Anexo não encontrado neste perfil.")
+            label=f"{str(entry.get('display_name') or entry.get('filename'))[:60]} · {digest[:10]}"
+            self.med_doc_choices[key][label]=digest
+            dropdown.configure(values=list(self.med_doc_choices[key]))
+            self.med_doc_vars[key].set(label)
+        except (LocalStoreError,ValueError,OSError) as exc:
+            messagebox.showerror("Medicação",str(exc),parent=self)
+
+    def _export_med_document(self,key):
+        digest=self.med_doc_choices[key].get(self.med_doc_vars[key].get(),"")
+        entry=medication_document_option(self.med_doc_assets,digest) if digest else None
+        if entry is None:
+            messagebox.showinfo("Medicação","Seleciona primeiro um documento.",parent=self)
+            return
+        self._export_document(entry)
+
     def _update_med_preview(self):
         image=self._authentic_thumb(self.med_photo_draft,85,62)
         self.med_photo_widget.configure(image=image,text="" if image else "Sem fotografia")
@@ -1106,6 +1134,9 @@ class Desktop(ctk.CTk):
 
     def _save_med(self):
         fields={key:entry.get() for key,entry in self.med_widgets.items()}
+        fields.update({key:entry.get() for key,entry in self.med_extra_widgets.items()})
+        for key,var in self.med_doc_vars.items():
+            fields[key]=self.med_doc_choices[key].get(var.get(),"")
         fields.update({
             "administration_route":ROUTES[self.route_var.get()],
             "injection_type":INJECTIONS[self.injection_var.get()],

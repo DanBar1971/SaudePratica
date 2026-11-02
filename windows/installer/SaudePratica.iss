@@ -41,6 +41,7 @@ Name: "desktopicon"; Description: "Criar um atalho no Ambiente de Trabalho"; Gro
 
 [Files]
 Source: "..\..\dist\SaudePraticaDesktop\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\SaudePraticaAvisos\*"; DestDir: "{app}\Avisos"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\dist\saude_icon.ico"; DestDir: "{app}"; DestName: "SaudePratica.ico"; Flags: ignoreversion
 
 [Icons]
@@ -50,11 +51,11 @@ Name: "{userdesktop}\SaúdePrática Desktop"; Filename: "{app}\{#MyAppExeName}";
 [Registry]
 ; User-only autostart of the independent Agenda reminder worker.
 ; Runs after Windows sign-in, even if the desktop UI was closed.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SaudePraticaAgendaReminders"; ValueData: """{app}\{#MyAppExeName}"" --reminder-agent"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SaudePraticaAgendaReminders"; ValueData: """{app}\Avisos\SaudePraticaAvisos.exe"""; Flags: uninsdeletevalue
 
 [Run]
 ; Always start background reminders after upgrading, even when the UI is not opened.
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--reminder-agent"; Flags: nowait runhidden
+Filename: "{app}\Avisos\SaudePraticaAvisos.exe"; Flags: nowait runhidden
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir a SaúdePrática Desktop"; Flags: nowait postinstall skipifsilent
 
 ; O desinstalador deixa os dados pessoais em %LOCALAPPDATA%\SaudePraticaDesktop.
@@ -81,7 +82,7 @@ var
   executable: String;
 begin
   Result := '';
-  { Do not end the main UI process. Request graceful agent shutdown first. }
+  { Only the background Avisos agent is stopped; the main UI is untouched. }
   handle := OpenEventW(EVENT_MODIFY_STATE, False, REMINDER_STOP_EVENT);
   if handle <> 0 then begin
     SetEvent(handle);

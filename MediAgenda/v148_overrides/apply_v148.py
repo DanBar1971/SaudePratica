@@ -102,9 +102,9 @@ edit(portable,
                         }''',
     "measured encrypted bytes streamed")
 edit(portable,
-    '''            return profiles.size
+    r'''            return profiles.size
         }finally{source.delete();password.fill('\u0000')}''',
-    '''            onProgress?.invoke(95,"Ficheiro encriptado fechado")
+    r'''            onProgress?.invoke(95,"Ficheiro encriptado fechado")
             return profiles.size
         }finally{source.delete();password.fill('\u0000')}''',
     "portable export closure")
@@ -118,7 +118,6 @@ edit(main,
     '''        val progressLabel=android.widget.TextView(this).apply{
             text="0% · A iniciar o backup"
             textSize=17f
-            setTextColor(android.graphics.Color.WHITE)
         }
         val progressBar=android.widget.ProgressBar(this,null,
             android.R.attr.progressBarStyleHorizontal).apply{

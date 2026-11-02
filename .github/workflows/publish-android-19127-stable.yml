@@ -1,0 +1,100 @@
+name: Publicar SaúdePrática Android 1.9.127 como atualização normal
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-android-19127-stable.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Instalar verificador Android para validar a APK original
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Confirmar release assinada e testes automáticos já aprovados
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          test "$(gh api "repos/$REPO/actions/runs/41425615910" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/41425615910" --jq .head_sha)" = 00b771ed784eff4d5d5f154301f0ea4f7b4673c1
+          test "$(gh api "repos/$REPO/actions/runs/41433392342" --jq .conclusion)" = success
+          gh release view v1.9.127-preview --repo "$REPO" --json isDraft,isPrerelease \
+            --jq '.isDraft==false and .isPrerelease==true' | grep -Fx true
+      - name: Obter APK assinada original e código-fonte que passaram os testes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download v1.9.127-preview --repo "$GITHUB_REPOSITORY" --dir approved
+          test -s approved/SaudePratica.apk
+          test -s approved/SaudePratica-v1.9.127-CODIGO-FONTE.zip
+          test -s approved/SHA256SUMS.txt
+          cd approved
+          sha256sum --check SHA256SUMS.txt
+          cd ..
+          echo "aaf211b5ca48fa0701ce2199f662ffd30efa5678fded203a073e999550701edb  approved/SaudePratica.apk" | sha256sum -c -
+          cp approved/SaudePratica.apk ./SaudePratica.apk
+          cp approved/SaudePratica-v1.9.127-CODIGO-FONTE.zip ./SaudePratica-v1.9.127-CODIGO-FONTE.zip
+          sha256sum SaudePratica.apk SaudePratica-v1.9.127-CODIGO-FONTE.zip > SaudePratica-v1.9.127-SHA256SUMS.txt
+      - name: Verificar que substitui a app Android anterior sem perder identidade
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee apk-verified.txt
+          grep -F '7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a' apk-verified.txt
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' apk-verified.txt
+          grep -F 'Verified using v3 scheme (APK Signature Scheme v3): true' apk-verified.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | head -n 1 | tee apk-identity.txt
+          grep -F "name='com.mediagenda.app.stable'" apk-identity.txt
+          grep -F "versionCode='137'" apk-identity.txt
+          grep -F "versionName='1.9.127'" apk-identity.txt
+      - name: Publicar Android 1.9.127 normal e torná-la a última atualização
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TAG=v1.9.127
+          TARGET=release/windows-072-android-127-preview
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isPrerelease,assets \
+              --jq '.tagName=="v1.9.127" and (.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+            echo 'Release normal já publicada e APK disponível.'
+          else
+            cat > notes.md <<'EOF'
+          # SaúdePrática 1.9.127 — atualização Android
+
+          Atualização normal da aplicação, usando **o certificado original** e a mesma identidade \`com.mediagenda.app.stable\`, sem ter de desinstalar a versão anterior.
+
+          - Melhorias nos backups portáteis Família / Perfil, protegidos por palavra-passe.
+          - Restauro manual entre Android e Windows com proteção dos dados já existentes e criação de cópia de segurança de recuperação cifrada.
+          - Melhorias de verificação de integridade e prevenção de dados duplicados.
+          - Testes automatizados Android e Windows concluídos; os alarmes de medicação existentes não foram alterados intencionalmente.
+
+          Antes de testar o restauro entre equipamentos, **guardar uma cópia de segurança** e utilizar primeiro dados de ensaio. Não há sincronização automática Android–Windows nesta versão.
+
+          A numeração continua **1.9.xxx** durante todo o desenvolvimento. A **2.0** fica reservada para a conclusão da aplicação.
+          EOF
+            gh release create "$TAG" SaudePratica.apk SaudePratica-v1.9.127-CODIGO-FONTE.zip SaudePratica-v1.9.127-SHA256SUMS.txt \
+              --repo "$REPO" --target "$TARGET" \
+              --title 'SaúdePrática v1.9.127 — backup e restauro entre Android e Windows' \
+              --notes-file notes.md --latest
+          fi
+          gh api "repos/$REPO/releases/latest" --jq .tag_name | grep -Fx "$TAG"

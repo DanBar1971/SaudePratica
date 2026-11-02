@@ -17,13 +17,13 @@ Este ficheiro é a fonte de continuidade técnica do projeto: consultar antes de
 | --- | --- | --- | --- |
 | Android | **1.9.127** | **Última versão oficial normal**, APK com certificado original | https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk |
 | Android | **1.9.125** | Versão anterior | https://github.com/DanBar1971/SaudePratica/releases/download/v1.9.125/SaudePratica.apk |
-| Windows | **0.7.4** | Versão Windows em desenvolvimento, instalador EXE | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.4-preview/SaudePratica-Setup.exe |
+| Windows | **0.7.5** | Versão Windows em desenvolvimento, instalador EXE | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.5-preview/SaudePratica-Setup.exe |
 
 - Android release normal: https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.127
 - A antiga `v1.9.127-preview` existe apenas como artefacto histórico; **não é o download oficial atual**.
-- Windows 0.7.4 corrige a ficha de perfis: sem a listagem de registos técnicos, nomes do pai e mãe, imagens autênticas do CC se existirem e carregamento sob pedido em segundo plano. Testado em [GitHub Actions](https://github.com/DanBar1971/SaudePratica/actions/runs/41449991160) e publicado em [Releases](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.4-preview).\n- Windows preview: https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.4-preview
+- Windows 0.7.5 corrige a ficha de perfis: sem a listagem de registos técnicos, nomes do pai e mãe, imagens autênticas do CC se existirem e carregamento sob pedido em segundo plano. Testado em [GitHub Actions](https://github.com/DanBar1971/SaudePratica/actions/runs/41458179893) e publicado em [Releases](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.5-preview).\n- Windows preview: https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.5-preview
 - iOS ainda não está disponível; planeado para fase futura.
-- Página oficial atualizada para Windows 0.7.4 e Android 1.9.127 normal. `releases/latest` devolve agora `v1.9.127`; a aplicação Android pode procurar e instalar a atualização normalmente.
+- Página oficial atualizada para Windows 0.7.5 e Android 1.9.127 normal. `releases/latest` devolve agora `v1.9.127`; a aplicação Android pode procurar e instalar a atualização normalmente.
 
 ## Builds e segurança validados
 

@@ -54,8 +54,9 @@ jobs:
             echo 'Release already exists and has expected installer.'
             exit 0
           fi
+          gh api "repos/$GITHUB_REPOSITORY/contents/windows/RELEASE_NOTES_PREVIEW.md?ref=release/windows-072-android-127-preview" --jq .content | base64 -d > windows-072-notes.md
           gh release create "$TAG" installer/SaudePratica-Setup.exe SHA256SUMS.txt \
-            --repo "$GITHUB_REPOSITORY" --target 1ad3868bf978b1afd8020e18127d6550768b701b \
+            --repo "$GITHUB_REPOSITORY" --target release/windows-072-android-127-preview \
             --title "SaúdePrática Windows 0.7.2 — backup Família e Perfil (experimental)" \
-            --notes-file windows/RELEASE_NOTES_PREVIEW.md --prerelease --latest=false
+            --notes-file windows-072-notes.md --prerelease --latest=false
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | map(.name) | index("SaudePratica-Setup.exe") != null' | grep -Fx true

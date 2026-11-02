@@ -139,7 +139,7 @@ class TrayNotifier:
 
     def _wnd_proc(self,hwnd,msg,wparam,lparam):
         if msg==self.callback:
-            if lparam in (self.con.WM_RBUTTONUP,self.con.WM_CONTEXTMENU):
+            if (lparam & 0xffff) in (self.con.WM_RBUTTONUP,self.con.WM_CONTEXTMENU):
                 self._show_menu()
             elif lparam==self.con.WM_LBUTTONDBLCLK:
                 self._open_desktop()
@@ -157,22 +157,36 @@ class TrayNotifier:
         return self.gui.DefWindowProc(hwnd,msg,wparam,lparam)
 
     def _show_menu(self):
+        """Open the *real* popup and execute its command from TrackPopupMenu.
+
+        With a hidden tray window, WM_COMMAND can be lost/ignored by some
+        shells. TPM_RETURNCMD returns the selected action directly. Use a
+        string for MF_SEPARATOR: win32gui.AppendMenu does not reliably
+        accept None on every Python/pywin32 build.
+        """
         menu=self.gui.CreatePopupMenu()
         try:
             self.gui.AppendMenu(menu,self.con.MF_STRING,
                                 self.OPEN_MENU,"Abrir SaúdePrática")
-            self.gui.AppendMenu(menu,self.con.MF_SEPARATOR,0,None)
+            self.gui.AppendMenu(menu,self.con.MF_SEPARATOR,0,"")
             self.gui.AppendMenu(menu,self.con.MF_STRING,
                                 self.EXIT_MENU,"Sair dos avisos")
             try:
                 self.gui.SetForegroundWindow(self.window)
             except Exception:
+                # Windows may deny foreground activation of a hidden tray HWND.
+                # Still attempt TrackPopupMenu rather than ignoring the click.
                 pass
             x,y=self.gui.GetCursorPos()
-            self.gui.TrackPopupMenu(
-                menu,self.con.TPM_LEFTALIGN|self.con.TPM_RIGHTBUTTON,
+            selected=self.gui.TrackPopupMenu(
+                menu,self.con.TPM_LEFTALIGN|self.con.TPM_RIGHTBUTTON|
+                     self.con.TPM_RETURNCMD,
                 x,y,0,self.window,None)
             self.gui.PostMessage(self.window,self.con.WM_NULL,0,0)
+            if selected==self.EXIT_MENU:
+                self.exit_requested=True
+            elif selected==self.OPEN_MENU:
+                self._open_desktop()
         finally:
             self.gui.DestroyMenu(menu)
 

@@ -37,6 +37,7 @@ from windows.backup_ui_v072 import render_backup
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
+from windows.medication_details_v078 import additional_medication_fields
 from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as is_no_alarm, configured_reminder, active_reminder, reminder_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
@@ -980,10 +981,23 @@ class Desktop(ctk.CTk):
             self._choose_med_photo,width=207,height=31).pack(side="left",padx=8)
         self._button(photo_row,"Remover foto",self._remove_med_photo,
             width=100,height=31).pack(side="left",padx=4)
-        # Future fields are labelled, not falsely presented as implemented.
+        # Only the selected medication's original Android metadata is shown.
+        # Read-only until these fields have a validated Windows editor.
+        detail_rows=additional_medication_fields(fields)
+        details_start=9
+        if detail_rows:
+            extra=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
+            extra.grid(row=details_start,column=0,columnspan=2,sticky="ew",padx=7,pady=(12,4))
+            self._label(extra,"Informação adicional importada do Android (consulta)",
+                        13,True,color=TEAL).pack(anchor="w",padx=7)
+            for label,value in detail_rows:
+                self._label(extra,label+": "+value,11,color=self.p["text"],wrap=740).pack(
+                    anchor="w",padx=9,pady=2)
+            details_start+=1
+        # Still-unimplemented editors are explicitly labelled as such.
         for i,key in enumerate(("prescription","repetitions","leaflet","more_info")):
             p=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
-            p.grid(row=9+i,column=0,columnspan=2,sticky="ew",padx=6,pady=3)
+            p.grid(row=details_start+i,column=0,columnspan=2,sticky="ew",padx=6,pady=3)
             self._label(p,self.t(key)+"  ·  "+self.t("coming"),11,
                         color=self.p["muted"]).pack(anchor="w",padx=11,pady=7)
         footer=ctk.CTkFrame(frame,fg_color="transparent")

@@ -257,6 +257,72 @@ s=s.replace('''            .setTitle("Inspecionar backup Windows")
             .setMessage("Será verificada a palavra-passe e apresentada a lista "+
                 "dos perfis, medicações, consultas e anexos. Podes confirmar "+
                 "a substituição dos dados editados no Windows.")''')
+# Before claiming export success: read the encrypted file back from Android
+# SAF, authenticate AES-GCM, hash all entries and count clinical patients.
+previous='''            val result=runCatching{PortableWindowsBackup(this).export(uri,pwd,onlyProfile)}'''
+checked='''            val verificationPassword=pwd.copyOf()
+            val result=runCatching{
+                val exported=PortableWindowsBackup(this)
+                    .export(uri,pwd,onlyProfile)
+                val ready=PortableWindowsBackup(this)
+                    .inspect(uri,verificationPassword)
+                try{
+                    val plan=PortableWindowsClinicalRestore(this).inspect(ready)
+                    require(plan.people.size==exported){
+                        "Backup não contém todos os perfis esperados."
+                    }
+                    require((onlyProfile==null && plan.scope=="family") ||
+                            (onlyProfile!=null && plan.scope=="profile")){
+                        "Tipo do backup incorreto."
+                    }
+                    exported
+                }finally{ready.discard()}
+            }
+            verificationPassword.fill(0.toChar())'''
+assert s.count(previous)==1,"Export worker source anchor not found"
+s=s.replace(previous,checked,1)
+# Visible, truthful count before export (without generating empty JSON).
+notice='''        val dialog=MaterialAlertDialogBuilder(this)
+            .setTitle(if(onlyProfile==null)"Backup Família · .spbackup"'''
+assert s.count(notice)==1,"scope prompt not found"
+s=s.replace(notice,'''        val chosen=ProfileStore(this).all()
+            .filter{onlyProfile==null || it.id==onlyProfile}
+        val clinical=runCatching{
+            require(chosen.isNotEmpty()){"Perfil não selecionado."}
+            val totals=chosen.fold(0 to 0){running,person->
+                val folder=if(person.id=="legacy")"" else
+                    "saudepratica_profiles/"+person.id+"/"
+                val meds=File(filesDir,folder+"medicacao.json")
+                val agenda=File(filesDir,folder+"agenda.json")
+                require(meds.isFile && agenda.isFile){
+                    "Ficheiros clínicos em falta para "+person.name
+                }
+                val n=org.json.JSONObject(meds.readText())
+                    .getJSONArray("medications").length()
+                val a=org.json.JSONObject(agenda.readText())
+                    .getJSONArray("appointments").length()
+                running.first+n to running.second+a
+            }
+            chosen.size.toString()+" perfis · "+totals.first+
+                " medicações · "+totals.second+" agendamentos"
+        }.getOrElse{
+            showError("Não é seguro exportar: "+it.message)
+            return
+        }
+        val dialog=MaterialAlertDialogBuilder(this)
+            .setTitle(if(onlyProfile==null)"Backup Família · .spbackup"''',1)
+const message='''            .setMessage(if(onlyProfile==null)
+                "Copia os dados da família inteira, incluindo fotos e documentos. "+
+                "O ficheiro é encriptado e compatível com Windows e futuro macOS."
+                else "Copia APENAS os dados do perfil atual, incluindo fotografias "+
+                "e documentos. Nenhum dado de outro perfil pode ser incluído.")'''
+assert s.count(message)==1
+s=s.replace(message,'''            .setMessage("Dados encontrados: "+clinical+".\\n\\n"+
+                (if(onlyProfile==null)
+                    "Ficheiro cifrado com a família inteira, fotografias e PDFs."
+                else
+                    "Ficheiro cifrado APENAS com os dados do perfil selecionado.")+
+                "\\n\\nConfirma que estas quantidades estão corretas antes de exportar.")''',1)
 main.write_text(s,encoding="utf-8")
 gradle=app/"build.gradle.kts"
 g=gradle.read_text(encoding="utf-8")

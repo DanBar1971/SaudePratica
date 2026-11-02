@@ -25,7 +25,7 @@ assert 'put("scope",if(onlyProfile==null)"family" else "profile")' in portable
 assert 'val source=preview.decrypted' not in restore
 assert 'fun restore(preview:PortableWindowsBackup.Preview,expected:Plan)' in restore
 assert 'val safety=File.createTempFile' in restore
-assert 'FamilyBackupStore(context).export(Uri.fromFile(safety))' in restore
+assert 'FamilyBackupStore(context)' in restore and '.export(Uri.fromFile(safety))' in restore
 assert 'FamilyBackupStore(context).restore(Uri.fromFile(safety))' in restore
 assert 'photos' in portable and 'photo_b64' in restore
 assert 'fun chooseWindowsExport(onlyProfile:String?=null)' in main

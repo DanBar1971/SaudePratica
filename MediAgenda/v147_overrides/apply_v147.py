@@ -30,6 +30,9 @@ patch(family,"        return result.sortedBy{it.first}",'''
             }
         }
         val prefix="saudepratica_profiles/"+onlyProfile+"/"
+        val glucoseKey=java.security.MessageDigest.getInstance("SHA-256")
+            .digest(onlyProfile.toByteArray())
+            .joinToString(""){"%02x".format(it)}
         return result.filter{(path,_)->
             path.startsWith(prefix) ||
             (onlyProfile=="legacy" &&
@@ -41,13 +44,16 @@ patch(family,"        return result.sortedBy{it.first}",'''
             path.startsWith("saudepratica_labs/"+onlyProfile+"/") ||
             path.startsWith("saudepratica_health/"+onlyProfile+"/") ||
             path.startsWith("saudepratica_workplace/"+onlyProfile+"/") ||
-            path.startsWith("diabetes_v1/"+onlyProfile+"/")
+            path.startsWith("diabetes_v1/"+onlyProfile+"/") ||
+            path=="diabetes_v1/"+glucoseKey+".json" ||
+            path=="diabetes_v1/"+glucoseKey+".json.bak"
         }.sortedBy{it.first}''',"single person allowlist")
 patch(family,"    private fun prefs():JSONObject{",
       "    private fun prefs(onlyProfile:String?=null):JSONObject{","scoped prefs")
 patch(family,'''            if(!prefAllowed(name))return@forEach''','''            if(!prefAllowed(name))return@forEach
             if(onlyProfile!=null && name!="saudepratica_profiles_v1" &&
-                name!=ProfileStore(context).preferencesFor(onlyProfile))
+                name!=ProfileStore(context).preferencesFor(onlyProfile) &&
+                !name.endsWith("_"+onlyProfile))
                 return@forEach''',"prefs privacy")
 patch(family,'''            out.put(name,values)''','''            if(name=="saudepratica_profiles_v1" && onlyProfile!=null){
                 val source=values.optJSONObject("profiles")

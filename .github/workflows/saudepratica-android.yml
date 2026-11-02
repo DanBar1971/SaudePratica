@@ -244,6 +244,16 @@ jobs:
               raise SystemExit("App artwork missing from APK; blocking this release: "+repr(branded))
           print("Branded graphics packaged:",branded)
           PY
+      # Hosted Linux runners have /dev/kvm, but the emulator action defaults
+      # to -accel off in this environment. Software x86_64 boot stalled for
+      # >6 minutes and returned 'No service published for: input' (run 41415552389).
+      - name: Enable KVM for Android device integration tests
+        if: github.event_name == 'pull_request'
+        run: |
+          test -c /dev/kvm || { echo '::error::No /dev/kvm on hosted runner'; exit 1; }
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          echo 'KVM device accessible; do not fall back to software emulation'
       - name: Emulador Android - backup cifrado Família/Perfil com dados fictícios
         if: github.event_name == 'pull_request'
         uses: reactivecircus/android-emulator-runner@v2
@@ -251,8 +261,9 @@ jobs:
           api-level: 30
           target: google_apis
           arch: x86_64
+          disable-linux-hw-accel: false
           disable-animations: true
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           script: cd build-src/MediAgenda_Android_v1 && gradle --no-daemon connectedDebugAndroidTest
       - name: Check version and stable app identity
         run: |

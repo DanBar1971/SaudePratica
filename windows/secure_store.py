@@ -165,6 +165,10 @@ class SecureStore:
             "name": 120, "birth_date": 10, "phone": 50, "email": 160,
             "niss": 40, "health_unit": 180, "address": 250, "city": 100,
             "postal_code": 24, "emergency_name": 120, "emergency_phone": 50,
+            "full_name": 160, "gender": 40, "height": 16,
+            "nationality": 80, "birth_place": 120,
+            "father": 160, "mother": 160, "nif": 24,
+            "sns_number": 40, "adse_number": 50,
             "notes": 3000, "photo_b64": 600000
         }
         cleaned = {}

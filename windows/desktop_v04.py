@@ -44,7 +44,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.8"
+VERSION = "0.7.9"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -86,9 +86,15 @@ class Desktop(ctk.CTk):
         self.theme = pref.get("theme", "system") if pref.get("theme") in THEME_KEYS else "system"
         ctk.set_appearance_mode(self.theme)
         super().__init__()
+        # Prevent an unfinished application frame from appearing as a second
+        # splash while the single packaged splash is still on screen.
+        self.withdraw()
         self.title("SaúdePrática Desktop · " + VERSION)
         self.geometry("1370x790")
         self.minsize(1050, 650)
+        self._busy_profile=None
+        self.profile_loading_widget=None
+        self.profile_loading_frame=None
         self.active_id = pref.get("active_profile")
         if not self.store.get_profile(self.active_id):
             self.active_id = self.store.profiles()[0]["id"] if self.store.profiles() else None
@@ -199,7 +205,7 @@ class Desktop(ctk.CTk):
             self._render_content()
             self.update_idletasks()
         finally:
-            self.configure(cursor="")
+            self.configure(cursor="watch" if self._busy_profile else "")
 
     def _render_content(self):
         self.p=self._palette()
@@ -450,8 +456,8 @@ class Desktop(ctk.CTk):
             if status:self._label(content,status,10,color=self.p["muted"]).pack(anchor="w")
             self._button(row,"🗑",lambda pid=profile["id"]:self._delete_profile(pid),
                          width=34,height=30).pack(side="right",padx=(0,6))
-            self._button(row,"›",lambda pid=profile["id"]:self._edit_profile(pid),
-                         width=29,height=30).pack(side="right",padx=(0,3))
+            self._button(row,"ABRIR  ❯",lambda pid=profile["id"]:self._edit_profile(pid),
+                         width=92,height=34).pack(side="right",padx=(0,4))
         if self.profile_edit_open:
             self._profile_form(right)
         else:
@@ -500,8 +506,9 @@ class Desktop(ctk.CTk):
         self.active_id=pid
         self.profile_edit_open=True
         self.store.update_settings(active_profile=pid)
+        self._busy_profile=pid if pid not in self._profile_view_cache else None
         self._render()
-        if pid not in self._profile_view_cache:
+        if self._busy_profile==pid:
             self._load_profile_source(pid)
 
     def _load_profile_source(self,pid):
@@ -520,6 +527,19 @@ class Desktop(ctk.CTk):
             while True:
                 pid,fields,photos=self._profile_source_queue.get_nowait()
                 self._profile_view_cache[pid]=(fields,photos)
+                if self._busy_profile==pid:
+                    self._busy_profile=None
+                    self.configure(cursor="")
+                    bar=self.profile_loading_widget
+                    frame=self.profile_loading_frame
+                    if bar is not None:
+                        try:
+                            if bar.winfo_exists():bar.stop()
+                            if frame is not None and frame.winfo_exists():frame.destroy()
+                        except tk.TclError:
+                            pass
+                    self.profile_loading_widget=None
+                    self.profile_loading_frame=None
                 if not (self.page=="profiles" and self.profile_edit_open and
                         self.editing_profile==pid):
                     continue
@@ -611,6 +631,18 @@ class Desktop(ctk.CTk):
             recovered,_=cached
             fields.update({k:v for k,v in recovered.items() if not fields.get(k)})
         self.cc_photo_bytes=cached[1] if cached else {}
+
+        if current and self._busy_profile==current["id"]:
+            progress=ctk.CTkFrame(frame,fg_color=self.p["panel2"],corner_radius=10)
+            progress.pack(fill="x",padx=16,pady=(6,2))
+            self._label(progress,"⌛  A carregar dados e fotografias do perfil...",
+                        12,True,color=TEAL).pack(anchor="w",padx=12,pady=(8,2))
+            bar=ctk.CTkProgressBar(progress,mode="indeterminate",
+                                  progress_color=TEAL,height=6)
+            bar.pack(fill="x",padx=12,pady=(2,9))
+            bar.start()
+            self.profile_loading_widget=bar
+            self.profile_loading_frame=progress
 
         head=ctk.CTkFrame(frame,fg_color="transparent")
         head.pack(fill="x",padx=16,pady=(9,4))
@@ -1736,8 +1768,14 @@ def main():
         app = Desktop()
         # Process and render the initial UI before marking the startup as good.
         app.update_idletasks()
-        app.update()
+        # One splash until the main window is ready, then reveal it maximized.
         _close_boot_splash()
+        app.deiconify()
+        try:
+            app.state("zoomed")
+        except tk.TclError:
+            app.attributes("-zoomed",True)
+        app.update()
         if smoke_report:
             # Real multi-page GUI check, not just a splash check. The runner
             # supplies an isolated LOCALAPPDATA directory and synthetic data.

@@ -169,6 +169,7 @@ class SecureStore:
             "nationality": 80, "birth_place": 120,
             "father": 160, "mother": 160, "nif": 24,
             "sns_number": 40, "adse_number": 50,
+            "cc_number": 40, "cc_valid_until": 24,
             "notes": 3000, "photo_b64": 600000
         }
         cleaned = {}
@@ -509,7 +510,7 @@ class SecureStore:
         return [dict(item) for item in self.data.get("android_family_archives", [])]
 
     def profile_android_extras(self, profile_id: str):
-        """Get all recoverable read-only fields for just this Android profile."""
+        """Explicit-only, verified per-person source extraction. No UI-thread call."""
         from windows.android_profile_v067 import read_profile_extras
         p=self.get_profile(profile_id)
         if p is None:return {},()
@@ -523,6 +524,22 @@ class SecureStore:
             except (ValueError,OSError,KeyError):
                 continue
         return {},()
+
+    def profile_android_images_and_fields(self, profile_id: str):
+        """Load only own CC photos and identity fields, explicitly and off the UI thread."""
+        from windows.android_profile_v067 import read_profile_view
+        p=self.get_profile(profile_id)
+        if p is None:return {},{}
+        source_id=p.get("android_zip_source_id")
+        if not source_id:return {},{}
+        for item in self.android_archives():
+            if profile_id not in item.get("profile_ids",[]):continue
+            try:
+                original=self.read_imported_asset({"sha256":item["sha256"]})
+                return read_profile_view(original,source_id)
+            except (ValueError,OSError,KeyError):
+                continue
+        return {},{}
 
 
     def export_original_android_zip(self, digest: str) -> bytes:

@@ -1,0 +1,53 @@
+name: Publicar Windows 0.7.7 após ensaio real de botão direito e encerramento
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-windows-077-approved.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Confirmar código e execução de testes Windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          RUN=41470168223
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.conclusion')" = success
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.head_sha')" = 128ace9a61cf645688c6baed31d92c0941e4ae10
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq '.event')" = pull_request
+          echo '120 testes Windows e 5 testes partilhados passaram; o popup do botão direito apareceu e um clique de rato em Sair terminou o agente; Inno Setup 0.7.7 compilou.'
+      - name: Descarregar o instalador testado e confirmar SHA-256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 41470168223 --repo "$GITHUB_REPOSITORY" \
+            --name SaudePratica-Windows-INSTALADOR-EXPERIMENTAL --dir installer
+          test -s installer/SaudePratica-Setup.exe
+          echo "fa62bc21390cfc6553179f803df89091449c4a37f9e40cecbc84b0979ae01e32  installer/SaudePratica-Setup.exe" | sha256sum -c -
+          cp installer/SaudePratica-Setup.exe SaudePratica-Setup.exe
+          sha256sum SaudePratica-Setup.exe > SHA256SUMS.txt
+      - name: Publicar Windows 0.7.7 no GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TAG=windows-v0.7.7-preview
+          TARGET=release/windows-077-avisos-menu-20261102
+          gh api "repos/$REPO/contents/windows/RELEASE_NOTES_077.md?ref=$TARGET" --jq .content | base64 --decode > release-notes.md
+          if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release create "$TAG" SaudePratica-Setup.exe SHA256SUMS.txt \
+              --repo "$REPO" --target "$TARGET" \
+              --title "SaúdePrática Windows v0.7.7 — menu de botão direito dos Avisos corrigido" \
+              --notes-file release-notes.md --prerelease --latest=false
+          fi
+          gh release view "$TAG" --repo "$REPO" --json isDraft,isPrerelease,assets \
+            --jq '(.isDraft|not) and .isPrerelease and any(.assets[]; .name=="SaudePratica-Setup.exe")' | grep -Fx true

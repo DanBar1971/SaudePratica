@@ -43,7 +43,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.7"
+VERSION = "0.7.8"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -192,7 +192,7 @@ class Desktop(ctk.CTk):
 
     def _render(self):
         """Native Windows loading pointer on every module transition."""
-        self.configure(cursor="watch")
+        self.configure(cursor="wait")
         self.update_idletasks()
         try:
             self._render_content()
@@ -300,6 +300,7 @@ class Desktop(ctk.CTk):
         new_id=self.profile_choices.get(label)
         if new_id == self.active_id:return
         self.active_id=new_id
+        self._med_image_cache={}
         self.editing_profile=new_id
         self.editing_med=None
         try:self.store.update_settings(active_profile=new_id)

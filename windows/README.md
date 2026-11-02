@@ -4,7 +4,7 @@
 - Janela inicial 1370×790, redimensionável, navegação horizontal compacta, menu de cartões de módulos inspirado no Android e galeria de medicação com fotografias autênticas.
 - Interface escura/turquesa, inspirada na aplicação Android; usa os ficheiros
   oficiais disponíveis na raiz do repositório: assets/saude_background.png
-  e assets/saude_icon.png. O splash original aparece só no arranque da janela principal. O agente autónomo de Avisos não tem splash.
+  e assets/saude_icon.png. O splash original surge durante o arranque.
 - Gestão completa dos campos do perfil, fotografia, cuidador, seleção permanente do perfil ativo e editor de medicação num único formulário. Aspeto escuro/claro/sistema e cinco idiomas na interface base.
 - **Dados locais encriptados com Windows DPAPI, por utilizador Windows**.
 - Backup com palavra-passe em ficheiro .spbackup (AES-256-GCM), importação
@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.7.6**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.6-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.7.1**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.1-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.6-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.1-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -53,10 +53,9 @@ Criar executável experimental (mais rápido a iniciar e com ícone/splash ofici
 O programa fica em dist/SaudePraticaDesktop/SaudePraticaDesktop.exe, acompanhado das suas bibliotecas. O instalador inclui toda a pasta. Não precisa de JDK/Android Studio.
 O workflow GitHub Actions windows-build.yml executa os testes num runner
 Windows e disponibiliza o EXE como artifact com retenção limitada.
-O workflow de compilação cria o instalador com Inno Setup 6. A versão experimental
-`windows-v0.7.6-preview` foi publicada com base no código testado no ramo
-`release/windows-074-profiles-fast-20261102`, através do workflow
-`publish-windows-075-approved.yml`. O código do `main` será integrado após validação.
+O workflow cria também o instalador com Inno Setup 6 e publica a versão
+`windows-v0.7.1-preview` em GitHub Releases. Ao atualizar o Windows, aumentar
+o `WINDOWS_APP_VERSION` no workflow e publicar uma nova release.
 **Não confundir a versão Windows experimental com uma versão estável.**
 
 ## Segurança

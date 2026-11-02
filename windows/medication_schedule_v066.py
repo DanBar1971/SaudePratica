@@ -1,6 +1,7 @@
 """Read-only next medication occurrence; NOT a Windows alarm scheduler."""
 from __future__ import annotations
 from datetime import date, datetime, timedelta
+from windows.medication_flags_v076 import suspended, no_alarm, reminder_clock
 
 def _day(value):
     if not isinstance(value,str) or not value:
@@ -26,11 +27,11 @@ def next_medication_label(record: dict, now: datetime|None=None) -> str:
     now=now or datetime.now()
     original=record.get("android_original")
     src=original if isinstance(original,dict) else record
-    if record.get("suspended") or src.get("suspended_from"):
+    if suspended(record):
         return "Medicação suspensa"
-    if record.get("no_alarm") or src.get("no_alarm"):
+    if no_alarm(record):
         return "Sem alarme definido"
-    time_value=src.get("reminder_time") or src.get("alarmTime") or record.get("time") or ""
+    time_value=reminder_clock(record)
     clock=_clock(time_value)
     if clock is None:
         return "Hora da toma por definir"

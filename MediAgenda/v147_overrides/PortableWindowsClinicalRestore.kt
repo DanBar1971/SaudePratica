@@ -155,6 +155,128 @@ class PortableWindowsClinicalRestore(private val context:Context) {
         }
         return output
     }
+    /**
+     * Recover untouched health modules of a NEW person from the nested Android
+     * original. It is authenticated by the outer .spbackup and by each nested
+     * original manifest entry. Existing people keep their local nonclinical data.
+     *
+     * Do not import device settings, alarm routes, PIN or other people's files.
+     */
+    private fun originalExtraFiles(
+        outer:ZipFile,preview:PortableWindowsBackup.Preview,
+        plan:Plan,pending:MutableMap<String,ByteArray>
+    ){
+        if(preview.originals.isEmpty())return
+        val newborn=plan.people.filter{it.create}
+        if(newborn.isEmpty())return
+        val sourceToDestination=mutableMapOf<String,String>()
+        for(person in newborn){
+            val metadata=JSONObject(String(bytes(outer,person.source,"profile.json")))
+            val origin=metadata.optString("android_zip_source_id")
+                .ifBlank{person.source}
+            require(origin=="legacy"||
+                origin.matches(Regex("[0-9a-fA-F-]{36}")))
+            sourceToDestination[origin]=person.destination
+        }
+        for(original in preview.originals){
+            val inner=outer.getEntry(original.name)?:error("Arquivo original em falta.")
+            require(inner.size in 1L..220L*1024*1024)
+            val temporary=File.createTempFile("sp_original_verified_",".zip",
+                context.cacheDir)
+            try{
+                val hash=MessageDigest.getInstance("SHA-256")
+                outer.getInputStream(inner).use{input->
+                    temporary.outputStream().use{output->
+                        val buffer=ByteArray(32768)
+                        var count=0L
+                        while(true){
+                            val n=input.read(buffer);if(n<0)break
+                            count+=n
+                            require(count<=220L*1024*1024)
+                            hash.update(buffer,0,n)
+                            output.write(buffer,0,n)
+                        }
+                    }
+                }
+                require(hash.digest().joinToString(""){"%02x".format(it)}==
+                    original.sha256){"Original Android corrompido."}
+                ZipFile(temporary).use{zip->
+                    val manifest=zip.getEntry("backup.json")
+                        ?:error("Manifesto Android em falta.")
+                    val header=JSONObject(zip.getInputStream(manifest)
+                        .bufferedReader().use{it.readText()})
+                    require(header.optString("kind")==
+                        "saudepratica-complete-backup"&&
+                        header.optInt("format")==1){
+                        "Formato Android original inválido."
+                    }
+                    val records=header.getJSONArray("files")
+                    require(records.length()<=3500)
+                    val processed=mutableSetOf<String>()
+                    for(i in 0 until records.length()){
+                        val record=records.getJSONObject(i)
+                        val from=record.getString("path")
+                        require(!from.startsWith("/") &&
+                            !from.contains('\\') &&
+                            from.split('/').none{it==".."||it=="."||it.isBlank()})
+                        require(processed.add(from)){"Original com duplicados."}
+                        var to:String?=null
+                        for((source,dest) in sourceToDestination){
+                            val owned= arrayOf("saudepratica_profiles/",
+                                "saudepratica_identity/",
+                                "saudepratica_documents/",
+                                "saudepratica_labs/",
+                                "saudepratica_workplace/",
+                                "saudepratica_health/",
+                                "saudepratica_cycle/",
+                                "saudepratica_expenses/")
+                            val prefix=owned.firstOrNull{
+                                from.startsWith(it+source+"/")
+                            }
+                            if(prefix!=null){
+                                to=prefix+dest+from.removePrefix(prefix+source)
+                                break
+                            }
+                            val hashed=sha(source.toByteArray())
+                            if(from=="diabetes_v1/"+hashed+".json" ||
+                               from=="diabetes_v1/"+hashed+".json.bak"){
+                                to="diabetes_v1/"+sha(dest.toByteArray())+
+                                    from.removePrefix("diabetes_v1/"+hashed)
+                                break
+                            }
+                        }
+                        if(from.startsWith("medication_photos/") &&
+                            sourceToDestination.isNotEmpty() &&
+                            from.substringAfterLast('/').matches(
+                                Regex("[a-zA-Z0-9_.-]{1,150}"))){
+                            // A family/professional archive with multiple
+                            // patients shares this directory. The original is
+                            // already known by the selected backup scope.
+                            if(plan.scope=="family" ||
+                                sourceToDestination.size==1)to=from
+                        }
+                        if(to==null ||
+                            to.endsWith("/medicacao.json") ||
+                            to.endsWith("/agenda.json") ||
+                            to=="medicacao.json"||to=="agenda.json")continue
+                        if(pending.containsKey(to) || safePath(to).isFile)continue
+                        val entry=zip.getEntry("data/"+from)
+                            ?:error("Original contém ficheiros em falta.")
+                        require(entry.size==record.getLong("size") &&
+                            entry.size in 0L..16_000_000L){
+                            "Anexo original excede os limites de recuperação."
+                        }
+                        val raw=zip.getInputStream(entry).use{it.readBytes()}
+                        require(sha(raw).equals(record.getString("sha256"),true)){
+                            "Original Android com hash incorreto."
+                        }
+                        pending[to]=raw
+                    }
+                }
+            }finally{temporary.delete()}
+        }
+    }
+
     fun restore(preview:PortableWindowsBackup.Preview,expected:Plan):Int {
         val pending=linkedMapOf<String,ByteArray>()
         val before=ProfileStore(context).all()
@@ -218,6 +340,9 @@ class PortableWindowsClinicalRestore(private val context:Context) {
                 }
                 pending.putAll(photos)
             }
+        }
+        ZipFile(preview.decrypted).use{original->
+            originalExtraFiles(original,preview,expected,pending)
         }
         require(pending.values.sumOf{it.size.toLong()}<=260L*1024*1024){
             "Demasiados dados para restaurar."

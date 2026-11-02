@@ -16,7 +16,7 @@ FIELD_ALIASES = {
     "adse_number": ("adse_number","adseNumber","adse"),
     "birth_date": ("birth_date", "birthDate", "dateOfBirth", "dob", "dataNascimento"),
     "phone": ("phone", "phoneNumber", "mobile", "mobilePhone", "telemovel",
-              "telefone", "contactPhone", "contact_phone"),
+              "telefone"),
     "email": ("email", "emailAddress", "mail"),
     "niss": ("niss", "NISS", "socialSecurityNumber"),
     "health_unit": ("health_unit", "healthUnit", "healthcareUnit",

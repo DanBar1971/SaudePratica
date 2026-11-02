@@ -209,6 +209,12 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
                     f"attachments/{raw_digest[:2]}/{raw_digest}.bin"]
                 extra_fields,_=read_profile_extras(original_zip,source_id)
                 restored.update(missing_profile_fields(restored,extra_fields))
+                # Caregiver is boolean metadata, not a free-text field.
+                # Only populate it when the portable file did not already
+                # contain a deliberate Windows caregiver choice.
+                if "caregiver" not in restored and isinstance(
+                        extra_fields.get("caregiver"),bool):
+                    restored["caregiver"]=extra_fields["caregiver"]
         if member.operation=="replace":
             # Keep the stable local ID and original source identity. Replace
             # clinical fields only when explicitly confirmed in the UI.

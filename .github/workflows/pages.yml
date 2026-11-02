@@ -61,7 +61,10 @@ jobs:
           grep -F 'Windows 10 / 11' index.html
           grep -F 'iPhone / iOS' index.html
           grep -F 'data-windows-download' index.html
+          # Validate against the release tag pinned for this published Windows build.
           WIN_TAG="windows-v0.8.0-preview"
+          grep -F 'Experimental 0.8.0' README.md
+          grep -F 'Experimental 0.8.0' index.html
           grep -F "windows-v0.8.0-preview" .github/workflows/publish-windows-080-approved.yml
           test -n "$WIN_TAG"
           WIN_URL="releases/download/${WIN_TAG}/SaudePratica-Setup.exe"

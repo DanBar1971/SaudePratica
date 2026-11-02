@@ -1,4 +1,8 @@
-import io,json,unittest
+import io,json,unittest,tempfile
+from pathlib import Path
+from unittest.mock import patch
+from windows import secure_store
+from shared.python.saude_backup import read_backup
 from zipfile import ZipFile,ZIP_DEFLATED
 from windows.android_profile_v067 import read_profile_extras
 from windows.tests.test_v063_archive import make_zip,_archive_files
@@ -40,6 +44,20 @@ class ProfileBoundaryTests(unittest.TestCase):
         self.assertNotIn("sample drug memo",str(value))
         self.assertNotIn("sample agenda memo",str(value))
         self.assertNotIn("sample emergency memo",str(value))
+    def test_export_separates_profile_and_medication_notes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            location=Path(tmp)/"profile_data.dpapi"
+            with patch.object(secure_store,"_user_data_path",return_value=location),patch.object(secure_store,"_encrypt",side_effect=lambda x:x),patch.object(secure_store,"_decrypt",side_effect=lambda x:x):
+                store=secure_store.SecureStore()
+                p=store.create_profile("Pessoa Fictícia")
+                p["notes"]="example"
+                p["medications"]=[{"id":"m1","name":"Medicamento Exemplo","android_original":{"notes":"example"}}]
+                payload=store.export_backup("password for only tests")
+                verified=read_backup(payload,"password for only tests")
+                profile=json.loads(verified[f"profiles/{p['id']}/profile.json"])
+                medicine=json.loads(verified[f"profiles/{p['id']}/medicacao.json"])
+                self.assertNotIn("notes",profile)
+                self.assertEqual(medicine["medications"][0]["android_original"]["notes"],"example")
     def test_medication_guard_exact_match(self):
         person={"medications":[{"android_original":{"notes":"example"}}]}
         self.assertTrue(overlaps_medication(person,"example"))

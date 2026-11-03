@@ -6,3 +6,4 @@ pyinstaller>=6.12,<7
 customtkinter>=5.2.2,<6
 PyMuPDF>=1.26,<1.29
 rapidocr-onnxruntime==1.4.4
+zeroconf>=0.135,<1

@@ -11,15 +11,17 @@ Este ficheiro é a fonte de continuidade técnica do projeto: consultar antes de
 - Website: https://danbar1971.github.io/SaudePratica/
 - Releases oficiais (Android e Windows): https://github.com/DanBar1971/SaudePratica/releases
 
+**03/11/2026 — Android 1.9.131 publicado:** release normal [v1.9.131](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.131), APK original assinada (certificado v2/v3) e instalável sobre a 1.9.130. O Qwen3 local é transferido pelo Gestor de Downloads Android com indicação de progresso e autorização; a IA Online funciona apenas quando o utilizador configura um backend privado HTTPS, ainda sem serviço público fornecido. O endpoint `/releases/latest` aponta para 1.9.131 e o website foi ajustado em `index.html`. **A descoberta LAN e sincronização clínica com Windows NÃO estão integradas na APK oficial Android.** O teste Windows 0.8.12 continua a requerer a APK auxiliar LAN Link 0.2; esta só descobre e autoriza, sem ler nem transferir informação clínica. Pendente: integração na app Android principal com canal autenticado/cifrado e sincronização por perfil com tratamento de conflitos, seguida de assinatura original e release normal nova.
+
 ## Versões publicadas
 
 | Plataforma | Versão | Estado | Download |
 | --- | --- | --- | --- |
-| Android | **1.9.127** | **Última versão oficial normal**, APK com certificado original | https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk |
+| Android | **1.9.131** | **Última versão oficial normal**, IA local com download Android e opção IA online configurável; APK com certificado original | https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk |
 | Android | **1.9.125** | Versão anterior | https://github.com/DanBar1971/SaudePratica/releases/download/v1.9.125/SaudePratica.apk |
 | Windows | **0.8.12** | Descoberta automática por mDNS/UDP; reprocura funcional; instalador EXE experimental | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.12-preview/SaudePratica-Setup.exe |
 
-- Android release normal: https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.127
+- Android release normal: https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.131
 - A antiga `v1.9.127-preview` existe apenas como artefacto histórico; **não é o download oficial atual**.
 - Windows 0.7.7 corrige os estados de medicação suspensa e horários de avisos do Android, apresenta o agente de Avisos com ícone oficial, sem segundo splash e com menu de botão direito agora funcional e verificado num teste de clique real. Testado em [GitHub Actions](https://github.com/DanBar1971/SaudePratica/actions/runs/41470168223) e publicado em [Releases](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.7-preview).
 - Windows preview atual: https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.12-preview

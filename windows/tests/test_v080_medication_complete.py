@@ -18,7 +18,7 @@ class MedicationV080(unittest.TestCase):
         self.assertIn("for heading,entries in GROUPS",method)
         self.assertIn('self._attach_med_document(k,m)',method)
         self.assertNotIn('self.t("coming")',method)
-        self.assertIn('VERSION = "0.8.10"',source)
+        self.assertIn('VERSION = "0.8.11"',source)
 
     def test_native_android_values_read_and_complex_fields_preserved(self):
         old={"id":"m1","name":"Fictício","android_original":{

@@ -2272,6 +2272,24 @@ def main():
                        dose_entries(app.store.get_profile(person["id"]),
                                     app.dose_selected)):
                 raise AssertionError("Toma manual confirmada não aparece no perfil.")
+            # Windows 0.8.8: exercise actual editors with synthetic values.
+            app.navigate("clinical")
+            app.update()
+            app._health_fields["title"].insert(0,"Consulta clínica sintética")
+            app._health_save("clinical")
+            if len(app.store.health_records(person["id"],"clinical"))!=1:
+                raise AssertionError("Situação Clínica não gravou neste perfil.")
+            app.navigate("expenses")
+            app.update()
+            app._health_fields["merchant"].insert(0,"Prestador fictício")
+            app._health_fields["amount_input"].delete(0,"end")
+            app._health_fields["amount_input"].insert(0,"27,95")
+            app._health_fields["refund_input"].delete(0,"end")
+            app._health_fields["refund_input"].insert(0,"5,00")
+            app._health_save("expenses")
+            exp=app.store.health_records(person["id"],"expenses")
+            if len(exp)!=1 or exp[0]["amountCents"]!=2795:
+                raise AssertionError("Despesas não gravou cêntimos corretamente.")
             other=app.store.save_profile({"name":"Segundo perfil fictício"})
             app._select_profile_by_id(other["id"])
             app.navigate("calendar")
@@ -2282,6 +2300,13 @@ def main():
                 or appointments_for_day(app.store.get_profile(other["id"]),
                                         app.calendar_selected)):
                 raise AssertionError("Mistura de tomas ou agenda entre perfis.")
+            app.navigate("clinical")
+            app.update()
+            app.navigate("expenses")
+            app.update()
+            if (app.store.health_records(other["id"],"clinical")
+                or app.store.health_records(other["id"],"expenses")):
+                raise AssertionError("Mistura de dados clínicos/despesas entre perfis.")
             app._select_profile_by_id(person["id"])
             # Windows 0.8.7: native split Documents with a real synthetic
             # JPEG and preview, then a larger internal view.

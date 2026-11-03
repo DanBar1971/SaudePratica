@@ -60,7 +60,9 @@ def parse_activity_fields(widgets: dict, notes: str, day: date) -> dict:
 
 
 def activity_display(item: dict, name: str) -> str:
-    value=item.get(name)
+    source={"distance_km":"distance_m","weight_kg":"weight_grams",
+            "sleep_hm":"sleep_minutes"}.get(name,name)
+    value=item.get(source)
     if value is None:
         return ""
     if name=="distance_km":

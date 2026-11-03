@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.3**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.3-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.4**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.4-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.3-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.4-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -161,8 +161,16 @@ A Medicação e a Agenda apresentam um formulário à esquerda com separadores c
 
 A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
 
-Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.3-preview/SaudePratica-Setup.exe
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.4-preview/SaudePratica-Setup.exe
 
 ## Windows 0.8.3 — interface gráfica uniforme
 
 O aspeto dos botões, separadores, navegação, campos e botões de voltar foi harmonizado com o desenho aprovado para a Medicação. A ficha da Medicação mantém o campo único de hora de aviso e acrescenta setas de 5 minutos, condições de toma editáveis com sugestões, dropdowns nas repetições e uma pré-visualização maior da fotografia real do medicamento. A Agenda usa os mesmos separadores, campos e botões; Perfis, Backup, Documentos e módulos secundários partilham o mesmo estilo de navegação, com «Voltar ao menu» quando aplicável. Mantêm-se os documentos e OCR locais e as salvaguardas dos dados Android. Alterações Windows não sincronizam os alarmes reais Android. Instalar por cima da versão anterior após criar backup `.spbackup`.
+
+## Windows 0.8.4 — descoberta e autorização do Android via Wi-Fi
+
+O Windows procura automaticamente a aplicação auxiliar Android pela rede Wi-Fi local, usando mDNS/DNS-SD. Quando encontra um telemóvel, sugere abrir «Mais módulos → Sincronização» e pedir ligação. O Android tem de mostrar o mesmo código de seis dígitos e o utilizador toca Autorizar ou Recusar. Para redes que bloqueiam o mDNS, existe introdução manual do IP e porta exibidos no Android.
+
+O teste necessita da APK independente [SaúdePrática Ligação (Teste)](https://github.com/DanBar1971/SaudePratica/releases/download/android-lan-link-v0.1-preview/SaudePratica-Ligacao-Teste.apk), pacote `pt.saudepratica.linktest`. Esta app de ensaio não substitui a SaúdePrática Android oficial e não lê ou transfere qualquer dado clínico. O canal de teste não é encriptado, portanto **não está autorizado a transportar dados de saúde**. A futura sincronização real exigirá TLS/autenticação mútua, backup, diff de registos e resolução de conflitos antes de qualquer aplicação.
+
+No fim do teste, desliga a aplicação auxiliar no Android; não abrir portas no router. Para atualizar o Windows, efetuar backup `.spbackup` antes de instalar por cima.

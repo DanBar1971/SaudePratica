@@ -2191,9 +2191,14 @@ def main():
             person=app.store.save_profile({"name":"Pessoa de teste",
                 "caregiver":True, "health_unit":"Unidade fictícia"})
             app.active_id=person["id"]
+            test_photo=Image.new("RGB",(520,230),(20,77,92))
+            photo_buffer=BytesIO()
+            test_photo.save(photo_buffer,format="JPEG")
             med=app.store.save_medication(person["id"],{
                 "name":"Comprimido fictício","dose":"10 mg","time":"09:00",
-                "administration_route":"oral","dose_pattern":"Jejum"})
+                "reminder_time":"09:00",
+                "administration_route":"oral","dose_pattern":"Jejum",
+                "photo_b64":base64.b64encode(photo_buffer.getvalue()).decode("ascii")})
             for page in ("home","profiles","medication"):
                 app.navigate(page)
                 app.update_idletasks()
@@ -2201,6 +2206,25 @@ def main():
             app._edit_med(med["id"])
             app.update_idletasks()
             app.update()
+            if app._med_editor_image is None:
+                raise AssertionError("A fotografia real não apareceu ampliada.")
+            if not isinstance(app.med_widgets["time"],ctk.CTkComboBox):
+                raise AssertionError("Falta combobox editável de condições da toma.")
+            if not all(isinstance(app.med_extra_widgets[k],ctk.CTkComboBox)
+                       for k in ("frequency","repetitions","repeat_type")):
+                raise AssertionError("Faltam listas editáveis nas Repetições.")
+            app.med_widgets["time"].set("Jejum")
+            app.med_extra_widgets["frequency"].set("1 vez ao dia")
+            app.med_extra_widgets["repetitions"].set("Contínuo (sem fim)")
+            app.med_extra_widgets["repeat_type"].set("Diária")
+            app._adjust_med_time(app.med_widgets["reminder_time"],1)
+            if app.med_widgets["reminder_time"].get()!="09:05":
+                raise AssertionError("Setas do relógio não mudaram cinco minutos.")
+            app._save_med()
+            edited=next(x for x in app.store.get_profile(person["id"])["medications"]
+                        if x["id"]==med["id"])
+            if edited["reminder_time"]!="09:05" or edited["time"]!="Jejum":
+                raise AssertionError("Hora e condição da toma não foram gravadas.")
             app._back_to_med_gallery()
             appointment=app.store.save_appointment(person["id"],{
                 "title":"Consulta fictícia","date":"2027-02-14","time":"10:45",
@@ -2212,6 +2236,12 @@ def main():
             app._close_appointment()
             app._set_med_filter("active")
             app.update()
+            # Exercise the shared navigation/backup/document styles in the
+            # same isolated Windows runner (no personal data or ZIPs).
+            for module in ("documents","backup","more","import"):
+                app.navigate(module)
+                app.update_idletasks()
+                app.update()
             for theme in ("light","dark","system"):
                 ctk.set_appearance_mode(theme)
                 app.navigate("home")

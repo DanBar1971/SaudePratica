@@ -67,7 +67,7 @@ class V081DocumentOCRTests(unittest.TestCase):
         self.assertIn('self._build_document_panel(right,"appointment",values)',apt)
         self.assertNotIn("appointment_extras(values)",apt)
         self.assertNotIn("parse_appointment_extra",apt)
-        self.assertIn('VERSION = "0.8.5"',source)
+        self.assertIn('VERSION = "0.8.6"',source)
 
 if __name__=="__main__":
     unittest.main()

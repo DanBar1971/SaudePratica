@@ -34,7 +34,7 @@ class V079ProfileStartup(unittest.TestCase):
         self.assertIn("app.deiconify()",boot)
         self.assertIn('app.state("zoomed")',boot)
         self.assertLess(boot.index("_close_boot_splash()"),boot.index("app.deiconify()"))
-        self.assertIn('VERSION = "0.8.5"',SOURCE)
+        self.assertIn('VERSION = "0.8.6"',SOURCE)
 
 if __name__=="__main__":
     unittest.main()

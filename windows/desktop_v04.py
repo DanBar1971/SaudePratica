@@ -45,13 +45,14 @@ from windows.medication_time_v082 import condition_value, mismatched_legacy_cloc
 from windows.lan_pair_v084 import PhoneDiscovery
 from windows.lan_ui_v084 import LanUi
 from windows.doses_calendar_ui_v085 import DosesCalendarUi
+from windows.calendar_ui_v086 import CalendarVisualV086
 from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.5"
+VERSION = "0.8.6"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -85,7 +86,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk, LanUi, DosesCalendarUi):
+class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()
@@ -2256,7 +2257,7 @@ def main():
             app.update_idletasks()
             app.update()
             app._close_appointment()
-            # Windows 0.8.5: exercise the actual new Calendar and Takes UI,
+            # Windows 0.8.6: exercise the actual new Calendar and Takes UI,
             # with two separate synthetic profiles and no real patient data.
             from windows.doses_calendar_v085 import appointments_for_day, dose_entries
             app.calendar_selected=datetime(2027,2,14).date()

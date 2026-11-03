@@ -2254,7 +2254,7 @@ def main():
             app.update()
             # Exercise the shared navigation/backup/document styles in the
             # same isolated Windows runner (no personal data or ZIPs).
-            for module in ("documents","backup","more","import"):
+            for module in ("documents","backup","more","import","sync"):
                 app.navigate(module)
                 app.update_idletasks()
                 app.update()

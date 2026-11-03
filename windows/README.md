@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.6**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.6-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.7**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.7-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.6-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.7-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -161,7 +161,7 @@ A Medicação e a Agenda apresentam um formulário à esquerda com separadores c
 
 A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
 
-Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.6-preview/SaudePratica-Setup.exe
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.7-preview/SaudePratica-Setup.exe
 
 ## Windows 0.8.3 — interface gráfica uniforme
 
@@ -182,3 +182,7 @@ Os novos módulos mostram dados exclusivamente do perfil ativo. Calendário ofer
 ## Windows 0.8.6 — Calendário mais visual
 
 Agora o Calendário mostra células mensais mais altas com dias de marcações coloridos, o número de consultas, o título real da primeira marcação, hoje assinalado por contorno e dia selecionado em turquesa. Por baixo, uma lista cronológica apresenta hora, título, local, estado e entrada direta para a ficha. A vista usa exclusivamente os agendamentos do perfil selecionado e adapta cores ao tema claro/escuro. Os novos desenhos foram verificados no Windows com testes automáticos e arranque real do EXE. Mantêm-se as Tomas, o armazenamento DPAPI e os backups .spbackup existentes.
+
+## Windows 0.8.7 — dois painéis e Opções reorganizadas
+
+Calendário: esquerda com grelha mensal colorida compacta, direita com lista de consultas do dia e abertura da ficha; consulta sempre o perfil ativo. Documentos: lista à esquerda e visualizador PDF/JPG/PNG/WebP à direita, botão Abrir para ampliação, Imprimir com confirmação da impressora predefinida e Guardar como para exportação intencional. A pré-visualização e a impressão não criam ficheiros temporários clínicos em claro; a fila Windows pode manter cópias conforme o sistema. Dicas e Informações, Backup e Sincronização ficaram sob Opções; SNS 24 e IPO Lisboa tornaram-se links Web em Atalhos Importantes. O gestor em Opções permite criar, editar, remover e ordenar links com setas, guardados por Windows DPAPI e preservados no backup completo. A sincronização clínica Android ↔ Windows continua em desenvolvimento. Ver nota windows/RELEASE_NOTES_087.md no ramo da release.

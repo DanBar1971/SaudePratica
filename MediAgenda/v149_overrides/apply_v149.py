@@ -97,6 +97,9 @@ replace(gradle,
 # SaúdePrática build root still pins Kotlin 2.0.21.
 buildRoot=app.parent/"build.gradle.kts"
 replace(buildRoot,'version "2.0.21"','version "2.3.21"',"GenAI Kotlin metadata compatibility")
+replace(gradle,'    kotlinOptions { jvmTarget = "17" }','',"remove obsolete Kotlin 2.3 jvmTarget DSL")
+with gradle.open("a",encoding="utf-8") as out:
+    out.write("\\nkotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }\\n")
 replace(gradle,'versionCode = 137','versionCode = 139',"versionCode")
 replace(gradle,'versionName = "1.9.127"','versionName = "1.9.129"',"versionName")
 print("Android v1.9.129: assistant with Nano optional, native profile-scoped read tools, drafts only.")

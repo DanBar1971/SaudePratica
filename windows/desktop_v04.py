@@ -53,13 +53,15 @@ from windows.health_records_ui_v088 import HealthRecordsUiV088
 from windows.water_ui_v089 import WaterUiV089
 from windows.activity_ui_v089 import ActivityUiV089
 from windows.cycle_ui_v089 import CycleUiV089
+from windows.remaining_ui_v0810 import RemainingUiV0810
+from windows.nutrition_ui_v0810 import NutritionUiV0810
 from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.9"
+VERSION = "0.8.10"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -93,7 +95,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088, WaterUiV089, ActivityUiV089, CycleUiV089):
+class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088, WaterUiV089, ActivityUiV089, CycleUiV089, RemainingUiV0810, NutritionUiV0810):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()
@@ -138,6 +140,10 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         self._link_edit_id = None
         self._health_selection = {"clinical":None,"expenses":None}
         self._expense_year = datetime.now().year
+        self._remaining_selection = {}
+        self._nutrition_selected = None
+        self._nutrition_photo_draft = None
+        self._care_tab = "residences"
         self.water_day = datetime.now().date()
         self.activity_day = datetime.now().date()
         self.cycle_day = datetime.now().date()
@@ -413,6 +419,13 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         elif self.page=="water": self._water()
         elif self.page=="activity": self._activity()
         elif self.page=="cycle": self._cycle()
+        elif self.page=="nutrition": self._nutrition()
+        elif self.page=="vision": self._vision()
+        elif self.page=="symptoms": self._symptoms()
+        elif self.page=="vaccines": self._vaccines()
+        elif self.page=="emergency": self._emergency()
+        elif self.page=="pharmacy": self._pharmacy()
+        elif self.page=="residences": self._residences()
         elif self.page=="shortcuts": self._shortcuts()
         elif self.page=="info": self._tips()
         elif self.page=="sync": self._sync_page()
@@ -461,6 +474,10 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         self.cycle_day = datetime.now().date()
         self.cycle_month = datetime.now().date().replace(day=1)
         self._health_selection = {"clinical":None,"expenses":None}
+        self._remaining_selection = {}
+        self._nutrition_selected = None
+        self._nutrition_photo_draft = None
+        self._care_tab = "residences"
         self.doc_selected_digest=None
         self.doc_selected_profile=None
         self.doc_page_index=0
@@ -524,6 +541,10 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         self.cycle_day = datetime.now().date()
         self.cycle_month = datetime.now().date().replace(day=1)
         self._health_selection = {"clinical":None,"expenses":None}
+        self._remaining_selection = {}
+        self._nutrition_selected = None
+        self._nutrition_photo_draft = None
+        self._care_tab = "residences"
         self.doc_selected_digest=None
         self.doc_selected_profile=None
         self.doc_page_index=0

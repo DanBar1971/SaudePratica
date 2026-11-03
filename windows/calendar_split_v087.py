@@ -62,7 +62,7 @@ class CalendarSplitV087:
                      width=40, height=33).pack(side="left", padx=(3, 0))
 
         grid = ctk.CTkFrame(left, fg_color="transparent")
-        grid.pack(fill="both", expand=True, padx=10, pady=(1, 11))
+        grid.pack(fill="x", padx=10, pady=(1, 11))
         for col in range(7):
             grid.grid_columnconfigure(col, weight=1, uniform="day")
             self._label(grid, WEEKDAYS[col].upper(), 11, True,
@@ -70,7 +70,7 @@ class CalendarSplitV087:
                             row=0, column=col, sticky="ew", padx=2, pady=(0, 5))
         self._calendar_day_cells = {}
         for row_n, week in enumerate(weeks, start=1):
-            grid.grid_rowconfigure(row_n, weight=1, uniform="calendar_week")
+            grid.grid_rowconfigure(row_n, weight=0)
             for col, (day, in_month, day_count) in enumerate(week):
                 paint = calendar_day_colors(
                     has_appointments=day_count > 0,

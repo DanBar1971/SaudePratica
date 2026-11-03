@@ -314,6 +314,9 @@ class SecureStore:
         reminder_time=str(fields.get("reminder_time","")).strip()
         if reminder_supplied and reminder_time and not CLOCK.fullmatch(reminder_time):
             raise LocalStoreError("A hora de aviso deve ser HH:MM, por exemplo 07:00.")
+        if reminder_supplied and CLOCK.fullmatch(time) and time!=reminder_time:
+            raise LocalStoreError(
+                "Existem duas horas diferentes. Altera a Hora de aviso e guarda novamente.")
         no_alarm = bool(fields.get("no_alarm", False)) or dose_pattern == "SOS"
         # The desktop may save an authentic photo of the medication package.
         # Keep legacy image/attachment fields untouched when the editor does

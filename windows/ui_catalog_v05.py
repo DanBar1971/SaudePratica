@@ -9,9 +9,9 @@ import unicodedata
 # key, icon, title PT-PT, subtitle PT-PT, implemented in Windows 0.5
 MODULE_CARDS = [
     ("medication", "💊", "Medicação", "Terapêutica e avisos", True),
-    ("doses", "✅", "Tomas", "Pendentes e confirmadas", False),
+    ("doses", "✅", "Tomas", "Pendentes e confirmadas", True),
     ("agenda", "📆", "Agenda", "Consultas e exames", True),
-    ("calendar", "🗓️", "Calendário", "Vista mensal e marcações", False),
+    ("calendar", "🗓️", "Calendário", "Vista mensal e marcações", True),
     ("documents", "📁", "Documentos", "PDF e fotografias", True),
     ("clinical", "🏥", "Situação Clínica", "Medicina do trabalho", False),
     ("expenses", "🧾", "Despesas de Saúde", "Faturas e IRS", False),

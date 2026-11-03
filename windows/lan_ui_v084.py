@@ -11,12 +11,31 @@ from windows.lan_pair_v084 import Phone, LinkError, lan_ip, ask_to_pair, get_pai
 
 class LanUi:
     def _lan_begin_discovery(self):
+        # A genuine rescan, even if the mDNS watcher already exists.
+        if getattr(self,"_lan_scanning",False):
+            return
+        self._lan_scanning=True
+        self._lan_events.put(("status",
+            "A pesquisar Android por mDNS e broadcast Wi-Fi..."))
         def run():
             try:
                 self._lan_manager.start()
-                self._lan_events.put(("status","A pesquisar SaúdePrática Android na rede local."))
+                self._lan_manager.refresh()
+                devices=self._lan_manager.snapshot()
+                if devices:
+                    info=(f"{len(devices)} dispositivo(s) encontrado(s) "
+                          "automaticamente. Escolhe Pedir ligação.")
+                else:
+                    info=("Ainda não encontrei o Android automaticamente "
+                          "(mDNS/UDP). Confirma que está visível, na mesma "
+                          "rede local e sem rede convidado/isolamento. "
+                          "A ligação por IP continua disponível.")
+                self._lan_events.put(("status",info))
             except Exception as exc:
-                self._lan_events.put(("status","Pesquisa indisponível: "+str(exc)[:140]))
+                self._lan_events.put(("status",
+                    "Pesquisa indisponível: "+str(exc)[:140]))
+            finally:
+                self._lan_scanning=False
         threading.Thread(target=run,daemon=True).start()
 
     def _lan_close(self):
@@ -35,9 +54,13 @@ class LanUi:
             try:event,value=self._lan_events.get_nowait()
             except queue.Empty:break
             if event=="found":
-                if value.service not in self._lan_devices:discovered.append(value)
-                self._lan_devices[value.service]=value
-                changed=True
+                duplicate=next((p for p in self._lan_devices.values()
+                                if p.host==value.host and p.port==value.port),None)
+                if duplicate is None:
+                    if value.service not in self._lan_devices:
+                        discovered.append(value)
+                    self._lan_devices[value.service]=value
+                    changed=True
             elif event=="removed":
                 self._lan_devices.pop(value,None)
                 changed=True
@@ -79,7 +102,7 @@ class LanUi:
         self._label(warning,"TESTE DE LIGAÇÃO · nenhum dado clínico é transferido",
                     14,True,color="#00c9b7").pack(anchor="w",padx=15,pady=(10,3))
         self._label(warning,
-            "O objetivo é verificar a descoberta automática e a autorização. "
+            "O objetivo é verificar a descoberta mDNS + UDP/broadcast e a autorização. "
             "Não sincroniza medicação, perfis, agenda, documentos ou fotografias.",
             12,color=self.p["muted"],wrap=980).pack(anchor="w",padx=15,pady=(0,12))
         self._label(self.body,"Telemóveis SaúdePrática encontrados",18,True).pack(
@@ -90,7 +113,7 @@ class LanUi:
             self._label(devices,
                 "Ainda não apareceu nenhum Android. Abre a aplicação de teste "
                 "«SaúdePrática Ligação» no telemóvel e toca em «Tornar visível». "
-                "Ambos têm de estar na mesma rede Wi-Fi.",
+                "Ambos devem estar na mesma rede local, sem isolamento de clientes.",
                 12,color=self.p["muted"],wrap=950).pack(
                     anchor="w",padx=18,pady=16)
         for phone in list(self._lan_devices.values())[:12]:
@@ -107,6 +130,12 @@ class LanUi:
         row.pack(fill="x",padx=12,pady=(3,7))
         self._button(row,"Procurar novamente",
                      self._lan_refresh,width=173,height=34).pack(side="left")
+        self._label(self.body,
+            "Descoberta automática usa mDNS e broadcast UDP na rede local. "
+            "Se a rede bloquear ambos os protocolos, utiliza Ligar por IP "
+            "como alternativa. Não é necessário configurar portas no router.",
+            11,color=self.p["muted"],wrap=1050).pack(
+                anchor="w",padx=16,pady=(5,0))
         self._label(row,"Ligar por IP (alternativa)",
                     12,True,color=self.p["muted"]).pack(side="left",padx=(22,8))
         self.lan_manual_ip=ctk.CTkEntry(row,width=145,height=33,
@@ -135,7 +164,7 @@ class LanUi:
                 anchor="w",padx=15,pady=12)
 
     def _lan_refresh(self):
-        self._lan_status="A procurar equipamentos..."
+        self._lan_status="A pesquisar novamente por mDNS e UDP..."
         self._lan_begin_discovery()
         self._render()
 

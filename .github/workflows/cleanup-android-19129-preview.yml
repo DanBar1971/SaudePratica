@@ -1,0 +1,45 @@
+name: Eliminar pré-release Android 1.9.129 substituída pela versão normal
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cleanup-android-19129-preview.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  cleanup-obsolete-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verificar que a versão Android NORMAL substitui a preview com APK idêntica
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          test "$REPO" = DanBar1971/SaudePratica
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = v1.9.129
+          gh release view v1.9.129 --repo "$REPO" --json isDraft,isPrerelease,assets \
+            --jq '(.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          DIGEST="$(gh api "repos/$REPO/releases/tags/v1.9.129" \
+            --jq '.assets[] | select(.name=="SaudePratica.apk") | .digest')"
+          test "$DIGEST" = sha256:48bcaadf0415f0d1dc85158193f53f3aaa298ef5064b615c43439415f78dbea2
+          echo "APK estável verificada por SHA-256; versão preview pode ser retirada sem perda do binário."
+
+      - name: Retirar pré-release duplicada — a regra é usar somente 1.9.xxx normal
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v1.9.129-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete v1.9.129-preview \
+              --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          fi
+          if gh release view v1.9.129-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Pré-release obsoleta ainda presente."
+            exit 1
+          fi
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" = v1.9.129
+          echo "::notice title=Releases Android corrigidos::A atualização oficial é v1.9.129 sem pré-release."

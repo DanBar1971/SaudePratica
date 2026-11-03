@@ -1,0 +1,33 @@
+name: Verificar configuração da assinatura Android (sem expor segredo)
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-android-signing-config.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirmar presença da recuperação ORIGINAL no repositório principal
+        shell: bash
+        env:
+          ORIGINAL_RECOVERY: ${{ secrets.SAUDEPRACTICA_SIGNING_RECOVERY_HEX }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REPOSITORY" != "DanBar1971/SaudePratica" ]]; then
+            echo "::error::Repositório incorreto"
+            exit 1
+          fi
+          if [[ -z "$ORIGINAL_RECOVERY" ]]; then
+            echo "::error title=Assinatura Android indisponível::O segredo de recuperação da chave original ainda não está configurado neste repositório."
+            exit 1
+          fi
+          if [[ ! "$ORIGINAL_RECOVERY" =~ ^[[:xdigit:]]{64}$ ]]; then
+            echo "::error title=Formato inválido::O segredo existe mas não tem o formato esperado (64 caracteres hexadecimais)."
+            exit 1
+          fi
+          echo "::notice title=Assinatura original configurada::O segredo existe e tem o formato esperado. Nenhum valor privado foi mostrado."

@@ -263,6 +263,100 @@ class SecureStore:
             raise
         return new
 
+    def confirm_intake(self, profile_id: str, medication_id: str,
+                       confirmed_at: str | None = None,
+                       scheduled_at: str | None = None):
+        """Explicit confirmed dose for ONE selected profile; never from a reminder.
+
+        Planned slots are checked against the person's real medication schedule;
+        ad-hoc/SOS doses have no scheduled slot and require an explicit click.
+        """
+        from datetime import datetime, timedelta
+        from windows.doses_calendar_v085 import expected_slots
+
+        profile = self.get_profile(profile_id)
+        if profile is None:
+            raise LocalStoreError("Perfil não encontrado.")
+        med = next((m for m in profile.get("medications", [])
+                    if isinstance(m, dict) and m.get("id") == medication_id), None)
+        if med is None:
+            raise LocalStoreError("Este medicamento não pertence ao perfil selecionado.")
+        try:
+            timestamp = datetime.fromisoformat(confirmed_at) if confirmed_at else datetime.now()
+        except (ValueError, TypeError) as exc:
+            raise LocalStoreError("Data/hora de toma inválida.") from exc
+        if timestamp.tzinfo is not None:
+            raise LocalStoreError("Usa uma hora local sem fuso horário.")
+        if not 2000 <= timestamp.year <= 9999 or timestamp > datetime.now() + timedelta(minutes=5):
+            raise LocalStoreError("Data/hora de confirmação fora do intervalo.")
+        planned = None
+        if scheduled_at:
+            try:
+                planned = datetime.fromisoformat(scheduled_at)
+            except (TypeError, ValueError) as exc:
+                raise LocalStoreError("Hora programada inválida.") from exc
+            if planned.tzinfo is not None or not any(
+                slot["scheduled_at"] == planned.isoformat(timespec="minutes") and
+                slot["medication_id"] == medication_id
+                for slot in expected_slots(profile, planned.date())
+            ):
+                raise LocalStoreError("A toma prevista não está associada a este perfil.")
+        records = profile.setdefault("intakes", [])
+        if not isinstance(records, list):
+            raise LocalStoreError("Histórico de tomas inválido.")
+        scheduled_key = planned.isoformat(timespec="minutes") if planned else ""
+        if scheduled_key and any(
+            r.get("medication_id") == medication_id and
+            r.get("scheduled_at") == scheduled_key and
+            r.get("status") == "confirmed"
+            for r in records if isinstance(r, dict)
+        ):
+            raise LocalStoreError("Esta toma prevista já está confirmada.")
+        moment = timestamp.isoformat(timespec="seconds")
+        if not scheduled_key and any(
+            r.get("medication_id") == medication_id and
+            r.get("confirmed_at") == moment and
+            r.get("status") == "confirmed"
+            for r in records if isinstance(r, dict)
+        ):
+            raise LocalStoreError("Esta confirmação já está registada.")
+        item = {
+            "id": str(uuid.uuid4()),
+            "medication_id": medication_id,
+            "medication": str(med.get("name") or "Medicação"),
+            "dose": str(med.get("dose") or ""),
+            "scheduled_at": scheduled_key,
+            "confirmed_at": moment,
+            "source": "windows_explicit",
+            "status": "confirmed",
+        }
+        records.append(item)
+        try:
+            self.save()
+        except Exception:
+            records.pop()
+            raise
+        return item
+
+    def delete_intake(self, profile_id: str, intake_id: str):
+        """Remove a confirmed history record only after explicit UI consent."""
+        profile = self.get_profile(profile_id)
+        if profile is None:
+            raise LocalStoreError("Perfil não encontrado.")
+        records = profile.get("intakes", [])
+        if not isinstance(records, list):
+            raise LocalStoreError("Histórico de tomas inválido.")
+        found = next((i for i,r in enumerate(records) if
+                      isinstance(r, dict) and r.get("id") == intake_id), None)
+        if found is None:
+            raise LocalStoreError("Toma não encontrada neste perfil.")
+        prior = records.pop(found)
+        try:
+            self.save()
+        except Exception:
+            records.insert(found, prior)
+            raise
+
     def add_medication(self, profile_id: str, name: str, dose: str, time: str, route: str):
         """Compatibility with records saved by the first experimental build."""
         return self.save_medication(profile_id, {

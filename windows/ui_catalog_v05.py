@@ -24,14 +24,9 @@ MODULE_CARDS = [
     ("vaccines", "💉", "Vacinas", "Histórico de vacinação", False),
     ("emergency", "🆘", "Emergência", "Contactos de emergência", False),
     ("pharmacy", "✚", "Farmácias", "Serviços próximos", False),
-    ("sns24", "🏥", "SNS 24", "Serviço oficial", False),
-    ("ipo", "🏨", "IPO Lisboa", "Serviço externo", False),
     ("profiles", "👥", "Perfis", "Família e cuidador", True),
     ("residences", "🏠", "Lares e Apoios", "Gestão familiar", False),
-    ("shortcuts", "🔗", "Atalhos Importantes", "Links úteis", False),
-    ("info", "💡", "Dicas e Informações", "Conteúdos guardados", False),
-    ("backup", "🔐", "Backup", "Cópias encriptadas", True),
-    ("sync", "🔄", "Sincronização", "Entre dispositivos", False),
+    ("shortcuts", "🔗", "Atalhos Importantes", "Links úteis", True),
     ("options", "⚙️", "Opções", "Aspeto e idiomas", True),
 ]
 

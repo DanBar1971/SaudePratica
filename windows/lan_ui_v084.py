@@ -15,6 +15,7 @@ class LanUi:
         if getattr(self,"_lan_scanning",False):
             return
         self._lan_scanning=True
+        self._lan_last_scan=time.monotonic()
         self._lan_events.put(("status",
             "A pesquisar Android por mDNS e broadcast Wi-Fi..."))
         def run():
@@ -92,6 +93,11 @@ class LanUi:
                     parent=self):
                     self.navigate("sync")
             self.after(10,offer)
+        if (self.page=="sync" and not self._lan_devices
+                and not getattr(self,"_lan_scanning",False)
+                and time.monotonic()-getattr(self,"_lan_last_scan",0)>12):
+            # Retry unattended when the phone becomes visible after Windows.
+            self._lan_begin_discovery()
         self.after(330,self._lan_poll_ui)
 
     def _sync_page(self):
@@ -165,6 +171,8 @@ class LanUi:
 
     def _lan_refresh(self):
         self._lan_status="A pesquisar novamente por mDNS e UDP..."
+        self._lan_devices.clear()
+        self._lan_seen.clear()
         self._lan_begin_discovery()
         self._render()
 

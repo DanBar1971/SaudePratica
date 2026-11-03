@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.4**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.4-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.5**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.5-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.4-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.5-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -161,7 +161,7 @@ A Medicação e a Agenda apresentam um formulário à esquerda com separadores c
 
 A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
 
-Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.4-preview/SaudePratica-Setup.exe
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.5-preview/SaudePratica-Setup.exe
 
 ## Windows 0.8.3 — interface gráfica uniforme
 
@@ -174,3 +174,7 @@ O Windows procura automaticamente a aplicação auxiliar Android pela rede Wi-Fi
 O teste necessita da APK independente [SaúdePrática Ligação (Teste)](https://github.com/DanBar1971/SaudePratica/releases/download/android-lan-link-v0.1-preview/SaudePratica-Ligacao-Teste.apk), pacote `pt.saudepratica.linktest`. Esta app de ensaio não substitui a SaúdePrática Android oficial e não lê ou transfere qualquer dado clínico. O canal de teste não é encriptado, portanto **não está autorizado a transportar dados de saúde**. A futura sincronização real exigirá TLS/autenticação mútua, backup, diff de registos e resolução de conflitos antes de qualquer aplicação.
 
 No fim do teste, desliga a aplicação auxiliar no Android; não abrir portas no router. Para atualizar o Windows, efetuar backup `.spbackup` antes de instalar por cima.
+
+## Windows 0.8.5 — Tomas e Calendário
+
+Os novos módulos mostram dados exclusivamente do perfil ativo. Calendário oferece uma grelha mensal com número de agendamentos por dia e uma lista cronológica de consultas/marcações abaixo; é possível abrir a respetiva ficha. Tomas apresenta histórico diário, horários previstos apenas quando existe uma regra real, filtros e registo de toma confirmado manualmente, sem fabricar doses tomadas ou omitidas. Os registos Windows são encriptados e seguem no backup .spbackup. Não existem alarmes de medicação Windows nem sincronização automática do histórico Android. A release independente 0.8.5 foi compilada e validada com smoke tests reais do EXE e dados fictícios.

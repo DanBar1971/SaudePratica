@@ -1,6 +1,6 @@
 # SaúdePrática — estado atual e continuidade entre chats
 
-**Atualizado:** 2026-11-02 (Europe/Lisbon).
+**Atualizado:** 2026-11-03 (Europe/Lisbon).
 
 Este ficheiro é a fonte de continuidade técnica do projeto: consultar antes de pedir novamente ao utilizador código, ficheiros ou chaves já existentes. Nunca guardar segredos, dados clínicos reais nem códigos de recuperação no GitHub.
 
@@ -17,14 +17,16 @@ Este ficheiro é a fonte de continuidade técnica do projeto: consultar antes de
 | --- | --- | --- | --- |
 | Android | **1.9.127** | **Última versão oficial normal**, APK com certificado original | https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk |
 | Android | **1.9.125** | Versão anterior | https://github.com/DanBar1971/SaudePratica/releases/download/v1.9.125/SaudePratica.apk |
-| Windows | **0.7.6** | Versão Windows em desenvolvimento, instalador EXE | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.7.7-preview/SaudePratica-Setup.exe |
+| Windows | **0.8.5** | Tomas e Calendário por perfil, instalador EXE experimental | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.5-preview/SaudePratica-Setup.exe |
 
 - Android release normal: https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.127
 - A antiga `v1.9.127-preview` existe apenas como artefacto histórico; **não é o download oficial atual**.
 - Windows 0.7.7 corrige os estados de medicação suspensa e horários de avisos do Android, apresenta o agente de Avisos com ícone oficial, sem segundo splash e com menu de botão direito agora funcional e verificado num teste de clique real. Testado em [GitHub Actions](https://github.com/DanBar1971/SaudePratica/actions/runs/41470168223) e publicado em [Releases](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.7-preview).
-- Windows preview: https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.7-preview
+- Windows preview atual: https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.5-preview
 - iOS ainda não está disponível; planeado para fase futura.
-- Página oficial atualizada para Windows 0.7.7 e Android 1.9.127 normal. `releases/latest` devolve agora `v1.9.127`; a aplicação Android pode procurar e instalar a atualização normalmente.
+- Página oficial atualizada para Windows 0.8.5 e Android 1.9.127 normal. `releases/latest` devolve agora `v1.9.127`; a aplicação Android pode procurar e instalar a atualização normalmente.
+
+**03/11/2026:** Windows 0.8.5 acrescenta Tomas (confirmação explícita de toma, histórico diário) e Calendário (vista mensal com lista de agendamentos por dia), com separação rigorosa dos dados por perfil. CI Windows com 159 testes Python, ensaio GUI de fontes e EXE, OCR e Avisos passou, e instalador publicado. A ligação LAN 0.8.4 continua limitada à descoberta/pedido de ligação, sem transferência de informação clínica; os registos de tomas Android ainda não são transferidos. O Android oficial mantém-se independente.
 
 ## Builds e segurança validados
 

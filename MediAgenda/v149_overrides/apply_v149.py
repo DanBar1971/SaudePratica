@@ -93,6 +93,10 @@ replace(gradle,
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
     implementation("com.google.mlkit:text-recognition:16.0.1")''',
 "optional Nano inference")
+# Current ML Kit GenAI metadata requires Kotlin 2.3.x, while the older
+# SaúdePrática build root still pins Kotlin 2.0.21.
+buildRoot=app.parent/"build.gradle.kts"
+replace(buildRoot,'version "2.0.21"','version "2.3.21"',"GenAI Kotlin metadata compatibility")
 replace(gradle,'versionCode = 137','versionCode = 139',"versionCode")
 replace(gradle,'versionName = "1.9.127"','versionName = "1.9.129"',"versionName")
 print("Android v1.9.129: assistant with Nano optional, native profile-scoped read tools, drafts only.")

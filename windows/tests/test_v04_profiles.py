@@ -28,8 +28,10 @@ class TranslationsTests(unittest.TestCase):
         self.assertIn('saude_icon.png',s)
         self.assertIn('self._select_profile',s)
         self.assertIn('self._profile_form',s)
-        self.assertIn('self._change_theme',s)
-        self.assertIn('self._change_language',s)
+        options=(ROOT/"windows/links_options_ui_v087.py").read_text(encoding="utf-8")
+        self.assertIn('self._change_theme',options)
+        self.assertIn('self._change_language',options)
+        self.assertIn('LinksOptionsV087._settings_page(self)',s)
         # In Tkinter, _options(cnf, kw) is a reserved internal method.
         # Accidentally overriding it caused the v0.4.0 launch failure.
         self.assertNotIn("def _options(self):",s)

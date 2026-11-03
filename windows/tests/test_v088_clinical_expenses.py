@@ -1,4 +1,4 @@
-"""Windows 0.8.9: clinical and expense modules synthetic end-to-end tests."""
+"""Windows 0.8.10: clinical and expense modules synthetic end-to-end tests."""
 from __future__ import annotations
 
 import json
@@ -192,14 +192,14 @@ class GuiContractTests(unittest.TestCase):
             self.assertTrue(flags[key])
         for key in ("nutrition","vision","symptoms",
                     "vaccines","emergency","pharmacy","residences"):
-            self.assertFalse(flags[key])
+            self.assertTrue(flags[key])
 
     def test_real_forms_and_plaintext_disclosures(self):
         source=(Path(__file__).resolve().parents[1]/
                 "health_records_ui_v088.py").read_text("utf-8")
         desktop=(Path(__file__).resolve().parents[1]/
                  "desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.9"',desktop)
+        self.assertIn('VERSION = "0.8.10"',desktop)
         self.assertIn('self.page=="clinical"',desktop)
         self.assertIn('self.page=="expenses"',desktop)
         self.assertIn("self.store.health_records(person[\"id\"],kind)",source)

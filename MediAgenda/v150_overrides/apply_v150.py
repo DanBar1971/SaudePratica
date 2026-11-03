@@ -104,11 +104,6 @@ patch(agent,
 '''Para conversar offline podes descarregar opcionalmente a IA local leve (383 MB) ou usar a Ajuda clássica.''',
 "guided message")
 
-patch(agent,
-'''Assistência guiada offline (IA indisponível)''',
-'''Assistência guiada offline · IA leve opcional''',
-"Nano unavailable explanatory status first")
-
 # Also update catch-path and other instances in v149 with correct fallback.
 s = agent.read_text(encoding="utf-8").replace(
     "Assistência guiada offline (IA indisponível)",

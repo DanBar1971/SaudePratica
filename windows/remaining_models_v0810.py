@@ -147,7 +147,7 @@ def safe_money(value)->int:
 
 def text_money(cents):
     if not isinstance(cents,int):return "0,00"
-    return f"{cents/100:.2f}".replace(".",",")
+    return f"{cents//100},{cents%100:02d}"
 
 def check_url(value):
     if not value:return ""

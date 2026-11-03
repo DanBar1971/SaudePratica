@@ -31,10 +31,10 @@ def time_for_store(previous,reminder,condition):
     """
     reminder=(reminder or "").strip()
     condition=(condition or "").strip()
-    if condition and not CLOCK.fullmatch(condition):
-        return condition
     if condition and re.fullmatch(r"\d{1,2}\s*[:hH]\s*\d{2}",condition):
         raise ValueError("Para alterar a hora, utiliza o campo Hora de aviso.")
+    if condition:
+        return condition
     return reminder
 
 def canonical_reminder_fields(reminder,condition):

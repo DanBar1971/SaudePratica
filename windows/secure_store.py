@@ -100,6 +100,105 @@ class SecureStore:
             raise
         return cleaned
 
+    def health_records(self, profile_id: str, kind: str) -> list[dict]:
+        """Independent clinical/expense records for ONE valid profile."""
+        import copy
+        column = {"clinical": "clinical_records",
+                  "expenses": "health_expenses"}.get(kind)
+        if column is None:
+            raise LocalStoreError("Módulo de saúde desconhecido.")
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise LocalStoreError("Perfil não encontrado.")
+        records = profile.get(column, [])
+        if not isinstance(records, list):
+            raise LocalStoreError("Dados do módulo inválidos.")
+        return sorted((copy.deepcopy(r) for r in records
+                       if isinstance(r, dict)),
+                      key=lambda x: (str(x.get("date", "")),
+                                     str(x.get("createdAt", ""))), reverse=True)
+
+    def save_health_record(self, profile_id: str, kind: str,
+                           fields: dict, record_id: str | None = None) -> dict:
+        """Atomic upsert, profile-bounded IDs and attachments; no real data in logs."""
+        import copy
+        from datetime import datetime
+        from windows.clinical_expenses_v088 import clinical_record, expense_record
+        if kind not in ("clinical", "expenses"):
+            raise LocalStoreError("Módulo inválido.")
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise LocalStoreError("Perfil não encontrado.")
+        try:
+            cleaned = (clinical_record(fields) if kind == "clinical"
+                       else expense_record(fields))
+        except ValueError as exc:
+            raise LocalStoreError(str(exc)) from exc
+        digest = cleaned.get("document_sha256", "")
+        if digest and not any(
+            x.get("profile_id") == profile_id and x.get("sha256") == digest
+            for x in self.data.get("imported_files", []) if isinstance(x, dict)
+        ):
+            raise LocalStoreError("Documento não associado a este perfil.")
+        column = "clinical_records" if kind == "clinical" else "health_expenses"
+        existing = profile.get(column, [])
+        if not isinstance(existing, list):
+            raise LocalStoreError("Registos existentes inválidos.")
+        old = next((r for r in existing if isinstance(r, dict)
+                    and r.get("id") == record_id), None) if record_id else None
+        if record_id and old is None:
+            raise LocalStoreError("Registo não encontrado no perfil selecionado.")
+        now = datetime.now().isoformat(timespec="seconds")
+        item = {
+            "id": record_id or str(uuid.uuid4()),
+            **cleaned,
+            "createdAt": old.get("createdAt", now) if old else now,
+            "updatedAt": now,
+            "source": "windows_manual",
+        }
+        prior = self.data
+        proposed = copy.deepcopy(prior)
+        target = next(p for p in proposed["profiles"] if p.get("id") == profile_id)
+        values = target.setdefault(column, [])
+        if record_id:
+            index = next(i for i,x in enumerate(values) if
+                         isinstance(x, dict) and x.get("id") == record_id)
+            values[index] = item
+        else:
+            values.append(item)
+        try:
+            self.data = proposed
+            self.save()
+        except Exception:
+            self.data = prior
+            raise
+        return copy.deepcopy(item)
+
+    def delete_health_record(self, profile_id: str, kind: str, record_id: str):
+        """Delete only a record belonging to the requested profile."""
+        import copy
+        if kind not in ("clinical", "expenses"):
+            raise LocalStoreError("Módulo inválido.")
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise LocalStoreError("Perfil não encontrado.")
+        column = "clinical_records" if kind == "clinical" else "health_expenses"
+        records = profile.get(column, [])
+        if not any(isinstance(r, dict) and r.get("id") == record_id
+                   for r in records):
+            raise LocalStoreError("Registo não encontrado neste perfil.")
+        prior = self.data
+        proposed = copy.deepcopy(prior)
+        target = next(p for p in proposed["profiles"] if p.get("id") == profile_id)
+        target[column] = [r for r in target.get(column, []) if
+                          not (isinstance(r, dict) and r.get("id") == record_id)]
+        try:
+            self.data = proposed
+            self.save()
+        except Exception:
+            self.data = prior
+            raise
+
     def create_profile(self, name: str):
         name = name.strip()
         if not 1 <= len(name) <= 120:

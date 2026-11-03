@@ -333,7 +333,7 @@ class Desktop(ctk.CTk):
         # Separate avatar and label; centring both inside a wide CTkButton
         # previously left an unsightly gap before the photograph.
         self.profile_pill=ctk.CTkFrame(
-            right,fg_color=self.p["panel2"],corner_radius=13,
+            right,fg_color=self.p["panel2"],corner_radius=16,
             border_color="#177b87",border_width=1,height=41,
             width=max(165,min(300,len(label)*9+110)))
         self.profile_pill.pack(side="right")
@@ -537,7 +537,8 @@ class Desktop(ctk.CTk):
                      self._new_profile,True,width=225,height=32).pack(
                          fill="x",pady=(0,8))
         for profile in self.store.profiles():
-            row=ctk.CTkFrame(listing,fg_color=self.p["panel2"],corner_radius=11)
+            row=ctk.CTkFrame(listing,fg_color=self.p["panel2"],corner_radius=14,
+                              border_width=1,border_color=self.p["line"])
             row.pack(fill="x",pady=4)
             raw_avatar=circular_photo(profile.get("photo_b64",""),49)
             pic=ctk.CTkImage(raw_avatar,raw_avatar,size=(49,49)) if raw_avatar else None
@@ -819,7 +820,7 @@ class Desktop(ctk.CTk):
 
         footer=ctk.CTkFrame(frame,fg_color="transparent")
         footer.pack(fill="x",padx=16,pady=(0,9))
-        self._button(footer,self.t("save"),self._save_profile,
+        self._button(footer,"✓  "+self.t("save"),self._save_profile,
                      True,width=155,height=42).pack(side="right")
 
     def _close_profile_editor(self):
@@ -1190,9 +1191,9 @@ class Desktop(ctk.CTk):
         self._build_document_panel(right,"medication",fields)
         footer=ctk.CTkFrame(frame,fg_color="transparent")
         footer.pack(fill="x",padx=13,pady=(2,6))
-        self._button(footer,"Guardar",self._save_med,True,
+        self._button(footer,"✓  Guardar",self._save_med,True,
                      width=110,height=31).pack(side="right")
-        self._button(footer,"Cancelar",self._back_to_med_gallery,
+        self._button(footer,"×  Cancelar",self._back_to_med_gallery,
                      width=110,height=31).pack(side="right",padx=7)
 
     def _use_legacy_med_clock(self,hhmm):
@@ -1669,9 +1670,9 @@ class Desktop(ctk.CTk):
         self._build_document_panel(right,"appointment",values)
         footer=ctk.CTkFrame(self.body,fg_color="transparent")
         footer.pack(fill="x",padx=15,pady=(2,6))
-        self._button(footer,"Guardar alterações" if current else "Guardar marcação",
+        self._button(footer,"✓  Guardar alterações" if current else "✓  Guardar marcação",
                      self._save_appointment,True,width=170,height=31).pack(side="right")
-        self._button(footer,"Cancelar",self._close_appointment,
+        self._button(footer,"×  Cancelar",self._close_appointment,
                      width=105,height=31).pack(side="right",padx=7)
 
     def _set_agenda_filter(self,key):

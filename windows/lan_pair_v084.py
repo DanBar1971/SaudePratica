@@ -227,6 +227,9 @@ class PhoneDiscovery:
         if self._zeroconf is None:
             self.start()
         from zeroconf import ServiceBrowser
+        # Discard stale entries and rediscover devices still reachable.
+        with self._lock:
+            self.phones.clear()
         if self._browser is not None:
             self._browser.cancel()
         self._browser=ServiceBrowser(

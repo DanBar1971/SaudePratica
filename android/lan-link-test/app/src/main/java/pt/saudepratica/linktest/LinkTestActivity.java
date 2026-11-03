@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Build;
 import android.net.nsd.NsdManager;
+import android.net.wifi.WifiManager;
 import android.net.nsd.NsdServiceInfo;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -22,6 +23,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.DatagramSocket;
+import java.net.DatagramPacket;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.Inet4Address;
 import java.net.NetworkInterface;
@@ -44,11 +48,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class LinkTestActivity extends Activity {
     private static final String TYPE = "_saudepratica-sync._tcp.";
     private static final String PROTO = "sp-pair-test-0";
+    private static final int UDP_DISCOVERY_PORT = 43838;
+    private static final String UDP_QUESTION = "SP_DISCOVER_1:";
+    private static final String UDP_ANSWER = "SP_FOUND_1:";
     private static final int MAX_REQUEST = 1024;
     private volatile boolean running = false;
     private ServerSocket server;
     private NsdManager nsd;
     private NsdManager.RegistrationListener registration;
+    private DatagramSocket udpDiscovery;
+    private WifiManager.MulticastLock multicastLock;
     private TextView status, detail;
     private final ConcurrentHashMap<String, Pending> requests = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
@@ -100,8 +109,8 @@ public final class LinkTestActivity extends Activity {
         body.addView(button("2 · Parar / desligar", this::stop));
         status = text("Desligado. Liga o Wi-Fi e toca em «Tornar visível».", 16, true);
         body.addView(status);
-        detail = text("No Windows, abre SaúdePrática → Mais módulos → Sincronização. "
-                + "O PC deve descobrir este telemóvel automaticamente. "
+        detail = text("No Windows, abre SaúdePrática → Opções → Sincronização. "
+                + "O PC procura este telemóvel por mDNS e broadcast UDP. "
                 + "Se não aparecer, utiliza o IP e a porta mostrados aqui.", 14, false);
         body.addView(detail);
         body.addView(text("SEGURANÇA: Esta experiência troca apenas um pedido de ligação e "
@@ -136,6 +145,76 @@ public final class LinkTestActivity extends Activity {
         }
     }
 
+
+    private void enableMulticastReception() {
+        // Older Android releases require a lock even when the activity is
+        // visible; newer ones manage foreground NSD automatically.
+        try {
+            WifiManager wifi=(WifiManager)getApplicationContext()
+                .getSystemService(WIFI_SERVICE);
+            if (wifi == null) return;
+            multicastLock=wifi.createMulticastLock("SaudePratica-LAN-Link");
+            multicastLock.setReferenceCounted(false);
+            multicastLock.acquire();
+        } catch (RuntimeException ignored) {
+            multicastLock=null;
+        }
+    }
+
+    private void beginUdpDiscovery(final int tcpPort) {
+        // The Android is only discoverable after the user taps "Tornar
+        // visível". This UDP channel answers a random nonce with its TCP
+        // port and innocuous device label; it never touches clinical data.
+        try {
+            DatagramSocket listener=new DatagramSocket(null);
+            listener.setReuseAddress(true);
+            listener.bind(new InetSocketAddress("0.0.0.0",UDP_DISCOVERY_PORT));
+            listener.setSoTimeout(1400);
+            udpDiscovery=listener;
+            new Thread(() -> {
+                final byte[] input=new byte[256];
+                while (running && !listener.isClosed()) {
+                    try {
+                        DatagramPacket question=new DatagramPacket(input,input.length);
+                        listener.receive(question);
+                        InetAddress from=question.getAddress();
+                        if (!(from instanceof Inet4Address)
+                                || !(from.isSiteLocalAddress() || from.isLinkLocalAddress())) {
+                            continue;
+                        }
+                        String text=new String(question.getData(),
+                            question.getOffset(),question.getLength(),
+                            StandardCharsets.US_ASCII);
+                        if (!text.matches("^SP_DISCOVER_1:[0-9a-f]{32}$")) {
+                            continue;
+                        }
+                        String nonce=text.substring(UDP_QUESTION.length());
+                        String model=Build.MODEL.replaceAll("[^a-zA-Z0-9 _-]", "")
+                            .trim();
+                        if (model.isEmpty()) model="Android";
+                        String reply=UDP_ANSWER+nonce+":"+tcpPort+":"
+                            +"SaúdePrática Android "+model;
+                        byte[] output=reply.getBytes(StandardCharsets.UTF_8);
+                        if (output.length>256) continue;
+                        listener.send(new DatagramPacket(
+                            output,output.length,from,question.getPort()));
+                    } catch (java.net.SocketTimeoutException ignored) {
+                    } catch (IOException e) {
+                        if (running && !listener.isClosed()) {
+                            show("Descoberta UDP interrompida. "
+                                +"Continua disponível a ligação por IP.");
+                        }
+                        break;
+                    }
+                }
+            }, "sp-link-test-discovery").start();
+        } catch (IOException e) {
+            if (udpDiscovery!=null) udpDiscovery.close();
+            udpDiscovery=null;
+            show("UDP indisponível. mDNS e ligação por IP continuam disponíveis.");
+        }
+    }
+
     private synchronized void start() {
         if (running) { show("Já está visível. Espera o pedido do Windows."); return; }
         try {
@@ -145,6 +224,8 @@ public final class LinkTestActivity extends Activity {
             final int port = server.getLocalPort();
             show("A iniciar descoberta...");
             new Thread(this::acceptLoop, "sp-link-test-server").start();
+            enableMulticastReception();
+            beginUdpDiscovery(port);
             NsdServiceInfo info = new NsdServiceInfo();
             info.setServiceName("SaudePratica Ligacao " + Build.MODEL.replaceAll("[^a-zA-Z0-9 _-]", "").trim());
             info.setServiceType(TYPE);
@@ -160,8 +241,9 @@ public final class LinkTestActivity extends Activity {
                          "\nAguardando pedido do Windows...");
                 }
                 @Override public void onRegistrationFailed(NsdServiceInfo entry, int code) {
-                    show("Descoberta automática falhou ("+code+").\n"
-                        +"Podes tentar por IP: "+localAddress()+" · Porta "+port);
+                    show("mDNS falhou ("+code+"), mas a procura alternativa "
+                        +"por UDP continua disponível.\n"
+                        +"IP: "+localAddress()+" · Porta "+port);
                 }
                 @Override public void onServiceUnregistered(NsdServiceInfo entry) {
                     show("Desligado.");
@@ -170,10 +252,23 @@ public final class LinkTestActivity extends Activity {
                     show("Erro ao desligar a descoberta: "+code);
                 }
             };
-            nsd.registerService(info,NsdManager.PROTOCOL_DNS_SD,registration);
+            try {
+                nsd.registerService(info,NsdManager.PROTOCOL_DNS_SD,registration);
+            } catch (RuntimeException error) {
+                registration=null;
+                show("mDNS indisponível. Descoberta UDP ativa; alternativa "
+                     +"manual IP: "+localAddress()+" · Porta "+port);
+            }
         } catch (Exception e) {
             running = false;
             if (server != null) try { server.close(); } catch (IOException ignored) {}
+            if (udpDiscovery!=null) udpDiscovery.close();
+            udpDiscovery=null;
+            if (multicastLock!=null) {
+                try { if (multicastLock.isHeld()) multicastLock.release(); }
+                catch (RuntimeException ignored) {}
+                multicastLock=null;
+            }
             show("Não foi possível abrir a ligação: "+e.getMessage());
         }
     }
@@ -182,6 +277,15 @@ public final class LinkTestActivity extends Activity {
         running = false;
         if (server != null) try { server.close(); } catch (IOException ignored) {}
         server = null;
+        if (udpDiscovery != null) {
+            udpDiscovery.close();
+            udpDiscovery=null;
+        }
+        if (multicastLock != null) {
+            try { if (multicastLock.isHeld()) multicastLock.release(); }
+            catch (RuntimeException ignored) {}
+            multicastLock=null;
+        }
         if (registration != null) {
             try { nsd.unregisterService(registration); }
             catch (Exception ignored) {}

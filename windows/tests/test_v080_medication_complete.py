@@ -16,7 +16,7 @@ class MedicationV080(unittest.TestCase):
         method=source.split("    def _med_form(self,frame,med):",1)[1].split(
             "    def _update_med_preview(self):",1)[0]
         self.assertIn("for heading,entries in GROUPS",method)
-        self.assertIn('self._attach_med_document(k,menu)',method)
+        self.assertIn('self._attach_med_document(k,m)',method)
         self.assertNotIn('self.t("coming")',method)
         self.assertIn('VERSION = "0.8.1"',source)
 

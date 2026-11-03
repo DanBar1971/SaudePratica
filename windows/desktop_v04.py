@@ -1068,6 +1068,7 @@ class Desktop(ctk.CTk):
             self.store.imported_assets(self.active_id))
         self.med_doc_vars={}
         self.med_doc_choices={}
+        self.med_doc_dropdowns={}
         for heading,entries in GROUPS:
             page=tabs.add(heading.replace(" e posologia",""))
             for col in (0,1):page.grid_columnconfigure(col,weight=1)
@@ -1108,11 +1109,193 @@ class Desktop(ctk.CTk):
             button_color=BLUE,dropdown_fg_color=self.p["panel2"],
             text_color=self.p["text"],dropdown_text_color=self.p["text"])
         dropdown.pack(side="left",fill="x",expand=True,padx=(0,5))
+        self.med_doc_dropdowns[key]=dropdown
         self._button(line,"Anexar",lambda k=key,m=dropdown:
                      self._attach_med_document(k,m),
                      width=74,height=28).pack(side="left",padx=2)
         self._button(line,"Ver",lambda k=key:self._show_attached_med_document(k),
                      width=49,height=28).pack(side="left",padx=2)
+
+    def _build_document_panel(self,parent,kind,record):
+        """Preview is fixed on the right; OCR is local and requires confirmation."""
+        self._doc_context=(kind,self.active_id,
+            self.editing_med if kind=="medication" else self.editing_appointment)
+        self._doc_data=None
+        self._doc_filename=""
+        self._doc_current_entry=None
+        self._doc_token=getattr(self,"_doc_token",0)+1
+        self._label(parent,"DOCUMENTO E RECONHECIMENTO",14,True,
+                    color=TEAL).pack(anchor="w",padx=12,pady=(10,3))
+        self._label(parent,"O documento fica neste computador. "
+                    "Revê sempre os valores antes de guardar.",
+                    10,color=self.p["muted"],wrap=480).pack(
+                        anchor="w",padx=12,pady=(0,6))
+        row=ctk.CTkFrame(parent,fg_color="transparent")
+        row.pack(fill="x",padx=11,pady=(0,5))
+        if kind=="medication":
+            self._doc_role=ctk.StringVar(value="Prescrição")
+            ctk.CTkOptionMenu(row,variable=self._doc_role,
+                values=["Prescrição","Bula"],
+                command=lambda _v:self._show_attached_med_document(
+                    "prescription_asset_sha256" if self._doc_role.get()=="Prescrição"
+                    else "leaflet_asset_sha256"),
+                height=28,fg_color=self.p["field"],button_color=BLUE,
+                dropdown_fg_color=self.p["panel2"],text_color=self.p["text"],
+                dropdown_text_color=self.p["text"]).pack(side="left",fill="x",expand=True)
+        else:
+            self._label(row,"Documento da marcação",11,True).pack(
+                side="left",fill="x",expand=True)
+        self._button(row,"Anexar",self._doc_attach,
+                     width=78,height=28).pack(side="right",padx=(6,0))
+        self._doc_filename_label=self._label(parent,"Sem documento associado",
+                                             10,color=self.p["muted"],wrap=460)
+        self._doc_filename_label.pack(anchor="w",padx=12,pady=(0,3))
+        self._doc_preview_label=ctk.CTkLabel(parent,
+            text="Pré-visualização do PDF ou imagem",
+            fg_color=self.p["field"],corner_radius=8,
+            text_color=self.p["muted"],height=205)
+        self._doc_preview_label.pack(fill="x",padx=12,pady=(1,7))
+        actions=ctk.CTkFrame(parent,fg_color="transparent")
+        actions.pack(fill="x",padx=12,pady=(0,5))
+        self._doc_recognize_btn=self._button(actions,"Reconhecer texto",
+            self._doc_recognize,width=137,height=30)
+        self._doc_recognize_btn.pack(side="left")
+        self._button(actions,"Preencher campos",
+            self._doc_apply,width=132,height=30).pack(side="left",padx=(7,0))
+        self._doc_status=self._label(parent,"O OCR é local e não altera campos sem confirmação.",
+                    10,color=self.p["muted"],wrap=470)
+        self._doc_status.pack(anchor="w",padx=12,pady=(1,5))
+        self._doc_text=ctk.CTkTextbox(parent,height=130,corner_radius=8,
+            fg_color=self.p["field"],border_width=1,
+            border_color=self.p["line"],text_color=self.p["text"])
+        self._doc_text.pack(fill="both",expand=True,padx=12,pady=(0,11))
+        if kind=="medication":
+            self._show_attached_med_document("prescription_asset_sha256")
+        elif record.get("document_asset_sha256"):
+            match=medication_document_option(
+                medication_document_assets(self.store.imported_assets(self.active_id)),
+                record["document_asset_sha256"])
+            if match is not None:self._doc_display(match)
+
+    def _show_attached_med_document(self,key):
+        self._doc_role.set("Prescrição" if key.startswith("prescription") else "Bula")
+        mapping=self.med_doc_choices[key]
+        digest=mapping.get(self.med_doc_vars[key].get(),"")
+        entry=medication_document_option(self.med_doc_assets,digest) if digest else None
+        self._doc_display(entry)
+
+    def _doc_display(self,entry):
+        self._doc_token+=1
+        self._doc_data=None
+        self._doc_current_entry=None
+        self._doc_filename=""
+        self._doc_text.delete("1.0","end")
+        self._doc_preview_label.configure(image=None,text="Pré-visualização do documento")
+        if entry is None:
+            self._doc_filename_label.configure(text="Sem documento associado")
+            self._doc_status.configure(text="Anexa um PDF ou uma imagem para reconhecer.")
+            return
+        try:
+            raw=self.store.read_imported_asset(entry)
+            filename=str(entry.get("filename") or "documento.pdf")
+            image=Image.open(BytesIO(preview_document(raw,filename))).convert("RGB")
+            self._doc_preview_art=ctk.CTkImage(image,image,size=image.size)
+            self._doc_preview_label.configure(image=self._doc_preview_art,text="")
+            self._doc_data=raw
+            self._doc_filename=filename
+            self._doc_current_entry=entry
+            self._doc_filename_label.configure(text=filename)
+            self._doc_status.configure(text="Documento carregado. Clica em Reconhecer texto.")
+        except (OSError,ValueError,LocalStoreError,DocumentRecognitionError) as exc:
+            self._doc_filename_label.configure(text="Não foi possível abrir este documento")
+            self._doc_status.configure(text=str(exc)[:150])
+
+    def _doc_attach(self):
+        if self._doc_context[0]=="medication":
+            key=("prescription_asset_sha256" if self._doc_role.get()=="Prescrição"
+                 else "leaflet_asset_sha256")
+            self._attach_med_document(key,self.med_doc_dropdowns[key])
+            return
+        file=filedialog.askopenfilename(parent=self,title="Anexar PDF ou imagem do agendamento",
+            filetypes=[("PDF ou imagem","*.pdf *.png *.jpg *.jpeg *.webp")])
+        if not file:return
+        try:
+            from hashlib import sha256
+            raw=Path(file).read_bytes()
+            digest=sha256(raw).hexdigest()
+            self.store.import_local_document(self.active_id,Path(file))
+            assets=medication_document_assets(self.store.imported_assets(self.active_id))
+            item=medication_document_option(assets,digest)
+            if item is None:raise LocalStoreError("Documento não encontrado neste perfil.")
+            self.appointment_doc_digest=digest
+            self._doc_display(item)
+        except (OSError,ValueError,LocalStoreError) as exc:
+            messagebox.showerror("Documento do agendamento",str(exc),parent=self)
+
+    def _doc_recognize(self):
+        if self._doc_data is None:
+            messagebox.showinfo("Reconhecimento","Anexa primeiro um documento.",parent=self)
+            return
+        raw=self._doc_data
+        filename=self._doc_filename
+        context=self._doc_context
+        token=self._doc_token
+        events=queue.Queue()
+        self._doc_recognize_btn.configure(state="disabled")
+        self._doc_status.configure(text="A reconhecer texto localmente...")
+        def worker():
+            try:
+                recognized=recognize_document(raw,filename)
+                events.put((token,context,recognized,None))
+            except Exception as exc:
+                events.put((token,context,"",str(exc)))
+        threading.Thread(target=worker,daemon=True).start()
+        self.after(140,lambda:self._doc_poll(events,token,context))
+
+    def _doc_poll(self,events,token,context):
+        if self._doc_token!=token or self._doc_context!=context:
+            return
+        try:
+            _token,_context,text_value,error=events.get_nowait()
+        except queue.Empty:
+            self.after(140,lambda:self._doc_poll(events,token,context))
+            return
+        self._doc_recognize_btn.configure(state="normal")
+        if error:
+            self._doc_status.configure(text="Não foi possível reconhecer: "+error[:130])
+            return
+        self._doc_text.delete("1.0","end")
+        self._doc_text.insert("1.0",text_value)
+        self._doc_status.configure(text=("Texto encontrado. Confirma antes de preencher."
+                           if text_value else "Não foi reconhecido texto. Podes inserir manualmente."))
+
+    def _doc_apply(self):
+        kind=self._doc_context[0]
+        text_value=self._doc_text.get("1.0","end-1c")
+        proposed=suggest_fields(kind,text_value)
+        choices={}
+        if kind=="medication":
+            destinations={**self.med_widgets,**self.med_extra_widgets}
+        else:
+            destinations=self.appointment_widgets
+        for key,value in proposed.items():
+            field=destinations.get(key)
+            if field is not None and not field.get().strip():
+                choices[key]=(field,value)
+        if not choices:
+            messagebox.showinfo("Preencher campos",
+                "Não há sugestões seguras para campos vazios. "
+                "Podes copiar o texto reconhecido para os campos manualmente.",
+                parent=self)
+            return
+        readable="\n".join(f"{key}: {value[:90]}" for key,(_,value) in choices.items())
+        if not messagebox.askyesno("Confirmar sugestões OCR",
+            "Os seguintes valores serão colocados APENAS em campos vazios:\n\n"
+            +readable+"\n\nRevê tudo antes de guardar.",parent=self):
+            return
+        for field,value in choices.values():
+            field.insert(0,value)
+        self._doc_status.configure(text="Sugestões inseridas. Confirma todos os campos antes de guardar.")
 
     def _attach_med_document(self,key,dropdown):
         path=filedialog.askopenfilename(parent=self,title="Anexar documento à medicação",
@@ -1131,6 +1314,9 @@ class Desktop(ctk.CTk):
             self.med_doc_choices[key][label]=digest
             dropdown.configure(values=list(self.med_doc_choices[key]))
             self.med_doc_vars[key].set(label)
+            if hasattr(self,"_doc_role"):
+                self._doc_display(entry)
+                self._doc_role.set("Prescrição" if key.startswith("prescription") else "Bula")
         except (LocalStoreError,ValueError,OSError) as exc:
             messagebox.showerror("Medicação",str(exc),parent=self)
 

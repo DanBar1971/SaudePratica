@@ -356,6 +356,7 @@ class RemainingUiV0810:
             anchor="w",padx=14,pady=(12,5))
         editor=ctk.CTkScrollableFrame(right,fg_color="transparent")
         editor.pack(fill="both",expand=True,padx=8,pady=(0,8))
+        self._remaining_fields={}
         self._emergency_entries={}
         for key,label,limit in EMERGENCY_FIELDS:
             typ="long" if limit>1000 else "text"

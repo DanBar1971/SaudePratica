@@ -1,7 +1,7 @@
 name: SaudePratica Android Build + AutoRelease
 on:
   push:
-    branches: [feat/android-19132-ai-ui-windows-lan]
+    branches: [main]
     paths:
       - ".github/workflows/saudepratica-android.yml"
       - "MediAgenda/**"
@@ -217,73 +217,11 @@ jobs:
         run: python3 MediAgenda/v145_overrides/apply_v145.py
       - name: Verify transport-only Nearby changes and unchanged clinical alarms
         run: python3 MediAgenda/v145_overrides/verify_v145.py
-      - name: Apply published Android 1.9.126 backup/media integrity updates
-        run: python3 MediAgenda/v146_overrides/apply_v146.py
-      - name: Verify 1.9.126 backup and original alarm invariants
-        run: python3 MediAgenda/v146_overrides/verify_v146.py
-      - name: Apply published Android 1.9.127 portable family/profile backup
-        run: python3 MediAgenda/v147_overrides/apply_v147.py
-      - name: Verify 1.9.127 clinical restore profile isolation
-        run: python3 MediAgenda/v147_overrides/verify_v147.py
-      - name: Apply Android 1.9.129 profile-scoped on-device assistant
-        run: python3 MediAgenda/v149_overrides/apply_v149.py
-      - name: Verify assistant access, draft-only writes and release identity
-        run: python3 MediAgenda/v149_overrides/verify_v149.py
-      - name: Apply Android 1.9.130 explicit opt-in light local Qwen3 engine
-        run: python3 MediAgenda/v150_overrides/apply_v150.py
-      - name: Verify optional download, native inference and profile protection
-        run: python3 MediAgenda/v150_overrides/verify_v150.py
-      - name: Apply Android 1.9.131 DownloadManager and optional IA Online
-        run: python3 MediAgenda/v151_overrides/apply_v151.py
-      - name: Verify Android 1.9.131 clinical privacy and online credentials
-        run: python3 MediAgenda/v151_overrides/verify_v151.py
-      - name: Apply Android 1.9.132 assistant visuals and Windows Wi-Fi discovery only
-        run: python3 MediAgenda/v152_overrides/apply_v152.py
-      - name: Verify 1.9.132 UI and LAN feature cannot read clinical records
-        run: python3 MediAgenda/v152_overrides/verify_v152.py
-      - name: Test Cloudflare Workers AI private backend (no credentials)
-        run: node --test SaudePratica-OnlineAI/cloudflare-worker/test/worker.test.mjs
-      - name: Install Android NDK and CMake for optional CPU model
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "ndk;27.2.12479018" "cmake;3.22.1"
-      - name: Fetch PINNED official llama.cpp for Android CPU (no weights)
-        shell: bash
-        run: |
-          set -euo pipefail
-          DEST="build-src/MediAgenda_Android_v1/app/src/main/cpp/llama.cpp"
-          test ! -e "$DEST"
-          git init -q "$DEST"
-          git -C "$DEST" remote add origin https://github.com/ggml-org/llama.cpp.git
-          git -C "$DEST" fetch --depth=1 origin 28b812d6cb9cfe569d368c2774c3886ad4fe10e8
-          git -C "$DEST" checkout --detach FETCH_HEAD
-          test "$(git -C "$DEST" rev-parse HEAD)" = "28b812d6cb9cfe569d368c2774c3886ad4fe10e8"
-          test -s "$DEST/include/llama.h"
       - name: Require original app artwork (background, icon and splash)
         run: python3 MediAgenda/tools/verify_graphics.py
-      - name: Compile Android 1.9.132 with AI thinking indicator and Windows LAN link
+      - name: Compile Android 1.9.125
         working-directory: build-src/MediAgenda_Android_v1
         run: gradle --no-daemon assembleRelease
-      - name: Enable KVM for Android emulator tests on PR
-        if: github.event_name == 'pull_request'
-        run: |
-          test -c /dev/kvm || { echo '::error::No /dev/kvm device'; exit 1; }
-          sudo chmod 666 /dev/kvm
-      - name: Android emulator — verify profile-safe agent and 1.9.127 backup
-        if: github.event_name == 'pull_request'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          target: google_apis
-          arch: x86_64
-          disable-linux-hw-accel: false
-          disable-animations: true
-          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
-          script: cd build-src/MediAgenda_Android_v1 && gradle --no-daemon connectedDebugAndroidTest
       - name: Check branded graphics exist inside compiled APK
         shell: bash
         run: |
@@ -320,7 +258,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: SaudePratica-v1.9.132-FULL-SOURCE
+          name: SaudePratica-v1.9.125-FULL-SOURCE
           path: build-src/MediAgenda_Android_v1/
           retention-days: 7
       - name: Export Android signing tools (no certificates or passwords)
@@ -338,7 +276,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
-          name: SaudePratica-v1.9.132-UNSIGNED
+          name: SaudePratica-v1.9.125-UNSIGNED
           path: build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 7
       - name: Confirmar se a chave de assinatura original está configurada

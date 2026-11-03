@@ -2365,6 +2365,50 @@ def main():
             app.update()
             if not app.store.wellness_data(person["id"],"cycle")["pill_taken"]:
                 raise AssertionError("Pílula confirmada não persistiu.")
+            # 0.8.10: open and edit all seven remaining modules, using
+            # synthetic values only. Meal photo stays DPAPI-protected.
+            app.navigate("nutrition")
+            app.update()
+            app._nutrition_fields["foods"][0].insert("1.0","Prato de teste")
+            app._nutrition_fields["kcal"][0].insert(0,"230")
+            app._nutrition_photo_draft=photo_buffer.getvalue()
+            app._nutrition_save()
+            meals=app.store.meal_records(person["id"])
+            if len(meals)!=1 or app.store.meal_photo(person["id"],meals[0]["id"])!=photo_buffer.getvalue():
+                raise AssertionError("Nutrição/fotografia de refeição não persistiu.")
+            for page,kind,title in (
+                ("vision","vision","Exame fictício"),
+                ("symptoms","symptoms","Sintoma sintético"),
+                ("vaccines","vaccines","Vacina fictícia"),
+                ("pharmacy","pharmacy","Farmácia fictícia"),
+                ("residences","residences","Instituição fictícia"),
+            ):
+                app.navigate(page)
+                app.update()
+                app._remaining_fields["title"][0].insert(0,title)
+                if kind=="symptoms":
+                    app._remaining_fields["severity"][0].insert(0,"2")
+                app._record_page_save(kind)
+                if len(app.store.remaining_records(person["id"],kind))!=1:
+                    raise AssertionError(f"Módulo {kind} não gravou no perfil.")
+            app._care_select_tab("residence_invoices")
+            app.update()
+            app._remaining_fields["title"][0].insert(0,"Fatura sintética")
+            app._record_page_save("residence_invoices")
+            app._care_select_tab("supports")
+            app.update()
+            app._remaining_fields["title"][0].insert(0,"Apoio sintético")
+            app._record_page_save("supports")
+            app.navigate("emergency")
+            app.update()
+            app._emergency_entries["contact_name"][0].insert(0,"Contacto de teste")
+            app._emergency_entries["contact_phone"][0].insert(0,"+351 210 000 000")
+            app._emergency_save()
+            if app.store.emergency_data(person["id"])["contact_name"]!="Contacto de teste":
+                raise AssertionError("Ficha de emergência não foi gravada.")
+            for kind in ("residence_invoices","supports"):
+                if len(app.store.remaining_records(person["id"],kind))!=1:
+                    raise AssertionError("Módulo Lares/Apoios incompleto.")
             other=app.store.save_profile({"name":"Segundo perfil fictício"})
             app._select_profile_by_id(other["id"])
             app.navigate("calendar")
@@ -2382,6 +2426,18 @@ def main():
             if (app.store.health_records(other["id"],"clinical")
                 or app.store.health_records(other["id"],"expenses")):
                 raise AssertionError("Mistura de dados clínicos/despesas entre perfis.")
+            for kind in ("vision","symptoms","vaccines","pharmacy",
+                         "residences","residence_invoices","supports"):
+                app.navigate("residences" if kind in ("residences","residence_invoices","supports") else kind)
+                app.update()
+                if app.store.remaining_records(other["id"],kind):
+                    raise AssertionError("Dados de outros perfis no módulo "+kind)
+            app.navigate("nutrition")
+            app.update()
+            app.navigate("emergency")
+            app.update()
+            if app.store.meal_records(other["id"]) or any(app.store.emergency_data(other["id"]).values()):
+                raise AssertionError("Partilha indevida da Nutrição/Emergência.")
             for page,kind,key in (
                 ("water","water","entries"),
                 ("activity","activity","entries"),

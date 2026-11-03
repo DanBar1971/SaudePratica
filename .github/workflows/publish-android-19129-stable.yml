@@ -1,0 +1,122 @@
+name: Publicar SaúdePrática Android 1.9.129 estável — Assistente IA
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-android-19129-stable.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-stable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Android SDK de verificação
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+
+      - name: Exigir compilação aprovada e origem verificada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          test "$REPO" = "DanBar1971/SaudePratica"
+          test "$(gh api "repos/$REPO/actions/runs/41640356343" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/41640356343" --jq .head_sha)" = 793d9ed10d040b78638ac75b5063b474a9be1fdf
+          test "$(gh api "repos/$REPO/actions/runs/41643819549" --jq .conclusion)" = success
+          test "$(gh api "repos/DanBar1971/AndroidAppDev/actions/runs/41643594177" --jq .conclusion)" = success
+          gh release view v1.9.129-preview --repo "$REPO" --json isDraft,isPrerelease \
+            --jq '(.isDraft|not) and .isPrerelease' | grep -Fx true
+
+      - name: Recuperar apenas a APK já assinada e verificada — sem chave privada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release download v1.9.129-preview --repo "$GITHUB_REPOSITORY" \
+            --pattern 'SaudePratica.apk' --pattern 'SaudePratica-v1.9.129-CODIGO-FONTE.zip' \
+            --pattern 'SaudePratica-v1.9.129-SHA256SUMS.txt' \
+            --dir signed
+          cp signed/SaudePratica.apk ./SaudePratica.apk
+          cp signed/SaudePratica-v1.9.129-CODIGO-FONTE.zip ./
+          cp signed/SaudePratica-v1.9.129-SHA256SUMS.txt ./
+          (cd signed && sha256sum -c SaudePratica-v1.9.129-SHA256SUMS.txt)
+          echo '48bcaadf0415f0d1dc85158193f53f3aaa298ef5064b615c43439415f78dbea2  SaudePratica.apk' | sha256sum -c -
+          echo '7f2eb2156a39445cfb6e022dadd7d67076763e3d06ee3b5ded5c509e368d3c86  SaudePratica-v1.9.129-CODIGO-FONTE.zip' | sha256sum -c -
+
+      - name: Verificar certificado ORIGINAL, Android v2/v3 e identidade de atualização
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee signature.txt
+          grep -Fi "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a" signature.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" signature.txt
+          grep -F "Verified using v3 scheme (APK Signature Scheme v3): true" signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | sed -n '1p' | tee identity.txt
+          grep -F "name='com.mediagenda.app.stable'" identity.txt
+          grep -F "versionName='1.9.129'" identity.txt
+          grep -F "versionCode='139'" identity.txt
+          unzip -tqq SaudePratica.apk
+
+      - name: Publicar versão Android NORMAL no repositório principal
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=v1.9.129
+          REPO="$GITHUB_REPOSITORY"
+          cat > notes.md <<'EOF'
+          # SaúdePrática Android 1.9.129 — Assistente IA
+
+          **Versão Android normal (não experimental / não pré-release)**, assinada com o certificado original, compatível com atualização por cima da SaúdePrática instalada. O botão **Verificar atualizações** consulta a última Release estável.
+
+          ### Novidades
+          - Assistente IA integrado, associado ao perfil ativo e às permissões de acesso.
+          - Consulta real de Agenda e Medicação por perfil, sem mistura entre pessoas.
+          - Ajuda a preparar novas fichas de medicação e agendamentos; **a gravação exige confirmação na ficha original**.
+          - Suporte opcional de IA local Gemini Nano em telemóveis compatíveis, com transferência do modelo autorizada; Ajuda clássica nos restantes dispositivos.
+          - Mantêm-se os mecanismos existentes de notificações e alarmes clínicos.
+          - Preserva as melhorias da versão 1.9.127, incluindo backup/restauro portátil Android–Windows.
+
+          ### Instalação / cuidados
+          - Fazer primeiro um backup da SaúdePrática.
+          - Instalar por cima da versão anterior; **não desinstalar**, para preservar os dados.
+          - Apesar de os testes de CI e emulador terem passado, confirmar em aparelho real os alarmes, os perfis e os registos antes de uso quotidiano. O agente não substitui aconselhamento clínico.
+          - A APK, o código-fonte e as somas SHA-256 acompanham esta Release.
+          - ID Android: `com.mediagenda.app.stable`; `versionCode 139`; assinatura original verificada.
+          EOF
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$REPO" --json isDraft,isPrerelease,assets \
+              --jq '(.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          else
+            gh release create "$TAG" SaudePratica.apk \
+              SaudePratica-v1.9.129-CODIGO-FONTE.zip \
+              SaudePratica-v1.9.129-SHA256SUMS.txt \
+              --repo "$REPO" \
+              --target 793d9ed10d040b78638ac75b5063b474a9be1fdf \
+              --title "SaúdePrática Android v1.9.129 — Assistente IA" \
+              --notes-file notes.md --latest
+          fi
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = "$TAG"
+          gh release view "$TAG" --repo "$REPO" --json isPrerelease,tagName,assets \
+            --jq '.tagName=="v1.9.129" and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          echo "::notice title=Atualização Android publicada::v1.9.129 estável está em releases/latest"

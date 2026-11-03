@@ -1,4 +1,4 @@
-"""Windows 0.8.10 synthetic regression tests for profile-scoped wellness."""
+"""Windows 0.8.11 synthetic regression tests for profile-scoped wellness."""
 from __future__ import annotations
 
 import json
@@ -204,7 +204,7 @@ class ProfileIsolationTests(unittest.TestCase):
             self.assertTrue(statuses[key])
         desktop=(Path(__file__).resolve().parents[1]/
                  "desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.10"',desktop)
+        self.assertIn('VERSION = "0.8.11"',desktop)
         for needle in ('self.page=="water"','self.page=="activity"',
                        'self.page=="cycle"'):
             self.assertIn(needle,desktop)

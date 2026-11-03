@@ -379,6 +379,38 @@ h=helpfile.read_text(encoding="utf-8")
 h=h.replace('✨ Ajuda inteligente','📚 Ajuda tradicional')
 h=h.replace('Funciona offline. Respostas sobre a aplicação, sem enviar perguntas nem dados médicos.',
             'Ajuda tradicional offline, sem IA. O novo Assistente SaúdePrática está no menu principal da app.')
+# Bring the classic offline FAQ into the same branded Android visual system.
+# This is still clearly marked as rule-based help, not an online or local LLM.
+legacy_bg='''            setBackgroundColor(darkBg)'''
+assert h.count(legacy_bg)==1,h.count(legacy_bg)
+h=h.replace(legacy_bg,'''            val imageId=resources.getIdentifier(
+                "saude_background","drawable",packageName)
+            if(imageId!=0){
+                background=android.graphics.drawable.LayerDrawable(arrayOf(
+                    resources.getDrawable(imageId,theme),
+                    android.graphics.drawable.ColorDrawable(
+                        android.graphics.Color.argb(115,8,28,37))))
+            }else setBackgroundColor(darkBg)''',1)
+title_line='''            textSize=23f;setTextColor(Color.WHITE)'''
+assert h.count(title_line)==1,h.count(title_line)
+h=h.replace(title_line,'''            textSize=21f;setTextColor(Color.WHITE)
+            setOnClickListener{finish()}''',1)
+h=h.replace('''this.text=text("📚 Ajuda tradicional"''',
+'''this.text=text("‹  📚 Ajuda tradicional"''',1)
+# Compact thematic quick buttons and ask button; never force solid system grey.
+h=h.replace('''text=value;isAllCaps=false
+                setOnClickListener{ask(value)}''',
+'''text=value;isAllCaps=false;textSize=12f;minHeight=dp(42)
+                backgroundTintList=android.content.res.ColorStateList.valueOf(Color.rgb(9,124,114))
+                setTextColor(Color.WHITE)
+                setOnClickListener{ask(value)}''',1)
+h=h.replace('''            text=text("Perguntar","Ask","Demander","Fragen","Preguntar")
+            setOnClickListener''',
+'''            text=text("Perguntar","Ask","Demander","Fragen","Preguntar")
+            isAllCaps=false;textSize=13f
+            backgroundTintList=android.content.res.ColorStateList.valueOf(Color.rgb(9,124,114))
+            setTextColor(Color.WHITE)
+            setOnClickListener''',1)
 helpfile.write_text(h,encoding="utf-8")
 
 print("Android 1.9.131: resumable visible model download + protected opt-in Workers AI; original package and alarms retained.")

@@ -19,12 +19,12 @@ void unload() {
     if (model) { llama_model_free(model); model = nullptr; }
 }
 
-void batch_add(llama_batch & batch, int offset, llama_token token, int position, bool output) {
-    batch.token[offset] = token;
-    batch.pos[offset] = position;
-    batch.n_seq_id[offset] = 1;
-    batch.seq_id[offset][0] = 0;
-    batch.logits[offset] = output ? 1 : 0;
+bool batch_add(llama_batch_ext * batch, llama_token token, int position, bool output) {
+    const int idx = llama_batch_ext_add_token(batch, 0, token);
+    if (idx < 0) return false;
+    const llama_pos pos = position;
+    return llama_batch_ext_set_pos(batch, idx, &pos) &&
+           llama_batch_ext_set_output_logits(batch, idx, output);
 }
 
 std::string trim_response(const std::string & input) {
@@ -115,8 +115,8 @@ Java_com_mediagenda_app_SmallOfflineModel_nativeGenerate(
     }
 
     llama_memory_clear(llama_get_memory(context), false);
-    llama_batch batch = llama_batch_init(256, 0, 1);
-    if (!batch.token) return env->NewStringUTF("");
+    llama_batch_ext * batch = llama_batch_ext_init(context);
+    if (!batch) return env->NewStringUTF("");
     auto sampler = llama_sampler_chain_init(llama_sampler_chain_default_params());
     llama_sampler_chain_add(sampler, llama_sampler_init_greedy());
 
@@ -127,12 +127,14 @@ Java_com_mediagenda_app_SmallOfflineModel_nativeGenerate(
     // Prompt prefill in memory-bounded 256-token blocks.
     for (int offset=0; offset<required; offset+=256) {
         const int n = std::min(256, required-offset);
-        batch.n_tokens = n;
+        llama_batch_ext_clear(batch);
         for (int i=0; i<n; ++i) {
-            batch_add(batch, i, tokens[offset+i], position+i,
-                      (offset+i == required-1));
+            if (!batch_add(batch, tokens[offset+i], position+i,
+                           (offset+i == required-1))) {
+                ok = false; break;
+            }
         }
-        if (llama_process(context, LLAMA_PROCESS_TYPE_DECODE, batch) != 0) {
+        if (!ok || llama_process(context, LLAMA_PROCESS_TYPE_DECODE, batch) != 0) {
             ok = false; break;
         }
         position += n;
@@ -146,15 +148,15 @@ Java_com_mediagenda_app_SmallOfflineModel_nativeGenerate(
             if (n < 0 || n >= (int)sizeof(piece)) { ok = false; break; }
             answer.append(piece, n);
             if (answer.find("<|im_end|>") != std::string::npos) break;
-            batch.n_tokens = 1;
-            batch_add(batch, 0, token, position++, true);
-            if (llama_process(context, LLAMA_PROCESS_TYPE_DECODE, batch) != 0) {
+            llama_batch_ext_clear(batch);
+            if (!batch_add(batch, token, position++, true) ||
+                llama_process(context, LLAMA_PROCESS_TYPE_DECODE, batch) != 0) {
                 ok = false; break;
             }
         }
     }
     llama_sampler_free(sampler);
-    llama_batch_free(batch);
+    llama_batch_ext_free(batch);
     if (!ok) return env->NewStringUTF("");
     return env->NewStringUTF(trim_response(answer).c_str());
 }

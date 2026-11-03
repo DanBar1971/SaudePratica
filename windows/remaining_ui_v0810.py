@@ -168,6 +168,61 @@ class RemainingUiV0810:
             messagebox.showerror("Chamada",f"Não foi possível abrir o marcador: {exc}",
                                  parent=self)
 
+    def _import_android_personal(self,kind):
+        if not self.active_id:return
+        title="SOS Emergência" if kind=="sos" else "Lares e Apoios"
+        if not messagebox.askyesno(
+            "Recuperar dados Android: "+title,
+            "Procurar os dados originais deste perfil no backup Android "
+            "já guardado no Windows?\n\n"
+            "Só serão acrescentadas informações em falta. "
+            "As alterações feitas no Windows não serão substituídas. "
+            "Não serão importados registos de outros perfis.",
+            parent=self):
+            return
+        try:
+            result=self.store.import_android_sos_lares(self.active_id,kind)
+            self._render()
+            if kind=="sos":
+                msg=(f"Campos SOS encontrados no Android: "
+                     f"{result['available_sos']}\n"
+                     f"Campos recuperados: {result['sos_fields']}")
+            else:
+                msg=(f"Instituições encontradas: {result['available_residences']}\n"
+                     f"Mensalidades encontradas: {result['available_invoices']}\n"
+                     f"Instituições novas: {result['residences']}\n"
+                     f"Mensalidades novas: {result['invoices']}")
+            messagebox.showinfo("Recuperação de "+title,msg+
+                "\n\nSe faltarem dados recentes, importa primeiro "
+                "um backup Android atualizado.",parent=self)
+        except (OSError,ValueError,LocalStoreError) as exc:
+            messagebox.showerror("Recuperar dados do Android",str(exc),parent=self)
+
+    def _pharmacy_services(self,parent):
+        frame=ctk.CTkFrame(parent,fg_color=self.p["panel"],
+                           corner_radius=13,border_width=1,
+                           border_color=self.p["line"])
+        frame.pack(fill="x",padx=9,pady=(0,9))
+        self._label(frame,"Farmácias de serviço em Portugal",17,True).pack(
+            anchor="w",padx=12,pady=(9,3))
+        self._label(frame,
+            "Consultar farmácias de serviço de hoje. "
+            "O navegador pode pedir permissão para utilizar a tua localização. "
+            "Sem autorização, escolhe distrito ou concelho no portal.",
+            11,color=self.p["muted"],wrap=1030).pack(
+                anchor="w",padx=12,pady=(0,8))
+        controls=ctk.CTkFrame(frame,fg_color="transparent")
+        controls.pack(fill="x",padx=11,pady=(0,10))
+        self._button(controls,"📍 Encontrar perto de mim",
+                     lambda:self._external_open("https://www.farmaciasdeservico.info/"),
+                     True,width=225,height=36).pack(side="left",padx=(0,8))
+        self._button(controls,"🗺️ Pesquisar por distrito/concelho",
+                     lambda:self._external_open("https://www.farmaciasdeservico.net/"),
+                     width=290,height=36).pack(side="left",padx=(0,8))
+        self._button(controls,"INFARMED",
+                     lambda:self._external_open("https://www.infarmed.pt/"),
+                     width=105,height=36).pack(side="left")
+
     def _residences(self):
         if getattr(self,"_care_tab",None) not in ("residences","residence_invoices","supports"):
             self._care_tab="residences"
@@ -194,6 +249,16 @@ class RemainingUiV0810:
         if not isinstance(getattr(self,"_remaining_selection",None),dict):
             self._remaining_selection={}
         if title=="Lares e Apoios":
+            source=profile.get("android_zip_source_id")
+            if source:
+                imports=ctk.CTkFrame(self.body,fg_color="transparent")
+                imports.pack(fill="x",padx=13,pady=(0,5))
+                self._button(imports,"Recuperar instituição e faturas do Android",
+                             lambda:self._import_android_personal("care"),
+                             width=335,height=32).pack(side="left")
+                self._label(imports,
+                    "Apenas dados ainda não importados deste perfil.",
+                    11,color=self.p["muted"]).pack(side="left",padx=12)
             tabs=ctk.CTkFrame(self.body,fg_color="transparent")
             tabs.pack(fill="x",padx=13,pady=(0,7))
             for key,label in (
@@ -204,6 +269,8 @@ class RemainingUiV0810:
                 self._button(tabs,label,lambda p=key:self._care_select_tab(p),
                              accent=key==kind,width=185,height=34).pack(
                                  side="left",padx=(0,7))
+        if kind=="pharmacy":
+            self._pharmacy_services(self.body)
         rows=self.store.remaining_records(profile["id"],kind)
         uid=self._remaining_selection.get(kind)
         chosen=next((item for item in rows if item.get("id")==uid),None)
@@ -314,6 +381,14 @@ class RemainingUiV0810:
                       "Informação essencial do perfil: "+str(profile.get("name",""))
                       if profile else "Seleciona um perfil.")
         if profile is None:return
+        if profile.get("android_zip_source_id"):
+            bar=ctk.CTkFrame(self.body,fg_color="transparent")
+            bar.pack(fill="x",padx=13,pady=(0,8))
+            self._button(bar,"Recuperar SOS do backup Android",
+                         lambda:self._import_android_personal("sos"),
+                         width=279,height=34).pack(side="left")
+            self._label(bar,"Preserva os dados já editados no Windows.",
+                        11,color=self.p["muted"]).pack(side="left",padx=12)
         data=self.store.emergency_data(profile["id"])
         split=ctk.CTkFrame(self.body,fg_color="transparent")
         split.pack(fill="both",expand=True,padx=7,pady=(0,7))

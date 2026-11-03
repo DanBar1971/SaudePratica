@@ -52,7 +52,7 @@ jobs:
           sha256sum SaudePratica-Ligacao-Teste.apk > SHA256SUMS.txt
       - name: Publicar APK de ligação testável sem modificar release estável Android
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail

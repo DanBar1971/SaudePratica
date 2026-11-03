@@ -2256,6 +2256,36 @@ def main():
             app.update_idletasks()
             app.update()
             app._close_appointment()
+            # Windows 0.8.5: exercise the actual new Calendar and Takes UI,
+            # with two separate synthetic profiles and no real patient data.
+            from windows.doses_calendar_v085 import appointments_for_day, dose_entries
+            app.calendar_selected=datetime(2027,2,14).date()
+            app.navigate("calendar")
+            app.update_idletasks()
+            app.update()
+            if len(appointments_for_day(app.store.get_profile(person["id"]),
+                                        app.calendar_selected))!=1:
+                raise AssertionError("Calendário não apresentou a marcação do perfil.")
+            confirmed=app.store.confirm_intake(person["id"],med["id"])
+            app.dose_selected=datetime.now().date()
+            app.navigate("doses")
+            app.update_idletasks()
+            app.update()
+            if not any(x["status"]=="confirmed" for x in
+                       dose_entries(app.store.get_profile(person["id"]),
+                                    app.dose_selected)):
+                raise AssertionError("Toma manual confirmada não aparece no perfil.")
+            other=app.store.save_profile({"name":"Segundo perfil fictício"})
+            app._select_profile_by_id(other["id"])
+            app.navigate("calendar")
+            app.update()
+            app.navigate("doses")
+            app.update()
+            if (dose_entries(app.store.get_profile(other["id"]),app.dose_selected)
+                or appointments_for_day(app.store.get_profile(other["id"]),
+                                        app.calendar_selected)):
+                raise AssertionError("Mistura de tomas ou agenda entre perfis.")
+            app._select_profile_by_id(person["id"])
             app._set_med_filter("active")
             app.update()
             # Exercise the shared navigation/backup/document styles in the

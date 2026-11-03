@@ -1,0 +1,140 @@
+name: Publicar SaúdePrática Android 1.9.131 NORMAL — IA local e online
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-android-19130-stable.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-stable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout original
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: SDK Android assinatura
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Confirmar CI, testes e assinatura ORIGINAL aprovados
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          test "$REPO" = "DanBar1971/SaudePratica"
+          test "$(gh api "repos/$REPO/actions/runs/41659457800" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/41659457800" --jq .head_sha)" = 63238502c074a59abdf941428ee2ff3e91551ef1
+          test "$(gh api "repos/$REPO/actions/runs/41659457800" --jq .head_branch)" = fix/android-19131-system-model-download
+          test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41671452486 --jq .conclusion)" = success
+          test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41671452486 --jq .head_sha)" = fcab691dbe1eaa3305abb2a9cd9c6b0252626fbf
+          CURRENT="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
+          test "$CURRENT" = v1.9.130 || test "$CURRENT" = v1.9.131
+      - name: Descarregar artefacto assinado — sem ler a chave privada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download 41671452486 --repo DanBar1971/AndroidAppDev \
+            --name SaudePratica-v1.9.131-ORIGINAL-SIGNED --dir signed
+          test -s signed/SaudePratica.apk
+          test -s signed/SHA256SUMS.txt
+          test "$(tr -d '[:space:]' < signed/source-run.txt)" = 41659457800
+          (cd signed && sha256sum -c SHA256SUMS.txt)
+          cp signed/SaudePratica.apk ./
+      - name: Validar identidade, assinatura Android v2/v3 e biblioteca IA incluída
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee signature.txt
+          grep -Fi "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a" signature.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" signature.txt
+          grep -F "Verified using v3 scheme (APK Signature Scheme v3): true" signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | sed -n '1p' | tee identity.txt
+          grep -F "name='com.mediagenda.app.stable'" identity.txt
+          grep -F "versionCode='141'" identity.txt
+          grep -F "versionName='1.9.131'" identity.txt
+          unzip -Z1 SaudePratica.apk | grep -Fx "lib/arm64-v8a/libsaude_llm.so"
+          unzip -Z1 SaudePratica.apk | grep -Fx "lib/x86_64/libsaude_llm.so"
+          unzip -tqq SaudePratica.apk
+      - name: Arquivar exatamente o código-fonte aprovado e SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 63238502c074a59abdf941428ee2ff3e91551ef1
+          test "$(git rev-parse FETCH_HEAD)" = 63238502c074a59abdf941428ee2ff3e91551ef1
+          git archive --format=zip --output=SaudePratica-v1.9.131-CODIGO-FONTE.zip FETCH_HEAD
+          test -s SaudePratica-v1.9.131-CODIGO-FONTE.zip
+          sha256sum SaudePratica.apk SaudePratica-v1.9.131-CODIGO-FONTE.zip > SaudePratica-v1.9.131-SHA256SUMS.txt
+      - name: Publicar Android Release NORMAL v1.9.131 (nunca preview)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TAG=v1.9.131
+          cat > notes.md <<'EOF'
+          # SaúdePrática Android 1.9.131 — IA local estável e IA Online opcional
+
+          **Release normal Android 1.9.xxx.** APK oficial assinada com o certificado original: atualiza por cima da app anterior, sem desinstalar.
+
+          ### Download da IA local corrigido
+          - A transferência opcional do Qwen3 0.6B (~383 MB) usa agora o **Gestor de Downloads do Android** com notificação persistente, percentagem, MB recebidos/total e estado visível dentro do Assistente.
+          - Poderás escolher transferir só por Wi-Fi ou também por dados móveis, mediante autorização explícita. Necessário ~1 GB de espaço livre para download e validação do ficheiro.
+          - Ao voltares ao Assistente, o estado da transferência é recuperado. Possibilidade de cancelar e voltar a tentar depois de uma falha.
+          - Depois de descarregar e verificar SHA-256, o utilizador confirma separadamente **Instalar e ativar**. Não é necessário procurar ficheiros na Internet.
+          - A execução da IA local continua completamente offline depois da instalação.
+
+          ### Novo modo IA Online
+          - Botão **IA Online · sem download** no Assistente, sem modelo instalado no Android.
+          - O utilizador configura o endereço HTTPS de um servidor Cloudflare Workers AI protegido por código de acesso privado (guardado por Android Keystore).
+          - **IMPORTANTE:** o servidor online é opcional e **ainda não está disponibilizado como serviço público**. É necessário configurar e implementar um Worker Cloudflare privado; ver SaudePratica-OnlineAI/cloudflare-worker/README.md no código-fonte e GitHub Issue #57.
+          - Só a pergunta digitada é enviada para o serviço externo quando a pessoa escolhe o modo online. A app não envia automaticamente nomes, medicação, perfis, agendamentos ou históricos clínicos.
+          - Consultas de Agenda e Medicação continuam na aplicação; qualquer alteração exige abrir a ficha nativa e confirmar.
+          - Quando o serviço não estiver configurado, a app mostra o motivo e continua com a ajuda tradicional e a IA local opcional.
+
+          ### Apresentação
+          - Ajuda tradicional claramente identificada como ajuda offline, não IA generativa.
+          - Fundo oficial visível com cartões translúcidos, botões mais coerentes, pequeno avatar nas respostas, correções do espaço reservado ao teclado e navegação.
+          - Alarmes, tomas e dados de saúde permanecem independentes das respostas da IA.
+
+          ### Atualização
+          Faz primeiro backup e instala a APK por cima da versão anterior. Testes de CI, emulador e assinatura passaram; confirmar no telemóvel real a transferência completa, notificações, perfis e alarmes.
+
+          Verificação: package com.mediagenda.app.stable, versionCode 141, certificado original e assinatura APK Android v2/v3. Motor local arm64-v8a e x86_64 incluído, mas **pesos do modelo de 383 MB excluídos**.
+
+          Inclui ficheiro APK, código-fonte e somas SHA-256.
+          EOF
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$REPO" --json isDraft,isPrerelease,assets \
+              --jq '(.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          else
+            gh release create "$TAG" SaudePratica.apk \
+              SaudePratica-v1.9.131-CODIGO-FONTE.zip \
+              SaudePratica-v1.9.131-SHA256SUMS.txt \
+              --repo "$REPO" --target 63238502c074a59abdf941428ee2ff3e91551ef1 \
+              --title "SaúdePrática Android v1.9.131 — Downloads IA corrigidos + IA Online opcional" \
+              --notes-file notes.md --latest
+          fi
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = "$TAG"
+          gh release view "$TAG" --repo "$REPO" --json tagName,isPrerelease,assets \
+            --jq '.tagName=="v1.9.131" and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          echo "::notice title=Atualização Android publicada::https://github.com/$REPO/releases/tag/$TAG"

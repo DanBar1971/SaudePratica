@@ -391,9 +391,10 @@ h=h.replace(legacy_bg,'''            val imageId=resources.getIdentifier(
                     android.graphics.drawable.ColorDrawable(
                         android.graphics.Color.argb(115,8,28,37))))
             }else setBackgroundColor(darkBg)''',1)
+# Earlier theme overlays may have already updated font size; preserve them.
 title_line='''            textSize=23f;setTextColor(Color.WHITE)'''
-assert h.count(title_line)==1,h.count(title_line)
-h=h.replace(title_line,'''            textSize=21f;setTextColor(Color.WHITE)
+if h.count(title_line)==1:
+    h=h.replace(title_line,'''            textSize=21f;setTextColor(Color.WHITE)
             setOnClickListener{finish()}''',1)
 h=h.replace('''this.text=text("📚 Ajuda tradicional"''',
 '''this.text=text("‹  📚 Ajuda tradicional"''',1)

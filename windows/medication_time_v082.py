@@ -5,6 +5,7 @@ to Android. The exported Android record remains immutable. Old Windows
 records may contain a second HH:MM in 'time'; this is NOT a meal condition.
 """
 from __future__ import annotations
+import re
 from windows.medication_flags_v076 import CLOCK,reminder_clock
 
 def original_time(record):
@@ -32,7 +33,7 @@ def time_for_store(previous,reminder,condition):
     condition=(condition or "").strip()
     if condition and not CLOCK.fullmatch(condition):
         return condition
-    if condition and CLOCK.fullmatch(condition):
+    if condition and re.fullmatch(r"\d{1,2}\s*[:hH]\s*\d{2}",condition):
         raise ValueError("Para alterar a hora, utiliza o campo Hora de aviso.")
     return reminder
 

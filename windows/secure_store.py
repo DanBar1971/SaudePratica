@@ -239,6 +239,12 @@ class SecureStore:
             raise LocalStoreError("A marcação já não existe.")
         try:cleaned=clean_appointment_fields(fields,old)
         except (ValueError,TypeError) as exc:raise LocalStoreError(str(exc)) from exc
+        if cleaned.get("document_asset_sha256"):
+            from windows.medication_editor_v080 import (
+                medication_document_assets, medication_document_option)
+            assets=medication_document_assets(self.imported_assets(profile_id))
+            if medication_document_option(assets,cleaned["document_asset_sha256"]) is None:
+                raise LocalStoreError("Documento da marcação não pertence a este perfil.")
         new=dict(old) if old else {"id":str(uuid.uuid4())}
         new.update(cleaned)
         if "desktop_status" in cleaned:

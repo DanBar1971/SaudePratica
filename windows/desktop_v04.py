@@ -2024,7 +2024,23 @@ def _close_boot_splash():
 
 
 def main():
-    """Launch the UI normally, or the isolated background reminder agent."""
+    """Launch the UI, the background agent, or a synthetic packaged OCR check."""
+    if "--ocr-smoke" in sys.argv:
+        _close_boot_splash()
+        from PIL import ImageDraw, ImageFont
+        test=Image.new("RGB",(1100,230),"white")
+        painter=ImageDraw.Draw(test)
+        try:font=ImageFont.truetype("C:/Windows/Fonts/arial.ttf",54)
+        except OSError:font=ImageFont.load_default()
+        painter.text((40,60),"DOSE: 25 mg",font=font,fill="black")
+        stream=BytesIO()
+        test.save(stream,format="PNG")
+        extracted=recognize_document(stream.getvalue(),"synthetic.png")
+        report=os.environ.get("SAUDEPRATICA_OCR_SMOKE_REPORT")
+        if report:Path(report).write_text("OCR_READY" if extracted.strip() else "OCR_EMPTY",
+                                        encoding="utf-8")
+        if not extracted.strip():raise RuntimeError("Motor OCR não reconheceu texto.")
+        return
     if "--reminder-agent" in sys.argv:
         _close_boot_splash()
         from windows.reminder_agent_v071 import run_reminder_agent

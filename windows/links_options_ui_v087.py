@@ -10,6 +10,10 @@ from windows.important_links_v087 import (
 )
 from windows.secure_store import LocalStoreError
 
+THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
+LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
+              "de":"Deutsch","es":"Español"}
+
 
 class LinksOptionsV087:
     def _open_important_link(self, identifier):
@@ -122,7 +126,6 @@ class LinksOptionsV087:
             anchor="w",padx=16,pady=(12,2))
         inner=ctk.CTkFrame(pref,fg_color="transparent")
         inner.pack(fill="x",padx=18,pady=(3,9))
-        from windows.desktop_v04 import THEME_KEYS, LANG_NAMES
         self._label(inner,self.t("theme"),12,True).pack(side="left",padx=(0,9))
         values={self.t(k):v for v,k in THEME_KEYS.items()}
         self.theme_values=values

@@ -8,7 +8,7 @@ record merging; this test must never be reused to transport medical data.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 from typing import Callable
 import http.client
 import json
@@ -43,11 +43,12 @@ def lan_ip(host: str) -> str:
         addr=ip_address(host.strip())
     except (ValueError,AttributeError) as exc:
         raise LinkError("Introduz um endereço IPv4 local válido.") from exc
-    if addr.version != 4 or not (addr.is_private or addr.is_loopback
-                                 or addr.is_link_local):
-        raise LinkError("A ligação de teste só aceita endereços IPv4 locais.")
-    if addr.is_multicast or addr.is_unspecified:
-        raise LinkError("Endereço IPv4 de dispositivo inválido.")
+    permitted=tuple(ip_network(net) for net in (
+        "10.0.0.0/8","172.16.0.0/12","192.168.0.0/16",
+        "169.254.0.0/16","127.0.0.0/8"))
+    if addr.version!=4 or addr.is_multicast or addr.is_unspecified or not any(
+            addr in network for network in permitted):
+        raise LinkError("A ligação de teste só aceita IPv4 privado/local (RFC 1918).")
     return str(addr)
 
 

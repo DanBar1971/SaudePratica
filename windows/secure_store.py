@@ -68,6 +68,38 @@ class SecureStore:
     def profiles(self):
         return self.data["profiles"]
 
+    def important_links(self):
+        """Installation-wide website shortcuts; defaults are removable and
+        remain removed after an explicit empty-list save.
+        """
+        from windows.important_links_v087 import DEFAULT_LINKS, validated_links
+        if "important_web_links" not in self.data:
+            return validated_links(DEFAULT_LINKS)
+        try:
+            return validated_links(self.data["important_web_links"])
+        except ValueError as exc:
+            raise LocalStoreError("Lista de atalhos guardada inválida.") from exc
+
+    def save_important_links(self, links):
+        """Atomic update, compatible with the existing DPAPI backup payload."""
+        from windows.important_links_v087 import validated_links
+        try:
+            cleaned = validated_links(links)
+        except ValueError as exc:
+            raise LocalStoreError(str(exc)) from exc
+        previous = self.data.get("important_web_links")
+        existed = "important_web_links" in self.data
+        self.data["important_web_links"] = cleaned
+        try:
+            self.save()
+        except Exception:
+            if existed:
+                self.data["important_web_links"] = previous
+            else:
+                self.data.pop("important_web_links",None)
+            raise
+        return cleaned
+
     def create_profile(self, name: str):
         name = name.strip()
         if not 1 <= len(name) <= 120:

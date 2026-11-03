@@ -13,20 +13,22 @@ Este ficheiro é a fonte de continuidade técnica do projeto: consultar antes de
 
 **03/11/2026 — Android 1.9.131 publicado:** release normal [v1.9.131](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.131), APK original assinada (certificado v2/v3) e instalável sobre a 1.9.130. O Qwen3 local é transferido pelo Gestor de Downloads Android com indicação de progresso e autorização; a IA Online funciona apenas quando o utilizador configura um backend privado HTTPS, ainda sem serviço público fornecido. O endpoint `/releases/latest` aponta para 1.9.131 e o website foi ajustado em `index.html`. **A descoberta LAN e sincronização clínica com Windows NÃO estão integradas na APK oficial Android.** O teste Windows 0.8.12 continua a requerer a APK auxiliar LAN Link 0.2; esta só descobre e autoriza, sem ler nem transferir informação clínica. Pendente: integração na app Android principal com canal autenticado/cifrado e sincronização por perfil com tratamento de conflitos, seguida de assinatura original e release normal nova.
 
+**03/11/2026 — Android 1.9.132 publicado:** [Release oficial](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.132), APK assinada com certificado original (v2/v3) e instalação sobre 1.9.131 sem desinstalar. O Assistente apresenta «A gerar resposta…» com spinner e animação, bloqueia envio duplicado e usa botões mais legíveis com cartões translúcidos. Integra **Backups e sincronização → Ligação Windows · Wi-Fi (teste)** na própria aplicação Android, com anúncio mDNS + UDP, pedido de código e autorização compatível com Windows 0.8.12. Este modo **não transfere dados clínicos** e não usa TLS; a sincronização bidirecional segura de perfis, medicação, agenda e fotografias continua pendente. Código de desenvolvimento [1.9.132](https://github.com/DanBar1971/SaudePratica/tree/feat/android-19132-ai-ui-windows-lan), [CI aprovada](https://github.com/DanBar1971/SaudePratica/actions/runs/41730629723), [assinatura aprovada](https://github.com/DanBar1971/AndroidAppDev/actions/runs/41731804220), [publicação aprovada](https://github.com/DanBar1971/SaudePratica/actions/runs/41732108108). Requer ensaio real no Wi-Fi do utilizador e regressão de alarmes no dispositivo.
+
 ## Versões publicadas
 
 | Plataforma | Versão | Estado | Download |
 | --- | --- | --- | --- |
-| Android | **1.9.131** | **Última versão oficial normal**, IA local com download Android e opção IA online configurável; APK com certificado original | https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk |
+| Android | **1.9.132** | **Última versão oficial normal**, UI IA e descoberta/consentimento Windows integrados sem dados clínicos; APK com certificado original | https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk |
 | Android | **1.9.125** | Versão anterior | https://github.com/DanBar1971/SaudePratica/releases/download/v1.9.125/SaudePratica.apk |
 | Windows | **0.8.12** | Descoberta automática por mDNS/UDP; reprocura funcional; instalador EXE experimental | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.12-preview/SaudePratica-Setup.exe |
 
-- Android release normal: https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.131
+- Android release normal: https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.132
 - A antiga `v1.9.127-preview` existe apenas como artefacto histórico; **não é o download oficial atual**.
 - Windows 0.7.7 corrige os estados de medicação suspensa e horários de avisos do Android, apresenta o agente de Avisos com ícone oficial, sem segundo splash e com menu de botão direito agora funcional e verificado num teste de clique real. Testado em [GitHub Actions](https://github.com/DanBar1971/SaudePratica/actions/runs/41470168223) e publicado em [Releases](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.7.7-preview).
 - Windows preview atual: https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.12-preview
 - iOS ainda não está disponível; planeado para fase futura.
-- Página oficial atualizada para Windows 0.8.12; download Android oficial mantido de forma independente. `releases/latest` devolve agora `v1.9.130`; a aplicação Android pode procurar e instalar a atualização normalmente.
+- Página oficial atualizada para Windows 0.8.12; download Android oficial mantido de forma independente. `releases/latest` devolve agora `v1.9.132`; a aplicação Android pode procurar e instalar a atualização normalmente.
 
 **03/11/2026:** Windows 0.8.5 acrescenta Tomas (confirmação explícita de toma, histórico diário) e Calendário (vista mensal com lista de agendamentos por dia), com separação rigorosa dos dados por perfil. CI Windows com 159 testes Python, ensaio GUI de fontes e EXE, OCR e Avisos passou, e instalador publicado. A ligação LAN 0.8.4 continua limitada à descoberta/pedido de ligação, sem transferência de informação clínica; os registos de tomas Android ainda não são transferidos. O Android oficial mantém-se independente.
 

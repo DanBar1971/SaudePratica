@@ -1051,11 +1051,12 @@ class Desktop(ctk.CTk):
         box=ctk.CTkFrame(parent,fg_color="transparent")
         box.grid(row=row,column=col,columnspan=span,sticky="ew",
                  padx=4,pady=(1,4))
-        self._label(box,label,10,True,color=self.p["muted"]).pack(
-            anchor="w",pady=(0,2))
-        entry=ctk.CTkEntry(box,height=27,corner_radius=7,
-            fg_color=self.p["field"],border_color=self.p["line"],
-            text_color=self.p["text"],font=ctk.CTkFont(size=11))
+        self._label(box,label,11,True,color=self.p["muted"]).pack(
+            anchor="w",pady=(0,3))
+        entry=ctk.CTkEntry(box,height=33,corner_radius=10,
+            fg_color=self.p["field"],border_color="#315a66",
+            border_width=1,text_color=self.p["text"],
+            font=ctk.CTkFont(family="Segoe UI",size=12))
         entry.pack(fill="x")
         entry.insert(0,str(initial or ""))
         return entry
@@ -1145,16 +1146,24 @@ class Desktop(ctk.CTk):
         self.med_notes.grid(row=7,column=0,columnspan=2,sticky="ew",
                             padx=4,pady=(0,4))
         self.med_notes.insert("1.0",fields.get("notes",""))
-        photo=ctk.CTkFrame(basic,fg_color="transparent")
-        photo.grid(row=8,column=0,columnspan=2,sticky="ew",padx=4,pady=3)
-        self.med_photo_widget=ctk.CTkLabel(photo,text="Sem fotografia",
-            text_color=self.p["muted"],width=74,height=46)
-        self.med_photo_widget.pack(side="left",padx=4)
+        photo=ctk.CTkFrame(
+            basic,fg_color=self.p["field"],corner_radius=12,
+            border_width=1,border_color="#176d77")
+        photo.grid(row=8,column=0,columnspan=2,sticky="ew",padx=4,pady=(8,4))
+        self._med_preview_size=(max(280,min(535,self.winfo_width()//3)),166)
+        self.med_photo_widget=ctk.CTkLabel(
+            photo,text="Sem fotografia da embalagem",
+            text_color=self.p["muted"],corner_radius=9,
+            width=self._med_preview_size[0],height=self._med_preview_size[1])
+        self.med_photo_widget.pack(side="left",padx=8,pady=7)
+        controls=ctk.CTkFrame(photo,fg_color="transparent")
+        controls.pack(side="left",fill="y",padx=(4,9),pady=8)
+        self._button(controls,"Anexar foto\nda embalagem",
+                     self._choose_med_photo,width=150,height=44).pack(
+                         fill="x",pady=(8,9))
+        self._button(controls,"Remover foto",self._remove_med_photo,
+                     width=150,height=36).pack(fill="x",pady=(0,8))
         self._update_med_preview()
-        self._button(photo,"Anexar foto da embalagem",self._choose_med_photo,
-                     width=190,height=28).pack(side="left",padx=5)
-        self._button(photo,"Remover foto",self._remove_med_photo,
-                     width=94,height=28).pack(side="left",padx=4)
 
         self.med_extra_widgets={}
         self.med_doc_assets=medication_document_assets(
@@ -1439,8 +1448,13 @@ class Desktop(ctk.CTk):
         self._export_document(entry)
 
     def _update_med_preview(self):
-        image=self._authentic_thumb(self.med_photo_draft,85,62)
-        self.med_photo_widget.configure(image=image,text="" if image else "Sem fotografia")
+        # The authentic stored package photo uses the space formerly empty in
+        # the editor. Never use an unrelated stock/package photograph.
+        width,height=getattr(self,"_med_preview_size",(330,166))
+        image=self._med_card_photo(self.med_photo_draft,width,height)
+        self._med_editor_image=image
+        self.med_photo_widget.configure(
+            image=image,text="" if image else "Sem fotografia da embalagem")
 
     def _remove_med_photo(self):
         self.med_photo_draft=""

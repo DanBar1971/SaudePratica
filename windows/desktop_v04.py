@@ -41,12 +41,13 @@ from windows.medication_editor_v080 import GROUPS, source_value, medication_docu
 from windows.document_ocr_v081 import recognize_document, preview_document, suggest_fields, DocumentRecognitionError
 from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as is_no_alarm, configured_reminder, active_reminder, reminder_clock
 from windows.medication_time_v082 import condition_value, mismatched_legacy_clock, canonical_reminder_fields
+from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.2"
+VERSION = "0.8.3"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -170,12 +171,88 @@ class Desktop(ctk.CTk):
                     chip="#1c5659",chip_text="#a8fff0")
 
     def _button(self,parent,label,command,accent=False,width=124,height=32):
+        """Single rounded button language for navigation, modules and editors."""
         p=self.p
-        return ctk.CTkButton(parent,text=label,command=command,width=width,height=height,
-            corner_radius=10,font=ctk.CTkFont(family="Segoe UI",size=12,weight="bold"),
+        return ctk.CTkButton(
+            parent,text=label,command=command,width=width,height=max(height,32),
+            corner_radius=14,border_width=1,
+            border_color=TEAL_HOVER if accent else ("#336879" if p["bg"]!="#edf4f7" else p["line"]),
+            font=ctk.CTkFont(family="Segoe UI",size=12,weight="bold"),
             fg_color=TEAL if accent else p["panel2"],
             hover_color=TEAL_HOVER if accent else p["hover"],
             text_color="#05252c" if accent else p["text"])
+
+    def _back_button(self,parent,label,command,width=155):
+        """Uniform back button at the top of every editor/module."""
+        return self._button(parent,"‹  "+label,command,width=width,height=35)
+
+    def _editor_tabs(self,parent):
+        """The same prominent segmented tabs for medication and appointments."""
+        p=self.p
+        widget=ctk.CTkTabview(
+            parent,corner_radius=13,border_width=1,border_color=p["line"],
+            fg_color="transparent",text_color=p["text"],
+            segmented_button_fg_color=p["panel"],
+            segmented_button_selected_color="#078f93",
+            segmented_button_selected_hover_color="#00a99b",
+            segmented_button_unselected_color=p["panel2"],
+            segmented_button_unselected_hover_color=p["hover"])
+        widget.pack(fill="both",expand=True,padx=4,pady=(0,2))
+        widget._segmented_button.configure(
+            height=34,corner_radius=14,
+            font=ctk.CTkFont(family="Segoe UI",size=12,weight="bold"))
+        return widget
+
+    def _editable_choice(self,parent,label,initial,values,row,col,span=1):
+        """Android-like dropdown with free typing, so old values are not lost."""
+        p=self.p
+        cell=ctk.CTkFrame(parent,fg_color="transparent")
+        cell.grid(row=row,column=col,columnspan=span,
+                  sticky="ew",padx=4,pady=(2,6))
+        self._label(cell,label,11,True,color=p["muted"]).pack(
+            anchor="w",pady=(0,3))
+        combo=ctk.CTkComboBox(
+            cell,values=list(values),height=34,corner_radius=10,
+            border_color="#167d88",border_width=1,fg_color=p["field"],
+            button_color="#116c7a",button_hover_color=TEAL_HOVER,
+            dropdown_fg_color=p["panel2"],
+            dropdown_hover_color=p["hover"],dropdown_text_color=p["text"],
+            text_color=p["text"],font=ctk.CTkFont(size=12))
+        combo.pack(fill="x")
+        combo.set(str(initial or ""))
+        return combo
+
+    def _time_stepper(self,parent,label,initial,row,col):
+        """Editable clock with explicit up/down 5-minute controls."""
+        cell=ctk.CTkFrame(parent,fg_color="transparent")
+        cell.grid(row=row,column=col,sticky="ew",padx=4,pady=(2,5))
+        self._label(cell,label,11,True,color=self.p["muted"]).pack(
+            anchor="w",pady=(0,3))
+        line=ctk.CTkFrame(cell,fg_color="transparent")
+        line.pack(fill="x")
+        entry=ctk.CTkEntry(
+            line,height=34,corner_radius=10,border_color="#167d88",
+            fg_color=self.p["field"],text_color=self.p["text"],
+            font=ctk.CTkFont(family="Segoe UI",size=13,weight="bold"))
+        entry.pack(side="left",fill="x",expand=True)
+        entry.insert(0,str(initial or ""))
+        arrows=ctk.CTkFrame(line,fg_color="transparent")
+        arrows.pack(side="left",padx=(5,0))
+        for symbol,step in (("⌃",1),("⌄",-1)):
+            self._button(arrows,symbol,
+                lambda d=step,e=entry:self._adjust_med_time(e,d),
+                width=34,height=17).pack(pady=(0,1))
+        return entry
+
+    def _adjust_med_time(self,entry,direction):
+        try:
+            updated=shift_clock(entry.get(),direction)
+        except ValueError as exc:
+            messagebox.showwarning("Hora de aviso",str(exc),parent=self)
+            return
+        entry.delete(0,"end")
+        entry.insert(0,updated)
+        entry.focus_set()
 
     def _label(self,parent,text,size=13,bold=False,color=None,anchor="w",wrap=None):
         return ctk.CTkLabel(parent,text=text,anchor=anchor,
@@ -186,7 +263,7 @@ class Desktop(ctk.CTk):
 
     def _card(self,parent,rounding=14,**kw):
         return ctk.CTkFrame(parent,fg_color=self.p["panel"],
-            corner_radius=rounding,border_width=1,
+            corner_radius=max(rounding,15),border_width=1,
             border_color=self.p["line"],**kw)
 
     def _chip(self,parent,text,color=None):
@@ -238,7 +315,7 @@ class Desktop(ctk.CTk):
             target=key
             active=self.page==target or (target=="more" and self.page not in ("home","profiles","medication","agenda"))
             label=glyph+"  "+self.t(title)
-            b=self._button(nav,label,lambda k=key:self.navigate(k),accent=active,width=96,height=34)
+            b=self._button(nav,label,lambda k=key:self.navigate(k),accent=active,width=103,height=37)
             b.pack(side="left",padx=3,pady=15)
 
         right=ctk.CTkFrame(header,fg_color="transparent")
@@ -307,6 +384,8 @@ class Desktop(ctk.CTk):
         self._label(texts,title,26,True).pack(anchor="w")
         if subtitle:
             self._label(texts,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(1,0))
+        if self.page not in ("home","profiles","medication","agenda","more"):
+            self._back_button(head,"Voltar ao menu",lambda:self.navigate("more"),170).pack(side="right",padx=12,pady=3)
 
     def navigate(self,page):
         if page!="profiles":
@@ -628,7 +707,7 @@ class Desktop(ctk.CTk):
         box=ctk.CTkFrame(parent,fg_color="transparent")
         box.grid(row=row,column=col,columnspan=columns,sticky="ew",padx=5,pady=4)
         self._label(box,self.t(label),11,True,color=self.p["muted"]).pack(anchor="w",pady=(0,3))
-        entry=ctk.CTkEntry(box,height=33,corner_radius=8,
+        entry=ctk.CTkEntry(box,height=34,corner_radius=10,
             border_color=self.p["line"],fg_color=self.p["field"],
             text_color=self.p["text"],font=ctk.CTkFont(size=12))
         entry.insert(0,str(initial or ""))

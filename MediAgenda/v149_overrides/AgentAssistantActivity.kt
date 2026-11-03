@@ -364,7 +364,7 @@ class AgentAssistantActivity : AppCompatActivity() {
                     "Se não souberes algo sobre a app, diz que não sabes. Pergunta: "+
                     question.take(500)
                 val response=client.generateContent(prompt)
-                bubble(false,response.text?.take(2000).orEmpty().ifBlank{
+                bubble(false,response.candidates.firstOrNull()?.text?.take(2000).orEmpty().ifBlank{
                     "A IA local não conseguiu responder. Usa a Ajuda clássica."
                 })
             }catch(_:Exception){

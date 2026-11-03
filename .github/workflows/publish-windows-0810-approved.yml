@@ -1,0 +1,98 @@
+name: SaúdePrática Windows 0.8.10 — construir, ensaiar e publicar EXE
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-windows-0810-approved.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify-build-publish:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      WINDOWS_APP_VERSION: "0.8.10"
+    steps:
+      - name: Obter código Windows 0.8.10 isolado (preserva main Android)
+        uses: actions/checkout@v4
+        with:
+          ref: release/windows-0810-remaining-modules-20261103
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependências de compilação Windows
+        run: python -m pip install -r windows/requirements.txt
+      - name: Compilar fontes e executar todos os testes antes de publicar
+        shell: pwsh
+        run: |
+          python -m compileall -q windows shared
+          if ($LASTEXITCODE -ne 0) { throw "Erro de sintaxe Python" }
+          python -m unittest discover -s shared/tests -v
+          if ($LASTEXITCODE -ne 0) { throw "Falharam testes partilhados" }
+          python -m unittest discover -s windows/tests -v
+          if ($LASTEXITCODE -ne 0) { throw "Falharam testes Windows" }
+      - name: Ensaiar aplicação Windows via Python
+        run: python windows/tools/smoke_windows.py --script
+      - name: Construir ícone e splash oficiais
+        shell: pwsh
+        run: |
+          python windows/tools/build_brand_assets.py
+          if ($LASTEXITCODE -ne 0) { throw "Falhou geração de ícones" }
+          if (!(Test-Path "dist/saude_icon.ico")) { throw "ICO em falta" }
+          if (!(Test-Path "dist/saude_splash_windows.png")) { throw "Splash em falta" }
+      - name: Compilar executável principal COM splash único
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onedir --windowed --name SaudePraticaDesktop --icon dist/saude_icon.ico --splash dist/saude_splash_windows.png --paths . --collect-all customtkinter --collect-all zeroconf --collect-all pymupdf --collect-all rapidocr_onnxruntime --collect-all onnxruntime --add-data "assets;assets" --add-data "dist/saude_icon.ico;assets" windows/desktop_v04.py
+          if ($LASTEXITCODE -ne 0) { throw "Falhou PyInstaller Desktop" }
+          if (!(Test-Path "dist/SaudePraticaDesktop/SaudePraticaDesktop.exe")) { throw "EXE Desktop em falta" }
+      - name: Compilar SaúdePrática Avisos SEM splash
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onedir --windowed --name SaudePraticaAvisos --icon dist/saude_icon.ico --paths . --add-data "assets;assets" --add-data "dist/saude_icon.ico;assets" windows/avisos_main.py
+          if ($LASTEXITCODE -ne 0) { throw "Falhou PyInstaller Avisos" }
+          if (!(Test-Path "dist/SaudePraticaAvisos/SaudePraticaAvisos.exe")) { throw "EXE Avisos em falta" }
+      - name: Verificar OCR e modelos ONNX dentro do EXE final
+        run: python windows/tools/smoke_ocr_packaged_v081.py
+      - name: Ensaio do EXE principal e das duas fichas compactas
+        run: python windows/tools/smoke_windows.py --exe
+      - name: Ensaio real do agente Avisos e opção Sair no botão direito
+        run: python windows/tools/smoke_avisos_v076.py
+      - name: Instalar Inno Setup 6
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (!(Test-Path $iscc)) { throw "Inno Setup indisponível" }
+      - name: Criar instalador completo Windows 0.8.10
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=$env:WINDOWS_APP_VERSION" "windows\installer\SaudePratica.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Compilação do instalador falhou" }
+          $file="dist/installer/SaudePratica-Setup.exe"
+          if (!(Test-Path $file)) { throw "SaudePratica-Setup.exe em falta" }
+          if ((Get-Item $file).Length -lt 5000000) { throw "Instalador incompleto" }
+          Get-FileHash $file -Algorithm SHA256
+      - name: Publicar EXE e SHA256 em GitHub Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $repo = "$env:GITHUB_REPOSITORY"
+          $tag = "windows-v0.8.10-preview"
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "SHA de código indisponível" }
+          $setup = "dist/installer/SaudePratica-Setup.exe"
+          Copy-Item $setup "SaudePratica-Setup.exe"
+          $hash = (Get-FileHash "SaudePratica-Setup.exe" -Algorithm SHA256).Hash.ToLower()
+          "$hash  SaudePratica-Setup.exe" | Set-Content -Encoding ascii "SHA256SUMS.txt"
+          gh release view $tag --repo $repo *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Tag Windows 0.8.10 já existe. Não substituir binários." }
+          gh release create $tag "SaudePratica-Setup.exe" "SHA256SUMS.txt" --repo $repo --target $source --title "SaúdePrática Windows 0.8.10 — Nutrição, Saúde Visual, Sintomas, Vacinas, Emergência, Farmácias e Lares e Apoios" --notes-file "windows/RELEASE_NOTES_0810.md" --prerelease --latest=false
+          if ($LASTEXITCODE -ne 0) { throw "Falhou a publicação da release" }
+          $valid=gh release view $tag --repo $repo --json assets --jq '[.assets[].name] | any(. == "SaudePratica-Setup.exe")'
+          if ($LASTEXITCODE -ne 0 -or "$valid".Trim() -ne "true") { throw "Release sem o instalador" }

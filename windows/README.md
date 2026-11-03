@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.1**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.1-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.2**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.2-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.1-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.2-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -156,3 +156,9 @@ As secções anteriormente indicadas «Em desenvolvimento» foram substituídas 
 ## Windows 0.8.1 — formulários compactos com OCR local
 
 A Medicação e a Agenda apresentam um formulário à esquerda com separadores compactos e um painel de documento à direita. PDF digital: extração de texto local; PDF digitalizado e fotografia: RapidOCR com modelos ONNX incluídos no EXE. Os documentos são encriptados localmente por perfil; o preenchimento sugerido só atua em campos vazios e após aprovação. Na Agenda, campos técnicos de importação Android como `photo_uri`, `ocr_text` e `recurrence` deixaram de aparecer no formulário. O registo Android original é preservado e não existe sincronização automática. O instalador está publicado em `windows-v0.8.1-preview` com origem no ramo `release/windows-081-dualpane-ocr-20261103`.
+
+## Windows 0.8.2 — hora única do aviso de medicação
+
+A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
+
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.2-preview/SaudePratica-Setup.exe

@@ -233,6 +233,12 @@ jobs:
         run: python3 MediAgenda/v150_overrides/apply_v150.py
       - name: Verify optional download, native inference and profile protection
         run: python3 MediAgenda/v150_overrides/verify_v150.py
+      - name: Apply Android 1.9.131 DownloadManager and optional IA Online
+        run: python3 MediAgenda/v151_overrides/apply_v151.py
+      - name: Verify Android 1.9.131 clinical privacy and online credentials
+        run: python3 MediAgenda/v151_overrides/verify_v151.py
+      - name: Test Cloudflare Workers AI private backend (no credentials)
+        run: node --test SaudePratica-OnlineAI/cloudflare-worker/test/worker.test.mjs
       - name: Install Android NDK and CMake for optional CPU model
         shell: bash
         run: |
@@ -255,7 +261,7 @@ jobs:
           test -s "$DEST/include/llama.h"
       - name: Require original app artwork (background, icon and splash)
         run: python3 MediAgenda/tools/verify_graphics.py
-      - name: Compile Android 1.9.130 (native AI included, GGUF excluded)
+      - name: Compile Android 1.9.131 with online AI and persistent local download
         working-directory: build-src/MediAgenda_Android_v1
         run: gradle --no-daemon assembleRelease
       - name: Enable KVM for Android emulator tests on PR
@@ -310,7 +316,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: SaudePratica-v1.9.130-FULL-SOURCE
+          name: SaudePratica-v1.9.131-FULL-SOURCE
           path: build-src/MediAgenda_Android_v1/
           retention-days: 7
       - name: Export Android signing tools (no certificates or passwords)
@@ -328,7 +334,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
-          name: SaudePratica-v1.9.130-UNSIGNED
+          name: SaudePratica-v1.9.131-UNSIGNED
           path: build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 7
       - name: Confirmar se a chave de assinatura original está configurada

@@ -14,10 +14,16 @@ import http.client
 import json
 import secrets
 import threading
+import select
+import socket
+import time
 
 SERVICE_TYPE="_saudepratica-sync._tcp.local."
 PROTOCOL="sp-pair-test-0"
 MAX_REPLY=4096
+UDP_DISCOVERY_PORT=43838
+UDP_QUESTION="SP_DISCOVER_1:"
+UDP_ANSWER="SP_FOUND_1:"
 
 
 class LinkError(ValueError):
@@ -65,6 +71,138 @@ def phone_from_service(service: str, name: str, address: str, port: int,
     return Phone(service=service,name=safe_name,host=host,port=port)
 
 
+
+
+def local_broadcast_interfaces() -> list[tuple[str,str]]:
+    """Enumerate real IPv4 adapters, not the first hostname/VPN guess.
+
+    Use the ifaddr library already installed as a dependency of zeroconf.
+    The source IPv4 selects the correct Windows Wi-Fi/Ethernet interface.
+    """
+    from ipaddress import ip_interface
+    try:
+        import ifaddr
+        adapters=ifaddr.get_adapters()
+    except (ImportError,OSError):
+        return []
+    items=[]
+    seen=set()
+    for adapter in adapters:
+        for item in adapter.ips:
+            if not isinstance(item.ip,str):
+                continue
+            try:
+                address=ip_address(item.ip)
+                prefix=item.network_prefix
+                if (address.version!=4 or address.is_loopback or
+                        not (address.is_private or address.is_link_local) or
+                        not isinstance(prefix,int) or not 1<=prefix<=30):
+                    continue
+                broadcast=str(ip_interface(f"{address}/{prefix}").network.broadcast_address)
+                entry=(str(address),broadcast)
+                if entry not in seen:
+                    seen.add(entry)
+                    items.append(entry)
+            except (ValueError,TypeError):
+                continue
+    return items[:16]
+
+
+def decode_udp_reply(packet: bytes, nonce: str, host: str) -> Phone:
+    """Only validates an advertised endpoint; HTTP verification follows."""
+    if len(packet)>256:
+        raise LinkError("Resposta de descoberta demasiado grande.")
+    try:
+        message=packet.decode("utf-8")
+    except UnicodeError as exc:
+        raise LinkError("Resposta de descoberta inválida.") from exc
+    fields=message.split(":",3)
+    if (len(fields)!=4 or fields[0]!="SP_FOUND_1" or
+            fields[1]!=nonce or not fields[2].isascii() or
+            not fields[2].isdigit()):
+        raise LinkError("Dispositivo não corresponde ao pedido.")
+    port=int(fields[2])
+    return phone_from_service(
+        f"udp-{host}-{port}",fields[3],host,port,PROTOCOL)
+
+
+def discover_udp(*, target_interfaces: list[tuple[str,str]] | None = None,
+                 destination_port: int = UDP_DISCOVERY_PORT,
+                 duration: float = 2.4) -> list[Phone]:
+    """Active LAN broadcast, no scanning of IP ranges and no patient data.
+
+    Send a random 128-bit nonce to the broadcast of each local adapter.
+    Accept only an exact nonce echo from a private IP and then verify
+    the HTTP /v1/status endpoint before exposing a device in the UI.
+    """
+    if target_interfaces is None:
+        target_interfaces=local_broadcast_interfaces()
+    if not 1<=destination_port<=65535:
+        raise LinkError("Porta UDP de descoberta inválida.")
+    nonce=secrets.token_hex(16)
+    question=(UDP_QUESTION+nonce).encode("ascii")
+    sockets=[]
+    found={}
+    try:
+        for bind, broadcast in target_interfaces[:16]:
+            try:
+                lan_ip(bind)
+                if broadcast!="255.255.255.255":
+                    # Directed broadcasts can end in a private subnet's .255
+                    # but are not direct phone endpoints and need no lan_ip().
+                    ip_address(broadcast)
+                sock=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+                sock.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
+                sock.bind((bind,0))
+                sock.setblocking(False)
+                sockets.append((sock,broadcast))
+            except (OSError,ValueError,LinkError):
+                continue
+        if not sockets:
+            return []
+        deadline=time.monotonic()+max(0.1,min(4.0,duration))
+        next_send=0.0
+        round_count=0
+        while time.monotonic()<deadline and len(found)<12:
+            now=time.monotonic()
+            if now>=next_send and round_count<3:
+                for sock,broadcast in sockets:
+                    try:
+                        sock.sendto(question,(broadcast,destination_port))
+                        # 255.255.255.255 reaches APs that discard directed
+                        # broadcast on a particular Wi-Fi adapter.
+                        if broadcast!="255.255.255.255":
+                            sock.sendto(question,("255.255.255.255",destination_port))
+                    except OSError:
+                        continue
+                next_send=now+0.75
+                round_count+=1
+            timeout=max(0.0,min(0.25,deadline-time.monotonic()))
+            try:
+                readable,_,_=select.select([x[0] for x in sockets],[],[],timeout)
+            except (OSError,ValueError):
+                break
+            for sock in readable:
+                try:
+                    data,peer=sock.recvfrom(512)
+                    host=lan_ip(peer[0])
+                    phone=decode_udp_reply(data,nonce,host)
+                except (OSError,ValueError,LinkError):
+                    continue
+                if phone.target in found:
+                    continue
+                try:
+                    status=check_phone(phone)
+                except (LinkError,OSError,ValueError):
+                    continue
+                if status.get("ready") is False:
+                    continue
+                found[phone.target]=phone
+        return list(found.values())
+    finally:
+        for sock,_ in sockets:
+            sock.close()
+
 class PhoneDiscovery:
     """Zeroconf watcher. Delivers changes through a thread-safe callback."""
     def __init__(self,on_event:Callable[[str,Phone|str],None]):
@@ -76,10 +214,32 @@ class PhoneDiscovery:
 
     def start(self):
         if self._zeroconf is not None:return
-        from zeroconf import ServiceBrowser, Zeroconf
-        self._zeroconf=Zeroconf()
+        from zeroconf import ServiceBrowser, Zeroconf, InterfaceChoice
+        self._zeroconf=Zeroconf(interfaces=InterfaceChoice.All)
         self._browser=ServiceBrowser(self._zeroconf,SERVICE_TYPE,
                                      handlers=[self._service_event])
+
+    def refresh(self):
+        """A genuine new mDNS browse PLUS active broadcast probe.
+
+        Called from LanUi's background thread. Not from the Tk thread.
+        """
+        if self._zeroconf is None:
+            self.start()
+        from zeroconf import ServiceBrowser
+        if self._browser is not None:
+            self._browser.cancel()
+        self._browser=ServiceBrowser(
+            self._zeroconf,SERVICE_TYPE,handlers=[self._service_event])
+        devices=discover_udp()
+        for phone in devices:
+            with self._lock:
+                current=next((p for p in self.phones.values()
+                              if p.host==phone.host and p.port==phone.port),None)
+                if current is not None:
+                    continue
+                self.phones[phone.service]=phone
+            self._on_event("found",phone)
 
     def _service_event(self,zc,service_type,name,state):
         from zeroconf import ServiceStateChange
@@ -117,6 +277,8 @@ class PhoneDiscovery:
     def close(self):
         if self._zeroconf is None:return
         try:
+            if self._browser is not None:
+                self._browser.cancel()
             self._zeroconf.close()
         finally:
             self._zeroconf=None

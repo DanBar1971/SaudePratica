@@ -87,7 +87,7 @@ class MedicationSingleClockTests(unittest.TestCase):
 
     def test_ui_shows_one_editable_hour_and_recovery_button(self):
         text=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.7"',text)
+        self.assertIn('VERSION = "0.8.8"',text)
         self.assertNotIn('"Hora / indicação da toma"',text)
         self.assertIn('basic,"Condição da toma (ex.: jejum)",condition_value(fields)',text)
         self.assertIn('"Usar hora anterior "+old_clock',text)

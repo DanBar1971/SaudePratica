@@ -132,7 +132,7 @@ class FamilyPortabilityTests(unittest.TestCase):
 
     def test_ui_routes_and_version(self):
         source=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "0.8.7"',source)
+        self.assertIn('VERSION = "0.8.8"',source)
         self.assertIn("render_backup(self)",source)
         self.assertIn("from windows.backup_ui_v072 import render_backup",source)
         ui=(Path(__file__).resolve().parents[1]/"family_ui_v064.py").read_text(encoding="utf-8")

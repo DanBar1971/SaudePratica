@@ -15,7 +15,7 @@ class MedicationV080(unittest.TestCase):
         source=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text(encoding="utf-8")
         method=source.split("    def _med_form(self,frame,med):",1)[1].split(
             "    def _update_med_preview(self):",1)[0]
-        self.assertIn("for group_row,(heading,entries) in enumerate(GROUPS",method)
+        self.assertIn("for heading,entries in GROUPS",method)
         self.assertIn('self._attach_med_document(k,menu)',method)
         self.assertNotIn('self.t("coming")',method)
         self.assertIn('VERSION = "0.8.1"',source)

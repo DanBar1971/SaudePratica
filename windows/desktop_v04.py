@@ -2229,7 +2229,7 @@ def main():
             app.update_idletasks()
             app.update()
             app._close_appointment()
-            # Windows 0.8.6: exercise the actual new Calendar and Takes UI,
+            # Windows 0.8.7: exercise the actual new Calendar and Takes UI,
             # with two separate synthetic profiles and no real patient data.
             from windows.doses_calendar_v085 import appointments_for_day, dose_entries
             app.calendar_selected=datetime(2027,2,14).date()
@@ -2276,6 +2276,36 @@ def main():
                                         app.calendar_selected)):
                 raise AssertionError("Mistura de tomas ou agenda entre perfis.")
             app._select_profile_by_id(person["id"])
+            # Windows 0.8.7: native split Documents with a real synthetic
+            # JPEG and preview, then a larger internal view.
+            synthetic_file=Path(os.environ["LOCALAPPDATA"])/"synthetic_preview.jpg"
+            synthetic_file.write_bytes(photo_buffer.getvalue())
+            app.store.import_local_document(person["id"],synthetic_file)
+            synthetic_file.unlink()
+            app.navigate("documents")
+            app.update_idletasks()
+            app.update()
+            if not app._doc_entry_for_active():
+                raise AssertionError("Pré-visualização de documentos sem seleção.")
+            if not hasattr(app,"_doc_list_panel") or not hasattr(app,"_doc_preview_panel"):
+                raise AssertionError("Documentos não têm dois painéis.")
+            app._doc_open_viewer()
+            app.update()
+            if not app._doc_viewer_window or not app._doc_viewer_window.winfo_exists():
+                raise AssertionError("Visualizador grande do documento não abriu.")
+            app._doc_close_viewer()
+            app.navigate("shortcuts")
+            app.update()
+            if len(app.store.important_links())!=2:
+                raise AssertionError("Links SNS24 / IPO Lisboa ausentes.")
+            app.navigate("options")
+            app._link_title_var.set("Atalho sintético")
+            app._link_url_var.set("https://example.org")
+            app._options_link_save()
+            if not any(x["title"]=="Atalho sintético" for x in app.store.important_links()):
+                raise AssertionError("Gestor não gravou novo atalho.")
+            app.navigate("info")
+            app.update()
             app._set_med_filter("active")
             app.update()
             # Exercise the shared navigation/backup/document styles in the

@@ -38,13 +38,14 @@ from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
 from windows.medication_editor_v080 import GROUPS, source_value, medication_document_assets, medication_document_option
+from windows.document_ocr_v081 import recognize_document, preview_document, suggest_fields, DocumentRecognitionError
 from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as is_no_alarm, configured_reminder, active_reminder, reminder_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -960,124 +961,158 @@ class Desktop(ctk.CTk):
         self.editing_med=None
         self._render()
 
+    def _compact_field(self,parent,label,initial,row,col,span=1):
+        """Low-height clinical entry, consistent in both editor panels."""
+        box=ctk.CTkFrame(parent,fg_color="transparent")
+        box.grid(row=row,column=col,columnspan=span,sticky="ew",
+                 padx=4,pady=(1,4))
+        self._label(box,label,10,True,color=self.p["muted"]).pack(
+            anchor="w",pady=(0,2))
+        entry=ctk.CTkEntry(box,height=27,corner_radius=7,
+            fg_color=self.p["field"],border_color=self.p["line"],
+            text_color=self.p["text"],font=ctk.CTkFont(size=11))
+        entry.pack(fill="x")
+        entry.insert(0,str(initial or ""))
+        return entry
+
+    def _editor_split(self,parent):
+        """A scroll-free document panel beside a compact, tabbed editor."""
+        split=ctk.CTkFrame(parent,fg_color="transparent")
+        split.pack(fill="both",expand=True,padx=8,pady=(1,5))
+        split.grid_rowconfigure(0,weight=1)
+        split.grid_columnconfigure(0,weight=6,uniform="clinical")
+        split.grid_columnconfigure(1,weight=4,uniform="clinical")
+        left=ctk.CTkFrame(split,fg_color=self.p["panel"],
+                          corner_radius=9)
+        left.grid(row=0,column=0,sticky="nsew",padx=(0,6))
+        right=ctk.CTkFrame(split,fg_color=self.p["panel"],
+                           corner_radius=9)
+        right.grid(row=0,column=1,sticky="nsew",padx=(6,0))
+        return left,right
+
     def _med_form(self,frame,med):
         fields=med or {}
         self.med_photo_draft=self._med_photo_b64(fields)
         head=ctk.CTkFrame(frame,fg_color="transparent")
-        head.pack(fill="x",padx=15,pady=(8,4))
-        self._label(head,self.t("edit_medication") if med else self.t("new_medication"),
-                    18,True).pack(side="left")
-        self._button(head,"‹  "+self.t("cancel"),self._back_to_med_gallery,
-                     width=105,height=30).pack(side="right")
-        body=ctk.CTkScrollableFrame(frame,fg_color="transparent")
-        body.pack(fill="both",expand=True,padx=10,pady=4)
-        body.grid_columnconfigure(0,weight=1)
-        body.grid_columnconfigure(1,weight=1)
+        head.pack(fill="x",padx=12,pady=(1,4))
+        self._label(head,"Editar medicação" if med else "Nova medicação",
+                    16,True).pack(side="left")
+        self._button(head,"Voltar à medicação",self._back_to_med_gallery,
+                     width=150,height=29).pack(side="right")
+        left,right=self._editor_split(frame)
+        tabs=ctk.CTkTabview(left,fg_color="transparent",
+                            segmented_button_fg_color=self.p["panel2"],
+                            segmented_button_selected_color=BLUE)
+        tabs.pack(fill="both",expand=True,padx=4,pady=(0,2))
+        basic=tabs.add("Principal")
+        for col in (0,1):basic.grid_columnconfigure(col,weight=1)
         self.med_widgets={}
-        for k,label,row,col,span in [
-            ("name","med_name",0,0,2),("dose","dose",1,0,1),
-            ("reminder_time","Hora de aviso Android (HH:MM)",1,1,1),
-            ("time","Tipo / indicação da toma",4,1,1),
-            ("indication","indication",4,0,1)
-        ]:
-            value=reminder_clock(fields) if k=="reminder_time" else fields.get(k,"")
-            self.med_widgets[k]=self._text_field(body,label,value,row,col,span)
-        route_name=next((key for key,val in ROUTES.items()
-                         if val==fields.get("administration_route","")),"Não indicada")
-        injection_name=next((key for key,val in INJECTIONS.items()
-                             if val==fields.get("injection_type","")),"Não indicada")
-        self.route_var=ctk.StringVar(value=route_name)
-        self.injection_var=ctk.StringVar(value=injection_name)
+        self.med_widgets["name"]=self._compact_field(
+            basic,"Medicamento",fields.get("name",""),0,0,2)
+        self.med_widgets["dose"]=self._compact_field(
+            basic,"Dose",fields.get("dose",""),1,0)
+        self.med_widgets["reminder_time"]=self._compact_field(
+            basic,"Hora de aviso (HH:MM)",reminder_clock(fields),1,1)
+        self.med_widgets["indication"]=self._compact_field(
+            basic,"Posologia / indicação",fields.get("indication",""),2,0,2)
+        self.med_widgets["time"]=self._compact_field(
+            basic,"Hora / indicação da toma",fields.get("time",""),3,1)
+        self.route_var=ctk.StringVar(value=next((key for key,value in ROUTES.items()
+                     if value==fields.get("administration_route","")),"Não indicada"))
+        self.injection_var=ctk.StringVar(value=next((key for key,value in INJECTIONS.items()
+                     if value==fields.get("injection_type","")),"Não indicada"))
         self.take_var=ctk.StringVar(value=fields.get("dose_pattern",""))
-        for title,var,choices,row,col in [
-            ("route",self.route_var,ROUTES,2,0),
-            ("injection",self.injection_var,INJECTIONS,2,1),
-            ("dose_pattern",self.take_var,TAKES,3,0)
-        ]:
-            box=ctk.CTkFrame(body,fg_color="transparent")
-            box.grid(row=row,column=col,sticky="ew",padx=5,pady=4)
-            self._label(box,self.t(title),12,True,color=self.p["muted"]).pack(anchor="w",pady=(0,6))
-            ctk.CTkOptionMenu(box,values=list(choices),variable=var,width=180,
-                height=33,fg_color=self.p["field"],button_color=BLUE,
+        for label,variable,choices,row,col in (
+            ("Tipo de toma",self.take_var,TAKES,3,0),
+            ("Via de administração",self.route_var,list(ROUTES),4,0),
+            ("Tipo de injeção",self.injection_var,list(INJECTIONS),4,1)):
+            box=ctk.CTkFrame(basic,fg_color="transparent")
+            box.grid(row=row,column=col,sticky="ew",padx=4,pady=3)
+            self._label(box,label,10,True,color=self.p["muted"]).pack(
+                anchor="w",pady=(0,2))
+            ctk.CTkOptionMenu(box,variable=variable,values=list(choices),
+                height=28,fg_color=self.p["field"],button_color=BLUE,
                 dropdown_fg_color=self.p["panel2"],text_color=self.p["text"],
                 dropdown_text_color=self.p["text"]).pack(fill="x")
         self.no_alarm_var=ctk.BooleanVar(value=is_no_alarm(fields))
         self.suspended_var=ctk.BooleanVar(value=is_suspended(fields))
-        toggles=ctk.CTkFrame(body,fg_color="transparent")
-        toggles.grid(row=5,column=0,columnspan=2,sticky="w",padx=7,pady=(8,5))
-        for k,var in [("no_alarm",self.no_alarm_var),("suspended",self.suspended_var)]:
-            ctk.CTkSwitch(toggles,text=self.t(k),variable=var,
+        toggles=ctk.CTkFrame(basic,fg_color="transparent")
+        toggles.grid(row=5,column=0,columnspan=2,sticky="w",pady=5)
+        for key,var in (("Sem alarme",self.no_alarm_var),
+                        ("Suspensa",self.suspended_var)):
+            ctk.CTkSwitch(toggles,text=key,variable=var,
                 progress_color=TEAL,button_color=TEAL,
-                fg_color=self.p["panel2"],text_color=self.p["text"]).pack(side="left",padx=(0,20))
-        self._label(body,self.t("notes"),12,True,color=self.p["muted"]).grid(
-            row=6,column=0,columnspan=2,sticky="w",padx=8)
-        self.med_notes=ctk.CTkTextbox(body,height=58,corner_radius=9,
-            fg_color=self.p["field"],border_width=1,border_color=self.p["line"],
-            text_color=self.p["text"])
-        self.med_notes.grid(row=7,column=0,columnspan=2,sticky="ew",padx=8,pady=(5,16))
+                fg_color=self.p["panel2"],text_color=self.p["text"]).pack(
+                    side="left",padx=(6,20))
+        self._label(basic,"Notas",10,True,color=self.p["muted"]).grid(
+            row=6,column=0,columnspan=2,sticky="w",padx=4)
+        self.med_notes=ctk.CTkTextbox(basic,height=45,corner_radius=7,
+            fg_color=self.p["field"],border_width=1,
+            border_color=self.p["line"],text_color=self.p["text"])
+        self.med_notes.grid(row=7,column=0,columnspan=2,sticky="ew",
+                            padx=4,pady=(0,4))
         self.med_notes.insert("1.0",fields.get("notes",""))
-        photo_row=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
-        photo_row.grid(row=8,column=0,columnspan=2,sticky="ew",padx=6,pady=5)
-        self.med_photo_widget=ctk.CTkLabel(photo_row,text="Sem fotografia",
-            text_color=self.p["muted"],width=80,height=62)
-        self.med_photo_widget.pack(side="left",padx=9,pady=6)
+        photo=ctk.CTkFrame(basic,fg_color="transparent")
+        photo.grid(row=8,column=0,columnspan=2,sticky="ew",padx=4,pady=3)
+        self.med_photo_widget=ctk.CTkLabel(photo,text="Sem fotografia",
+            text_color=self.p["muted"],width=74,height=46)
+        self.med_photo_widget.pack(side="left",padx=4)
         self._update_med_preview()
-        self._button(photo_row,"📷  Anexar foto da embalagem",
-            self._choose_med_photo,width=207,height=31).pack(side="left",padx=8)
-        self._button(photo_row,"Remover foto",self._remove_med_photo,
-            width=100,height=31).pack(side="left",padx=4)
+        self._button(photo,"Anexar foto da embalagem",self._choose_med_photo,
+                     width=190,height=28).pack(side="left",padx=5)
+        self._button(photo,"Remover foto",self._remove_med_photo,
+                     width=94,height=28).pack(side="left",padx=4)
+
         self.med_extra_widgets={}
-        for group_row,(heading,entries) in enumerate(GROUPS,start=9):
-            section=ctk.CTkFrame(body,fg_color="transparent",corner_radius=0)
-            section.grid(row=group_row,column=0,columnspan=2,sticky="ew",
-                         padx=7,pady=(12,5))
-            self._label(section,heading,16,True,color=TEAL).pack(
-                anchor="w",padx=8,pady=(5,7))
-            entry_grid=ctk.CTkFrame(section,fg_color="transparent")
-            entry_grid.pack(fill="x",padx=3)
-            entry_grid.grid_columnconfigure(0,weight=1)
-            entry_grid.grid_columnconfigure(1,weight=1)
-            for index,(key,label,_limit) in enumerate(entries):
-                self.med_extra_widgets[key]=self._text_field(
-                    entry_grid,label,source_value(fields,key),
-                    index//2,index%2,1)
         self.med_doc_assets=medication_document_assets(
             self.store.imported_assets(self.active_id))
         self.med_doc_vars={}
         self.med_doc_choices={}
-        for key,label,group_row in (
-            ("prescription_asset_sha256","Documento da prescrição",9),
-            ("leaflet_asset_sha256","Bula digitalizada (PDF ou fotografia)",12)):
-            parent=body.grid_slaves(row=group_row,column=0)[0]
-            self._label(parent,label,12,True,color=self.p["muted"]).pack(
-                anchor="w",padx=12,pady=(10,4))
-            chooser=ctk.CTkFrame(parent,fg_color="transparent")
-            chooser.pack(fill="x",padx=9,pady=(0,8))
-            choices={"Sem documento":""}
-            for entry in self.med_doc_assets:
-                name=str(entry.get("display_name") or entry.get("filename") or "Documento")
-                choices[f"{name[:60]} · {entry['sha256'][:10]}"]=entry["sha256"]
-            self.med_doc_choices[key]=choices
-            initial=next((text for text,digest in choices.items()
-                          if digest and digest==fields.get(key)),"Sem documento")
-            variable=ctk.StringVar(value=initial)
-            self.med_doc_vars[key]=variable
-            dropdown=ctk.CTkOptionMenu(chooser,values=list(choices),
-                variable=variable,width=280,height=32,fg_color=self.p["field"],
-                button_color=BLUE,dropdown_fg_color=self.p["panel2"],
-                text_color=self.p["text"],dropdown_text_color=self.p["text"])
-            dropdown.pack(side="left",fill="x",expand=True,padx=(0,8))
-            self._button(chooser,"Anexar",
-                lambda k=key,menu=dropdown:self._attach_med_document(k,menu),
-                width=90,height=32).pack(side="left",padx=(0,5))
-            self._button(chooser,"Guardar cópia",
-                lambda k=key:self._export_med_document(k),
-                width=115,height=32).pack(side="left")
+        for heading,entries in GROUPS:
+            page=tabs.add(heading.replace(" e posologia",""))
+            for col in (0,1):page.grid_columnconfigure(col,weight=1)
+            for i,(key,label,_limit) in enumerate(entries):
+                self.med_extra_widgets[key]=self._compact_field(
+                    page,label,source_value(fields,key),i//2,i%2)
+            if heading in ("Prescrição","Bula"):
+                doc_key=("prescription_asset_sha256" if heading=="Prescrição"
+                         else "leaflet_asset_sha256")
+                row=1+(len(entries)+1)//2
+                self._med_document_line(page,doc_key,fields.get(doc_key,""),row)
+        self._build_document_panel(right,"medication",fields)
         footer=ctk.CTkFrame(frame,fg_color="transparent")
-        footer.pack(fill="x",padx=16,pady=7)
-        self._button(footer,self.t("save"),self._save_med,True,width=135,height=33).pack(side="right")
-        self._button(footer,self.t("cancel"),self._back_to_med_gallery,
-                     width=120,height=33).pack(side="right",padx=7)
+        footer.pack(fill="x",padx=13,pady=(2,6))
+        self._button(footer,"Guardar",self._save_med,True,
+                     width=110,height=31).pack(side="right")
+        self._button(footer,"Cancelar",self._back_to_med_gallery,
+                     width=110,height=31).pack(side="right",padx=7)
+
+    def _med_document_line(self,parent,key,selected,row):
+        self._label(parent,"Documento da prescrição" if key.startswith("prescription")
+                    else "Bula em PDF ou imagem",10,True,
+                    color=self.p["muted"]).grid(row=row,column=0,
+                    columnspan=2,sticky="w",padx=4,pady=(7,2))
+        line=ctk.CTkFrame(parent,fg_color="transparent")
+        line.grid(row=row+1,column=0,columnspan=2,sticky="ew",padx=4)
+        choices={"Sem documento":""}
+        for asset in self.med_doc_assets:
+            name=str(asset.get("display_name") or asset.get("filename") or "Ficheiro")
+            choices[f"{name[:38]} · {asset['sha256'][:8]}"]=asset["sha256"]
+        self.med_doc_choices[key]=choices
+        initial=next((label for label,digest in choices.items()
+                      if digest and digest==selected),"Sem documento")
+        variable=ctk.StringVar(value=initial)
+        self.med_doc_vars[key]=variable
+        dropdown=ctk.CTkOptionMenu(line,variable=variable,
+            values=list(choices),height=28,fg_color=self.p["field"],
+            button_color=BLUE,dropdown_fg_color=self.p["panel2"],
+            text_color=self.p["text"],dropdown_text_color=self.p["text"])
+        dropdown.pack(side="left",fill="x",expand=True,padx=(0,5))
+        self._button(line,"Anexar",lambda k=key,m=dropdown:
+                     self._attach_med_document(k,m),
+                     width=74,height=28).pack(side="left",padx=2)
+        self._button(line,"Ver",lambda k=key:self._show_attached_med_document(k),
+                     width=49,height=28).pack(side="left",padx=2)
 
     def _attach_med_document(self,key,dropdown):
         path=filedialog.askopenfilename(parent=self,title="Anexar documento à medicação",

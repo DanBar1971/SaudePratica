@@ -42,7 +42,8 @@ from windows.medication_editor_v080 import GROUPS, source_value, medication_docu
 from windows.document_ocr_v081 import recognize_document, preview_document, suggest_fields, DocumentRecognitionError
 from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as is_no_alarm, configured_reminder, active_reminder, reminder_clock
 from windows.medication_time_v082 import condition_value, mismatched_legacy_clock, canonical_reminder_fields
-from windows.lan_pair_v084 import Phone, PhoneDiscovery, LinkError, lan_ip, ask_to_pair, get_pair_result
+from windows.lan_pair_v084 import PhoneDiscovery
+from windows.lan_ui_v084 import LanUi
 from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
@@ -83,7 +84,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk):
+class Desktop(ctk.CTk, LanUi):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()

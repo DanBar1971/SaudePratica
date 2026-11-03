@@ -1256,6 +1256,9 @@ class Desktop(ctk.CTk):
     def _doc_poll(self,events,token,context):
         if self._doc_token!=token or self._doc_context!=context:
             return
+        expected="medication" if context[0]=="medication" else "agenda"
+        if self.page!=expected or not self._doc_recognize_btn.winfo_exists():
+            return
         try:
             _token,_context,text_value,error=events.get_nowait()
         except queue.Empty:
@@ -2059,6 +2062,14 @@ def main():
             app.update_idletasks()
             app.update()
             app._back_to_med_gallery()
+            appointment=app.store.save_appointment(person["id"],{
+                "title":"Consulta fictícia","date":"2027-02-14","time":"10:45",
+                "location":"Hospital de teste","desktop_status":"pending"})
+            app.navigate("agenda")
+            app._open_appointment(appointment["id"])
+            app.update_idletasks()
+            app.update()
+            app._close_appointment()
             app._set_med_filter("active")
             app.update()
             for theme in ("light","dark","system"):

@@ -73,6 +73,14 @@ def clean_appointment_fields(changes,old=None):
     old=old or {}
     result={}
     for key,value in changes.items():
+        if key=="document_asset_sha256":
+            import re
+            if not isinstance(value,str) or (
+                value and not re.fullmatch(r"[a-f0-9]{64}",value)
+            ):
+                raise ValueError("Anexo da marcação inválido.")
+            result[key]=value
+            continue
         if key=="reminders_minutes":
             try:result[key]=normalize_offsets(value)
             except ValueError as exc:raise ValueError(str(exc)) from exc

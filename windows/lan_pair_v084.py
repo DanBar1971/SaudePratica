@@ -214,10 +214,18 @@ class PhoneDiscovery:
 
     def start(self):
         if self._zeroconf is not None:return
-        from zeroconf import ServiceBrowser, Zeroconf, InterfaceChoice
-        self._zeroconf=Zeroconf(interfaces=InterfaceChoice.All)
-        self._browser=ServiceBrowser(self._zeroconf,SERVICE_TYPE,
-                                     handlers=[self._service_event])
+        try:
+            from zeroconf import ServiceBrowser, Zeroconf, InterfaceChoice
+            self._zeroconf=Zeroconf(interfaces=InterfaceChoice.All)
+            self._browser=ServiceBrowser(
+                self._zeroconf,SERVICE_TYPE,handlers=[self._service_event])
+        except (OSError,RuntimeError,ImportError):
+            # A blocked/unavailable mDNS stack must not suppress the
+            # independent UDP fallback.
+            if self._zeroconf is not None:
+                self._zeroconf.close()
+            self._zeroconf=None
+            self._browser=None
 
     def refresh(self):
         """A genuine new mDNS browse PLUS active broadcast probe.
@@ -226,14 +234,19 @@ class PhoneDiscovery:
         """
         if self._zeroconf is None:
             self.start()
-        from zeroconf import ServiceBrowser
         # Discard stale entries and rediscover devices still reachable.
         with self._lock:
             self.phones.clear()
-        if self._browser is not None:
-            self._browser.cancel()
-        self._browser=ServiceBrowser(
-            self._zeroconf,SERVICE_TYPE,handlers=[self._service_event])
+        if self._zeroconf is not None:
+            try:
+                from zeroconf import ServiceBrowser
+                if self._browser is not None:
+                    self._browser.cancel()
+                self._browser=ServiceBrowser(
+                    self._zeroconf,SERVICE_TYPE,handlers=[self._service_event])
+            except (OSError,RuntimeError,ImportError):
+                # Still scan using broadcast if DNS-SD fails.
+                self._browser=None
         devices=discover_udp()
         for phone in devices:
             with self._lock:
@@ -278,11 +291,11 @@ class PhoneDiscovery:
             return list(self.phones.values())
 
     def close(self):
-        if self._zeroconf is None:return
         try:
             if self._browser is not None:
                 self._browser.cancel()
-            self._zeroconf.close()
+            if self._zeroconf is not None:
+                self._zeroconf.close()
         finally:
             self._zeroconf=None
             self._browser=None

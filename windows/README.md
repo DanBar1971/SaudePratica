@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.0**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.0-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.1**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.1-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.0-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.1-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -152,3 +152,7 @@ Nos cartões de perfil, o minúsculo símbolo › foi substituído por «ABRIR �
 ## Windows 0.8.0 — Medicação e Avisos
 
 As secções anteriormente indicadas «Em desenvolvimento» foram substituídas por campos editáveis e persistentes: Prescrição, Repetições e posologia, Informação clínica e Bula. Os PDF e fotografias de bula e prescrição são associados a cada medicamento e protegidos por perfil; o original Android é mantido sem alterações. A app Windows continua a não agendar alarmes de medicação. O agente Avisos utiliza apenas o seu executável sem splash e o instalador encerra instâncias antigas em segundo plano.
+
+## Windows 0.8.1 — formulários compactos com OCR local
+
+A Medicação e a Agenda apresentam um formulário à esquerda com separadores compactos e um painel de documento à direita. PDF digital: extração de texto local; PDF digitalizado e fotografia: RapidOCR com modelos ONNX incluídos no EXE. Os documentos são encriptados localmente por perfil; o preenchimento sugerido só atua em campos vazios e após aprovação. Na Agenda, campos técnicos de importação Android como `photo_uri`, `ocr_text` e `recurrence` deixaram de aparecer no formulário. O registo Android original é preservado e não existe sincronização automática. O instalador está publicado em `windows-v0.8.1-preview` com origem no ramo `release/windows-081-dualpane-ocr-20261103`.

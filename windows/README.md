@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.10**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.10-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.11**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.11-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.10-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.11-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -161,7 +161,7 @@ A Medicação e a Agenda apresentam um formulário à esquerda com separadores c
 
 A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
 
-Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.10-preview/SaudePratica-Setup.exe
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.11-preview/SaudePratica-Setup.exe
 
 ## Windows 0.8.3 — interface gráfica uniforme
 
@@ -198,3 +198,7 @@ Seguindo a numeração de desenvolvimento no ecrã de módulos, os pontos 3, 4 e
 ## Windows 0.8.10 — módulos 6 a 12
 
 Nutrição com diário e fotografia protegida DPAPI; botão de importação idempotente das refeições e fotografias do **backup familiar Android original já guardado** e ligado ao perfil ativo, sem interpretar fotos por IA. Saúde Visual guarda graduação e receitas, Sintomas regista intensidade e evolução, Vacinas guarda doses e comprovativos, Emergência apresenta contactos e informações essenciais com abertura de marcador apenas após confirmação, Farmácias permite guardar favoritos e links externos sem prometer horários, e Lares e Apoios permite registar instituições, faturas, referências e apoios com estados manuais. Todos os dados ficam isolados por perfil e protegidos pelo backup .spbackup. Os serviços clínicos, fiscais, farmácias de serviço e elegibilidade para apoios não são verificados automaticamente. A sincronização bidirecional com os dados Android ainda está por implementar. Consultar RELEASE_NOTES_0810.md no ramo da versão Windows.
+
+## Windows 0.8.11 — recuperar SOS e Lares do backup Android e Farmácias de Serviço
+
+Abre o perfil pretendido e usa **«Recuperar SOS do backup Android»** em Emergência ou **«Recuperar instituição e faturas do Android»** em Lares e Apoios. A importação apenas consulta a origem Android associada a esse perfil, dentro do backup familiar original cifrado que já está no Windows. Preenche só campos SOS vazios e acrescenta instituições/faturas ainda inexistentes, sem substituir edições Windows. O nome e ID originais do documento Android são preservados, mas o botão de abrir a fatura pelo ID Android ainda não foi associado ao visualizador Documentos. Nutrição mantém importação explícita dos pratos/fotos reais Android. Farmácias oferece agora botões **«Encontrar perto de mim»** (site de proximidade que pode pedir permissão de localização no navegador) e **«Pesquisar por distrito/concelho»** (portal nacional). Sem GPS oculto, sem horários/turnos fictícios nem garantia de farmácia aberta. Consultar notas da release 0.8.11 no GitHub.

@@ -199,6 +199,173 @@ class SecureStore:
             self.data = prior
             raise
 
+    def wellness_data(self, profile_id: str, kind: str):
+        """Encrypted, deep-copied state of one profile; no implicit backfill.
+
+        Returns defaults in memory only. Access to other profiles fails closed.
+        """
+        import copy
+        from windows.wellness_models_v089 import (
+            water_settings, cycle_settings, iso_date,
+        )
+        profile=self.get_profile(profile_id)
+        if profile is None:
+            raise LocalStoreError("Perfil não encontrado.")
+        columns={"water":"wellness_water", "activity":"wellness_activity",
+                 "cycle":"wellness_cycle"}
+        if kind not in columns:
+            raise LocalStoreError("Módulo de bem-estar desconhecido.")
+        raw=copy.deepcopy(profile.get(columns[kind], {}))
+        if not isinstance(raw,dict):
+            raise LocalStoreError("Registos de bem-estar inválidos.")
+        if kind=="water":
+            try: config=water_settings(raw.get("settings",{}))
+            except ValueError as exc:raise LocalStoreError(str(exc)) from exc
+            entries=raw.get("entries",[])
+            if not isinstance(entries,list):
+                raise LocalStoreError("Histórico de água inválido.")
+            return {"settings":config,"entries":entries}
+        if kind=="cycle":
+            try: config=cycle_settings(raw.get("settings",{}))
+            except ValueError as exc:raise LocalStoreError(str(exc)) from exc
+            periods=raw.get("periods",[])
+            taken=raw.get("pill_taken",[])
+            if not isinstance(periods,list) or not isinstance(taken,list):
+                raise LocalStoreError("Histórico do ciclo inválido.")
+            return {"settings":config,"periods":periods,"pill_taken":taken}
+        entries=raw.get("entries",[])
+        if not isinstance(entries,list):
+            raise LocalStoreError("Histórico de atividade inválido.")
+        return {"entries":entries}
+
+    def _wellness_commit(self, profile_id: str, kind: str, mutate):
+        """Single-profile atomic commit, retaining opaque Android metadata."""
+        import copy
+        columns={"water":"wellness_water","activity":"wellness_activity",
+                 "cycle":"wellness_cycle"}
+        if kind not in columns:
+            raise LocalStoreError("Módulo inválido.")
+        # Validate profile and copy existing state before modifying.
+        current=self.wellness_data(profile_id,kind)
+        proposed=copy.deepcopy(self.data)
+        target=next(p for p in proposed["profiles"] if p.get("id")==profile_id)
+        column=columns[kind]
+        working=copy.deepcopy(current)
+        try:
+            result=mutate(working)
+        except ValueError as exc:
+            raise LocalStoreError(str(exc)) from exc
+        target[column]=working
+        old=self.data
+        try:
+            self.data=proposed
+            self.save()
+        except Exception:
+            self.data=old
+            raise
+        return copy.deepcopy(result)
+
+    def set_water_settings(self, profile_id: str, settings: dict):
+        from windows.wellness_models_v089 import water_settings
+        def mutate(state):
+            state["settings"]=water_settings(settings)
+            return state["settings"]
+        return self._wellness_commit(profile_id,"water",mutate)
+
+    def add_water(self, profile_id: str, day: str, hhmm: str, ml: int):
+        import uuid
+        from windows.wellness_models_v089 import water_record,water_total
+        def mutate(state):
+            record=water_record(day,hhmm,ml)
+            if water_total(state["entries"],record["date"])+record["ml"]>100000:
+                raise ValueError("O total diário registado é demasiado elevado.")
+            item={"id":str(uuid.uuid4()),**record,"source":"windows_manual"}
+            state["entries"].append(item)
+            return item
+        return self._wellness_commit(profile_id,"water",mutate)
+
+    def remove_water(self, profile_id: str, record_id: str):
+        def mutate(state):
+            index=next((i for i,x in enumerate(state["entries"]) if
+                        isinstance(x,dict) and x.get("id")==record_id),None)
+            if index is None:raise ValueError("Registo de água não encontrado neste perfil.")
+            return state["entries"].pop(index)
+        return self._wellness_commit(profile_id,"water",mutate)
+
+    def save_activity_day(self, profile_id: str, fields: dict):
+        from windows.wellness_models_v089 import activity_record
+        from datetime import datetime
+        def mutate(state):
+            record=activity_record(fields)
+            existing=next((r for r in state["entries"] if
+                          isinstance(r,dict) and r.get("date")==record["date"]),None)
+            item={"id":existing["id"] if existing else str(uuid.uuid4()),
+                  **record,
+                  "updatedAt":datetime.now().isoformat(timespec="seconds")}
+            if existing:
+                index=state["entries"].index(existing)
+                state["entries"][index]=item
+            else:state["entries"].append(item)
+            return item
+        return self._wellness_commit(profile_id,"activity",mutate)
+
+    def delete_activity_day(self, profile_id: str, day: str):
+        from windows.wellness_models_v089 import iso_date
+        def mutate(state):
+            target=iso_date(day)
+            index=next((i for i,r in enumerate(state["entries"])
+                        if isinstance(r,dict) and r.get("date")==target),None)
+            if index is None:raise ValueError("Registo deste dia não encontrado.")
+            return state["entries"].pop(index)
+        return self._wellness_commit(profile_id,"activity",mutate)
+
+    def set_cycle_settings(self, profile_id: str, settings: dict):
+        from windows.wellness_models_v089 import cycle_settings
+        def mutate(state):
+            state["settings"]=cycle_settings(settings)
+            return state["settings"]
+        return self._wellness_commit(profile_id,"cycle",mutate)
+
+    def add_cycle_period(self, profile_id: str,
+                         start: str, end: str, notes: str = ""):
+        import uuid
+        from windows.wellness_models_v089 import (
+            period_record, ensure_no_period_overlap,
+        )
+        def mutate(state):
+            row=period_record(start,end,notes)
+            ensure_no_period_overlap(state["periods"],row)
+            item={"id":str(uuid.uuid4()),**row}
+            state["periods"].append(item)
+            return item
+        return self._wellness_commit(profile_id,"cycle",mutate)
+
+    def delete_cycle_period(self, profile_id: str, period_id: str):
+        def mutate(state):
+            index=next((i for i,row in enumerate(state["periods"])
+                        if isinstance(row,dict) and row.get("id")==period_id),None)
+            if index is None:raise ValueError("Período não existe neste perfil.")
+            return state["periods"].pop(index)
+        return self._wellness_commit(profile_id,"cycle",mutate)
+
+    def set_pill_taken(self, profile_id: str, day: str, taken: bool):
+        from windows.wellness_models_v089 import iso_date, pill_scheduled
+        from datetime import date
+        def mutate(state):
+            normalized=iso_date(day)
+            if normalized>date.today().isoformat():
+                raise ValueError("Não é possível confirmar pílulas futuras.")
+            previous=normalized in state["pill_taken"]
+            if taken and not pill_scheduled(normalized,state["settings"]):
+                raise ValueError("Não existe uma toma prevista para este dia.")
+            state["pill_taken"]=[
+                x for x in state["pill_taken"] if x!=normalized]
+            if taken:state["pill_taken"].append(normalized)
+            return {"date":normalized,"taken":taken,"previous":previous}
+        if not isinstance(taken,bool):
+            raise LocalStoreError("Estado de toma inválido.")
+        return self._wellness_commit(profile_id,"cycle",mutate)
+
     def create_profile(self, name: str):
         name = name.strip()
         if not 1 <= len(name) <= 120:

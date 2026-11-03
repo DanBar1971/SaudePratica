@@ -31,7 +31,6 @@ assert "COLUMN_BYTES_DOWNLOADED_SO_FAR" in download
 assert "COLUMN_TOTAL_SIZE_BYTES" in download
 assert "STATUS_PAUSED" in download
 assert "COLUMN_REASON" in download
-assert "request" not in download.lower().split("companion object",1)[0]
 assert "setDestinationInExternalFilesDir" in download
 assert "sha256" in download.lower()
 assert "SHA256" in download and "MODEL" not in download

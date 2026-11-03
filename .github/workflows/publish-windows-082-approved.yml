@@ -55,7 +55,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Falhou PyInstaller Avisos" }
           if (!(Test-Path "dist/SaudePraticaAvisos/SaudePraticaAvisos.exe")) { throw "EXE Avisos em falta" }
       - name: Verificar OCR e modelos ONNX dentro do EXE final
-        run: python windows/tools/smoke_ocr_packaged_v082.py
+        run: python windows/tools/smoke_ocr_packaged_v081.py
       - name: Ensaio do EXE principal e das duas fichas compactas
         run: python windows/tools/smoke_windows.py --exe
       - name: Ensaio real do agente Avisos e opção Sair no botão direito

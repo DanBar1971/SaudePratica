@@ -62,14 +62,14 @@ jobs:
           grep -F 'iPhone / iOS' index.html
           grep -F 'data-windows-download' index.html
           # Validate against the release tag pinned for this published Windows build.
-          WIN_TAG="windows-v0.8.8-preview"
-          grep -F 'Experimental 0.8.8' README.md
-          grep -F 'Experimental 0.8.8' index.html
-          grep -F "windows-v0.8.8-preview" .github/workflows/publish-windows-088-approved.yml
+          WIN_TAG="windows-v0.8.9-preview"
+          grep -F 'Experimental 0.8.9' README.md
+          grep -F 'Experimental 0.8.9' index.html
+          grep -F "windows-v0.8.9-preview" .github/workflows/publish-windows-089-approved.yml
           test -n "$WIN_TAG"
           WIN_URL="releases/download/${WIN_TAG}/SaudePratica-Setup.exe"
           grep -F 'releases/latest/download/SaudePratica.apk' index.html
-          grep -F 'data-release>v1.9.127' index.html
+          grep -F 'data-release>v1.9.130' index.html
           grep -F "$WIN_URL" index.html
           grep -F "$WIN_URL" windows/README.md
           grep -F "$WIN_URL" README.md

@@ -5,7 +5,7 @@ on:
     paths: ["MediAgenda/release-requests/v19129.txt"]
 permissions:
   contents: write
-  actions: read
+  actions: write
 jobs:
   publish:
     runs-on: ubuntu-latest

@@ -1,0 +1,97 @@
+name: Publicar SaúdePrática Android 1.9.129 com assinatura original
+on:
+  push:
+    branches: [main]
+    paths: ["MediAgenda/release-requests/v19129.txt"]
+permissions:
+  contents: write
+  actions: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Prepare official APK verification tools
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Read ORIGINAL-SIGNED APK from prior owner's signing workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "DanBar1971/SaudePratica"
+          RUN="$(tr -d '[:space:]' < MediAgenda/release-requests/v19129.txt)"
+          [[ "$RUN" =~ ^[0-9]{8,14}$ ]] || { echo "::error::Unexpected signing run ID"; exit 1; }
+          gh api "repos/DanBar1971/AndroidAppDev/actions/runs/$RUN" --jq .conclusion | grep -Fx success
+          mkdir -p incoming
+          gh run download "$RUN" --repo DanBar1971/AndroidAppDev \
+            --name SaudePratica-v1.9.129-ORIGINAL-SIGNED --dir incoming
+          test -s incoming/SaudePratica.apk
+          test -s incoming/SHA256SUMS.txt
+          (cd incoming && sha256sum --check SHA256SUMS.txt)
+          cp incoming/SaudePratica.apk SaudePratica.apk
+          test -s incoming/source-run.txt
+          SOURCE_RUN="$(tr -d '[:space:]' < incoming/source-run.txt)"
+          [[ "$SOURCE_RUN" =~ ^[0-9]{8,14}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq .conclusion | grep -Fx success
+      - name: Re-verify app package, version, identity and original certificate
+        run: |
+          set -euo pipefail
+          VERIFY="$("$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk)"
+          echo "$VERIFY" | grep -F "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a"
+          echo "$VERIFY" | grep -F "Verified using v2 scheme (APK Signature Scheme v2): true"
+          echo "$VERIFY" | grep -F "Verified using v3 scheme (APK Signature Scheme v3): true"
+          META="$("$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | sed -n '1p')"
+          echo "$META" | grep -F "name='com.mediagenda.app.stable'"
+          echo "$META" | grep -F "versionCode='139'"
+          echo "$META" | grep -F "versionName='1.9.129'"
+          git ls-tree -r HEAD | grep -F 'MediAgenda/v149_overrides/AgentAssistantActivity.kt'
+          git ls-tree -r HEAD | grep -F 'MediAgenda/v149_overrides/apply_v149.py'
+      - name: Archive exact tested source and cryptographic checksums
+        run: |
+          set -euo pipefail
+          git archive --format=zip --output=SaudePratica-v1.9.129-CODIGO-FONTE.zip HEAD
+          sha256sum SaudePratica.apk SaudePratica-v1.9.129-CODIGO-FONTE.zip > SaudePratica-v1.9.129-SHA256SUMS.txt
+      - name: Publish normal Android Release in NEW repository, not old one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=v1.9.129
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,assets \
+              --jq '(.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          else
+            cat > notes.md <<'EOF'
+          # SaúdePrática 1.9.129 — Assistente IA Android
+
+          - Assistente integrado na aplicação, com consultas reais à agenda e medicação **apenas do perfil ativo**.
+          - Pode preparar rascunhos de consultas e medicação; **a ficha original exige confirmação antes de guardar**.
+          - Respostas generativas gratuitas por Gemini Nano **no próprio equipamento**, apenas nos telemóveis compatíveis com AICore. O modelo pode precisar de download com consentimento. Noutros equipamentos existem ações guiadas offline e a Ajuda clássica.
+          - Alertas e alarmes existentes continuam independentes da inteligência artificial; não há prescrição nem alteração automática de doses, tomas ou agendamentos.
+          - Mantém a identidade Android original e foi assinada com o certificado original, verificado por apksigner v2/v3.
+          - Para testes iniciais, faz backup e usa preferencialmente dados fictícios; a funcionalidade de IA local requer validação no telemóvel real.
+          EOF
+            gh release create "$TAG" SaudePratica.apk \
+              SaudePratica-v1.9.129-CODIGO-FONTE.zip \
+              SaudePratica-v1.9.129-SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title 'SaúdePrática Android 1.9.129 — Assistente IA local' \
+              --notes-file notes.md --latest
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name | grep -Fx "$TAG"
+      - name: Deploy Android/Windows/iOS GitHub Pages links
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

@@ -40,12 +40,13 @@ from windows.medication_gallery_v068 import medication_filter_matches, medicatio
 from windows.medication_editor_v080 import GROUPS, source_value, medication_document_assets, medication_document_option
 from windows.document_ocr_v081 import recognize_document, preview_document, suggest_fields, DocumentRecognitionError
 from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as is_no_alarm, configured_reminder, active_reminder, reminder_clock
+from windows.medication_time_v082 import condition_value, mismatched_legacy_clock, canonical_reminder_fields
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.1"
+VERSION = "0.8.2"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -1013,10 +1014,18 @@ class Desktop(ctk.CTk):
             basic,"Dose",fields.get("dose",""),1,0)
         self.med_widgets["reminder_time"]=self._compact_field(
             basic,"Hora de aviso (HH:MM)",reminder_clock(fields),1,1)
+        # An old desktop edit can leave a second, conflicting HH:MM in time.
+        # Never change the reminder automatically: the user chooses explicitly.
+        old_clock=mismatched_legacy_clock(fields)
+        if old_clock:
+            clock_info=self.med_widgets["reminder_time"].master
+            self._button(clock_info,"Usar hora anterior "+old_clock,
+                lambda hhmm=old_clock:self._use_legacy_med_clock(hhmm),
+                width=178,height=24).pack(anchor="e",pady=(3,0))
         self.med_widgets["indication"]=self._compact_field(
             basic,"Posologia / indicação",fields.get("indication",""),2,0,2)
         self.med_widgets["time"]=self._compact_field(
-            basic,"Hora / indicação da toma",fields.get("time",""),3,1)
+            basic,"Condição da toma (ex.: jejum)",condition_value(fields),3,1)
         self.route_var=ctk.StringVar(value=next((key for key,value in ROUTES.items()
                      if value==fields.get("administration_route","")),"Não indicada"))
         self.injection_var=ctk.StringVar(value=next((key for key,value in INJECTIONS.items()
@@ -1087,6 +1096,14 @@ class Desktop(ctk.CTk):
                      width=110,height=31).pack(side="right")
         self._button(footer,"Cancelar",self._back_to_med_gallery,
                      width=110,height=31).pack(side="right",padx=7)
+
+    def _use_legacy_med_clock(self,hhmm):
+        """Explicit choice when original and effective Windows clocks differ."""
+        entry=self.med_widgets.get("reminder_time")
+        if entry is None:return
+        entry.delete(0,"end")
+        entry.insert(0,hhmm)
+        entry.focus_set()
 
     def _med_document_line(self,parent,key,selected,row):
         self._label(parent,"Documento da prescrição" if key.startswith("prescription")
@@ -1359,6 +1376,12 @@ class Desktop(ctk.CTk):
 
     def _save_med(self):
         fields={key:entry.get() for key,entry in self.med_widgets.items()}
+        try:
+            fields.update(canonical_reminder_fields(
+                fields.get("reminder_time",""),fields.get("time","")))
+        except ValueError as exc:
+            messagebox.showerror("Hora da medicação",str(exc),parent=self)
+            return
         fields.update({key:entry.get() for key,entry in self.med_extra_widgets.items()})
         for key,var in self.med_doc_vars.items():
             fields[key]=self.med_doc_choices[key].get(var.get(),"")

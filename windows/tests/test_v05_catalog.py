@@ -24,13 +24,13 @@ class CatalogTests(unittest.TestCase):
                     "emergency","sns24","ipo","options"):
             self.assertIn(key,keys)
         for key,_,_,_,enabled in MODULE_CARDS:
-            if key in ("sync","emergency","doses","calendar"):
+            if key in ("sync","emergency"):
                 self.assertFalse(enabled,key)
     def test_viewers_enabled_but_no_android_alarm_claim(self):
         statuses={row[0]:row[4] for row in MODULE_CARDS}
         self.assertTrue(statuses["agenda"])  # read-only viewer
         self.assertTrue(statuses["documents"]) # secure file import/export
-        self.assertFalse(statuses["doses"])
+        self.assertTrue(statuses["doses"])\n        self.assertTrue(statuses["calendar"])
 
     def test_search_matches_portuguese_accents(self):
         self.assertEqual(filter_cards("MEDICACAO")[0][0],"medication")

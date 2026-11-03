@@ -67,7 +67,7 @@ class MedicationImageRegression(unittest.TestCase):
         source=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text(encoding="utf-8")
         self.assertIn('self.configure(cursor="wait")',source)
         self.assertIn('text=label+"   ▼"',source)
-        self.assertIn('VERSION = "0.8.4"',source)
+        self.assertIn('VERSION = "0.8.5"',source)
 
 if __name__=="__main__":
     unittest.main()

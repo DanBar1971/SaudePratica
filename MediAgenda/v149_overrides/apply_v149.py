@@ -82,10 +82,9 @@ replace(main,
 "native editor draft warning")
 
 manifest=app/"src/main/AndroidManifest.xml"
-replace(manifest,'''        <activity android:name=".SmartHelpActivity" android:exported="false" />''',
-'''        <activity android:name=".SmartHelpActivity" android:exported="false" />
-        <activity android:name=".AgentAssistantActivity" android:exported="false" />''',
-"manifest non-exported agent")
+replace(manifest,"    </application>",
+'''        <activity android:name=".AgentAssistantActivity" android:exported="false" />
+    </application>''',"manifest non-exported agent")
 gradle=app/"build.gradle.kts"
 replace(gradle,
 '''    implementation("com.google.mlkit:text-recognition:16.0.1")''',

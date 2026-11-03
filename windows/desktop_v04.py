@@ -238,10 +238,15 @@ class Desktop(ctk.CTk):
         entry.insert(0,str(initial or ""))
         arrows=ctk.CTkFrame(line,fg_color="transparent")
         arrows.pack(side="left",padx=(5,0))
-        for symbol,step in (("⌃",1),("⌄",-1)):
-            self._button(arrows,symbol,
-                lambda d=step,e=entry:self._adjust_med_time(e,d),
-                width=34,height=17).pack(pady=(0,1))
+        for symbol,step in (("▲",1),("▼",-1)):
+            ctk.CTkButton(
+                arrows,text=symbol,width=35,height=18,corner_radius=7,
+                font=ctk.CTkFont(size=10,weight="bold"),
+                fg_color="#106878",hover_color=TEAL_HOVER,
+                text_color=self.p["text"],border_width=1,
+                border_color=self.p["line"],
+                command=lambda d=step,e=entry:self._adjust_med_time(e,d)
+            ).pack(pady=(0,1))
         return entry
 
     def _adjust_med_time(self,entry,direction):
@@ -742,8 +747,8 @@ class Desktop(ctk.CTk):
         head.pack(fill="x",padx=16,pady=(9,4))
         self._label(head,self.t("edit_profile") if current else self.t("new_profile"),
                     17,True).pack(side="left")
-        self._button(head,self.t("cancel"),
-                     self._close_profile_editor,width=110,height=36).pack(side="right")
+        self._back_button(head,"Voltar aos perfis",
+                     self._close_profile_editor,width=164).pack(side="right")
         scroll=ctk.CTkScrollableFrame(frame,fg_color="transparent")
         scroll.pack(fill="both",expand=True,padx=9,pady=(2,6))
         scroll.grid_columnconfigure(0,weight=1)
@@ -1063,10 +1068,12 @@ class Desktop(ctk.CTk):
         split.grid_columnconfigure(0,weight=6,uniform="clinical")
         split.grid_columnconfigure(1,weight=4,uniform="clinical")
         left=ctk.CTkFrame(split,fg_color=self.p["panel"],
-                          corner_radius=9)
+                          corner_radius=15,border_width=1,
+                          border_color=self.p["line"])
         left.grid(row=0,column=0,sticky="nsew",padx=(0,6))
         right=ctk.CTkFrame(split,fg_color=self.p["panel"],
-                           corner_radius=9)
+                           corner_radius=15,border_width=1,
+                           border_color=self.p["line"])
         right.grid(row=0,column=1,sticky="nsew",padx=(6,0))
         return left,right
 
@@ -1077,13 +1084,10 @@ class Desktop(ctk.CTk):
         head.pack(fill="x",padx=12,pady=(1,4))
         self._label(head,"Editar medicação" if med else "Nova medicação",
                     16,True).pack(side="left")
-        self._button(head,"Voltar à medicação",self._back_to_med_gallery,
-                     width=150,height=29).pack(side="right")
+        self._back_button(head,"Voltar à medicação",self._back_to_med_gallery,
+                     width=176).pack(side="right")
         left,right=self._editor_split(frame)
-        tabs=ctk.CTkTabview(left,fg_color="transparent",
-                            segmented_button_fg_color=self.p["panel2"],
-                            segmented_button_selected_color=BLUE)
-        tabs.pack(fill="both",expand=True,padx=4,pady=(0,2))
+        tabs=self._editor_tabs(left)
         basic=tabs.add("Principal")
         for col in (0,1):basic.grid_columnconfigure(col,weight=1)
         self.med_widgets={}
@@ -1091,7 +1095,7 @@ class Desktop(ctk.CTk):
             basic,"Medicamento",fields.get("name",""),0,0,2)
         self.med_widgets["dose"]=self._compact_field(
             basic,"Dose",fields.get("dose",""),1,0)
-        self.med_widgets["reminder_time"]=self._compact_field(
+        self.med_widgets["reminder_time"]=self._time_stepper(
             basic,"Hora de aviso (HH:MM)",reminder_clock(fields),1,1)
         # An old desktop edit can leave a second, conflicting HH:MM in time.
         # Never change the reminder automatically: the user chooses explicitly.
@@ -1103,8 +1107,9 @@ class Desktop(ctk.CTk):
                 width=178,height=24).pack(anchor="e",pady=(3,0))
         self.med_widgets["indication"]=self._compact_field(
             basic,"Posologia / indicação",fields.get("indication",""),2,0,2)
-        self.med_widgets["time"]=self._compact_field(
-            basic,"Condição da toma (ex.: jejum)",condition_value(fields),3,1)
+        self.med_widgets["time"]=self._editable_choice(
+            basic,"Condição da toma (ex.: jejum)",condition_value(fields),
+            CONDITIONS,3,1)
         self.route_var=ctk.StringVar(value=next((key for key,value in ROUTES.items()
                      if value==fields.get("administration_route","")),"Não indicada"))
         self.injection_var=ctk.StringVar(value=next((key for key,value in INJECTIONS.items()
@@ -1161,8 +1166,13 @@ class Desktop(ctk.CTk):
             page=tabs.add(heading.replace(" e posologia",""))
             for col in (0,1):page.grid_columnconfigure(col,weight=1)
             for i,(key,label,_limit) in enumerate(entries):
-                self.med_extra_widgets[key]=self._compact_field(
-                    page,label,source_value(fields,key),i//2,i%2)
+                if key in EXTRA_COMBO_CHOICES:
+                    self.med_extra_widgets[key]=self._editable_choice(
+                        page,label,source_value(fields,key),
+                        EXTRA_COMBO_CHOICES[key],i//2,i%2)
+                else:
+                    self.med_extra_widgets[key]=self._compact_field(
+                        page,label,source_value(fields,key),i//2,i%2)
             if heading in ("Prescrição","Bula"):
                 doc_key=("prescription_asset_sha256" if heading=="Prescrição"
                          else "leaflet_asset_sha256")
@@ -1573,13 +1583,10 @@ class Desktop(ctk.CTk):
         head.pack(fill="x",padx=12,pady=(1,4))
         self._label(head,"Editar marcação" if current else "Nova marcação",
                     16,True).pack(side="left")
-        self._button(head,"Voltar à Agenda",self._close_appointment,
-                     width=145,height=29).pack(side="right")
+        self._back_button(head,"Voltar à Agenda",self._close_appointment,
+                     width=165).pack(side="right")
         left,right=self._editor_split(self.body)
-        tabs=ctk.CTkTabview(left,fg_color="transparent",
-                            segmented_button_fg_color=self.p["panel2"],
-                            segmented_button_selected_color=BLUE)
-        tabs.pack(fill="both",expand=True,padx=4,pady=(0,2))
+        tabs=self._editor_tabs(left)
         primary=tabs.add("Marcação")
         contacts=tabs.add("Contactos")
         notes=tabs.add("Notas e avisos")

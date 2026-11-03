@@ -366,6 +366,276 @@ class SecureStore:
             raise LocalStoreError("Estado de toma inválido.")
         return self._wellness_commit(profile_id,"cycle",mutate)
 
+    def remaining_records(self, profile_id: str, kind: str) -> list[dict]:
+        """Private rows for one selected profile. Never aggregate family data."""
+        import copy
+        from windows.remaining_models_v0810 import SCHEMAS
+        profile=self.get_profile(profile_id)
+        if profile is None:raise LocalStoreError("Perfil inválido.")
+        if kind not in SCHEMAS:raise LocalStoreError("Módulo inválido.")
+        rows=profile.get(SCHEMAS[kind]["storage"],[])
+        if not isinstance(rows,list):raise LocalStoreError("Histórico inválido.")
+        return sorted([copy.deepcopy(x) for x in rows if isinstance(x,dict)],
+                      key=lambda x:(str(x.get("date","")),str(x.get("updatedAt",""))),
+                      reverse=True)
+
+    def save_remaining_record(self, profile_id: str, kind: str,
+                              fields: dict, record_id: str | None = None):
+        import copy
+        from datetime import datetime
+        from windows.remaining_models_v0810 import SCHEMAS,validate_record
+        profile=self.get_profile(profile_id)
+        if profile is None or kind not in SCHEMAS:
+            raise LocalStoreError("Perfil ou módulo inválido.")
+        try:clean=validate_record(kind,fields)
+        except ValueError as exc:raise LocalStoreError(str(exc)) from exc
+        digest=clean.get("document_sha256","")
+        if digest and not any(x.get("profile_id")==profile_id and
+                              x.get("sha256")==digest
+                              for x in self.imported_assets(profile_id)):
+            raise LocalStoreError("Este documento não pertence ao perfil.")
+        key=SCHEMAS[kind]["storage"]
+        previous=profile.get(key,[])
+        if not isinstance(previous,list):raise LocalStoreError("Dados inválidos.")
+        old=next((x for x in previous if x.get("id")==record_id),None) if record_id else None
+        if record_id and old is None:
+            raise LocalStoreError("Registo não encontrado neste perfil.")
+        now=datetime.now().isoformat(timespec="seconds")
+        item={"id":record_id or str(uuid.uuid4()),**clean,
+              "createdAt":old.get("createdAt",now) if old else now,
+              "updatedAt":now,"source":"windows_manual"}
+        target=copy.deepcopy(self.data)
+        person=next(x for x in target["profiles"] if x.get("id")==profile_id)
+        entries=person.setdefault(key,[])
+        if old:
+            index=next(i for i,x in enumerate(entries) if x.get("id")==record_id)
+            entries[index]=item
+        else:
+            entries.append(item)
+        before=self.data
+        try:self.data=target;self.save()
+        except Exception:
+            self.data=before
+            raise
+        return copy.deepcopy(item)
+
+    def delete_remaining_record(self,profile_id:str,kind:str,record_id:str):
+        import copy
+        from windows.remaining_models_v0810 import SCHEMAS
+        current=self.remaining_records(profile_id,kind)
+        if not any(x.get("id")==record_id for x in current):
+            raise LocalStoreError("Registo não encontrado neste perfil.")
+        key=SCHEMAS[kind]["storage"]
+        target=copy.deepcopy(self.data)
+        p=next(x for x in target["profiles"] if x.get("id")==profile_id)
+        p[key]=[x for x in p.get(key,[]) if x.get("id")!=record_id]
+        prior=self.data
+        try:self.data=target;self.save()
+        except Exception:
+            self.data=prior
+            raise
+
+    def emergency_data(self,profile_id:str):
+        import copy
+        from windows.remaining_models_v0810 import validate_emergency
+        p=self.get_profile(profile_id)
+        if p is None:raise LocalStoreError("Perfil inválido.")
+        raw=p.get("emergency_contact_data",{})
+        try:return copy.deepcopy(validate_emergency(raw))
+        except ValueError as exc:raise LocalStoreError(str(exc)) from exc
+
+    def save_emergency_data(self,profile_id:str,fields:dict):
+        import copy
+        from windows.remaining_models_v0810 import validate_emergency
+        if self.get_profile(profile_id) is None:
+            raise LocalStoreError("Perfil inválido.")
+        try:clean=validate_emergency(fields)
+        except ValueError as exc:raise LocalStoreError(str(exc)) from exc
+        target=copy.deepcopy(self.data)
+        p=next(x for x in target["profiles"] if x.get("id")==profile_id)
+        p["emergency_contact_data"]=clean
+        before=self.data
+        try:self.data=target;self.save()
+        except Exception:
+            self.data=before
+            raise
+        return copy.deepcopy(clean)
+
+    def meal_records(self,profile_id:str):
+        import copy
+        p=self.get_profile(profile_id)
+        if p is None:raise LocalStoreError("Perfil inválido.")
+        items=p.get("meal_records",[])
+        if not isinstance(items,list):raise LocalStoreError("Diário alimentar inválido.")
+        return sorted([copy.deepcopy(x) for x in items if isinstance(x,dict)],
+                      key=lambda x:(str(x.get("date","")),str(x.get("clock",""))),
+                      reverse=True)
+
+    def meal_photo(self,profile_id:str,record_id:str):
+        item=next((x for x in self.meal_records(profile_id)
+                   if x.get("id")==record_id),None)
+        if item is None:raise LocalStoreError("Refeição não encontrada neste perfil.")
+        digest=item.get("photo_sha256","")
+        if not digest:return None
+        descriptor=next((x for x in self.imported_assets(profile_id) if
+                         x.get("sha256")==digest),None)
+        if descriptor is None:raise LocalStoreError("Fotografia não pertence ao perfil.")
+        return self.read_imported_asset(descriptor)
+
+    def save_meal(self, profile_id:str,fields:dict,record_id:str|None=None,
+                  picture:bytes|None=None):
+        from windows.remaining_models_v0810 import validate_meal,normalize_date
+        import copy
+        from hashlib import sha256
+        from io import BytesIO
+        from PIL import Image
+        from datetime import datetime
+        p=self.get_profile(profile_id)
+        if p is None:raise LocalStoreError("Perfil inválido.")
+        try:
+            details=validate_meal(fields)
+            date_value=normalize_date(fields.get("date",""))
+            when=str(fields.get("clock","")).strip()
+            datetime.strptime(when,"%H:%M")
+        except (ValueError,TypeError) as exc:
+            raise LocalStoreError(str(exc)) from exc
+        prev=next((x for x in self.meal_records(profile_id)
+                   if x.get("id")==record_id),None) if record_id else None
+        if record_id and prev is None:
+            raise LocalStoreError("Refeição não pertence a este perfil.")
+        photo_digest=prev.get("photo_sha256","") if prev else ""
+        assets=[]
+        descriptors=[]
+        if picture is not None:
+            if not isinstance(picture,bytes) or len(picture)>8*1024*1024 or len(picture)<64:
+                raise LocalStoreError("Fotografia inválida ou demasiado grande.")
+            try:
+                with Image.open(BytesIO(picture)) as image:
+                    if image.format not in ("JPEG","PNG","WEBP") or image.width*image.height>25_000_000:
+                        raise ValueError("Imagem não suportada.")
+                    image.verify()
+            except (OSError,ValueError) as exc:
+                raise LocalStoreError("Fotografia inválida.") from exc
+            photo_digest=sha256(picture).hexdigest()
+            assets=[(photo_digest,picture)]
+            if not any(x.get("profile_id")==profile_id and
+                       x.get("sha256")==photo_digest for x in self.imported_assets(profile_id)):
+                descriptors=[{"profile_id":profile_id,
+                    "path":f"meal_photos/{profile_id}/{photo_digest}.bin",
+                    "filename":photo_digest+".jpg","display_name":"Fotografia de refeição",
+                    "category":"fotografia de refeição","sha256":photo_digest,
+                    "bytes":len(picture)}]
+        now=datetime.now().isoformat(timespec="seconds")
+        item={"id":record_id or str(uuid.uuid4()),**details,
+              "date":date_value,"clock":when,
+              "photo_sha256":photo_digest,
+              "source":prev.get("source","windows_manual") if prev else "windows_manual",
+              "createdAt":prev.get("createdAt",now) if prev else now,
+              "updatedAt":now}
+        if prev:
+            for preserved in ("android_source","android_id","android_at","estimated"):
+                if preserved in prev:item[preserved]=prev[preserved]
+        target=copy.deepcopy(self.data)
+        person=next(x for x in target["profiles"] if x.get("id")==profile_id)
+        rows=person.setdefault("meal_records",[])
+        if prev:
+            i=next(i for i,x in enumerate(rows) if x.get("id")==record_id)
+            rows[i]=item
+        else:rows.append(item)
+        target.setdefault("imported_files",[]).extend(descriptors)
+        created=self._write_assets(assets)
+        before=self.data
+        try:
+            self.data=target
+            self.save()
+        except Exception:
+            self.data=before
+            for file in created:
+                try:file.unlink()
+                except OSError:pass
+            raise
+        return copy.deepcopy(item)
+
+    def delete_meal(self,profile_id:str,record_id:str):
+        import copy
+        if not any(x.get("id")==record_id for x in self.meal_records(profile_id)):
+            raise LocalStoreError("Refeição não encontrada neste perfil.")
+        target=copy.deepcopy(self.data)
+        p=next(x for x in target["profiles"] if x.get("id")==profile_id)
+        p["meal_records"]=[x for x in p.get("meal_records",[]) if x.get("id")!=record_id]
+        old=self.data
+        try:self.data=target;self.save()
+        except Exception:self.data=old;raise
+
+    def import_meal_diary_android(self, profile_id:str):
+        """Read linked Android backup without asking for another upload.
+
+        Only the linked profile index and its original JPEGs are selected.
+        Existing meal entries are never replaced; reimport is idempotent.
+        """
+        import copy
+        from windows.meal_android_import_v0810 import extract_meal_diary
+        from windows.android_archive_v063 import AndroidImportError
+        p=self.get_profile(profile_id)
+        if p is None:raise LocalStoreError("Perfil inválido.")
+        source=p.get("android_zip_source_id")
+        if not source:raise LocalStoreError(
+            "Este perfil ainda não está associado a um backup Android.")
+        matching=[a for a in self.android_archives()
+                  if profile_id in a.get("profile_ids",[]) and
+                  source in a.get("source_ids",[])]
+        if not matching:raise LocalStoreError(
+            "Não existe um backup Android deste perfil guardado no Windows.")
+        rows=[];photos=[]
+        # An archive older than the diary may contain none; newer archives
+        # are inspected too, and every source-specific ID is deduplicated.
+        for archive in matching:
+            original=self.read_imported_asset({"sha256":archive["sha256"]})
+            try:
+                part,assets=extract_meal_diary(original,source)
+            except (ValueError,AndroidImportError) as exc:
+                raise LocalStoreError("Histórico Android inválido: "+str(exc)) from exc
+            rows.extend(part);photos.extend(assets)
+        known={x.get("id") for x in self.meal_records(profile_id)}
+        fresh=[]
+        for row in rows:
+            if row["id"] not in known:
+                known.add(row["id"])
+                fresh.append(row)
+        allowed_hashes={row.get("photo_sha256") for row in fresh}
+        unique={}
+        for digest,data,name in photos:
+            if digest in allowed_hashes:
+                unique[digest]=(data,name)
+        descriptors=[]
+        existing={(x.get("profile_id"),x.get("sha256"))
+                  for x in self.data.get("imported_files",[])}
+        blobs=[]
+        for digest,(data,name) in unique.items():
+            if (profile_id,digest) not in existing:
+                descriptors.append({"profile_id":profile_id,
+                    "path":f"android_meals/{source}/{name}",
+                    "filename":name,"display_name":"Refeição Android",
+                    "category":"fotografia de refeição",
+                    "sha256":digest,"bytes":len(data),
+                    "android_source":source})
+                blobs.append((digest,data))
+        target=copy.deepcopy(self.data)
+        person=next(x for x in target["profiles"] if x.get("id")==profile_id)
+        person.setdefault("meal_records",[]).extend(fresh)
+        target.setdefault("imported_files",[]).extend(descriptors)
+        created=self._write_assets(blobs)
+        before=self.data
+        try:self.data=target;self.save()
+        except Exception:
+            self.data=before
+            for file in created:
+                try:file.unlink()
+                except OSError:pass
+            raise
+        return {"added":len(fresh),"photos":len(descriptors),
+                "available":len(rows)}
+
     def create_profile(self, name: str):
         name = name.strip()
         if not 1 <= len(name) <= 120:

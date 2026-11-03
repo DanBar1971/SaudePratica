@@ -1199,6 +1199,7 @@ class Desktop(ctk.CTk):
             raw=self.store.read_imported_asset(entry)
             filename=str(entry.get("filename") or "documento.pdf")
             image=Image.open(BytesIO(preview_document(raw,filename))).convert("RGB")
+            image.thumbnail((440,245),Image.Resampling.LANCZOS)
             self._doc_preview_art=ctk.CTkImage(image,image,size=image.size)
             self._doc_preview_label.configure(image=self._doc_preview_art,text="")
             self._doc_data=raw
@@ -1439,6 +1440,7 @@ class Desktop(ctk.CTk):
             data={key:entry.get() for key,entry in self.appointment_widgets.items()}
             data["notes"]=self.appointment_notes.get("1.0","end-1c")
             data["description"]=self.appointment_description.get("1.0","end-1c")
+            data["document_asset_sha256"]=self.appointment_doc_digest
             data["desktop_status"]=APPOINTMENT_STATES[self.appointment_status_var.get()]
             data["reminders_minutes"]=sorted(
                 self.unlisted_reminder_offsets+
@@ -1452,128 +1454,99 @@ class Desktop(ctk.CTk):
             messagebox.showerror("Não foi possível guardar a marcação",str(exc),parent=self)
 
     def _appointment_form(self,person):
+        """Readable appointments and documents; no raw Android JSON fields."""
         appointments=person.get("appointments",[])
-        current=next((x for x in appointments if x.get("id")==self.editing_appointment),
+        current=next((item for item in appointments
+                      if item.get("id")==self.editing_appointment),
                      None) if self.editing_appointment else None
         if self.editing_appointment and current is None:
             self._close_appointment()
             return
         values=current or {}
-        heading=ctk.CTkFrame(self.body,fg_color="transparent")
-        heading.pack(fill="x",padx=12,pady=(7,8))
-        self._label(heading,"Editar marcação" if current else "Nova marcação",20,True).pack(side="left")
-        self._button(heading,"Voltar à Agenda",self._close_appointment,
-                     width=156,height=32).pack(side="right")
-        content=ctk.CTkScrollableFrame(self.body,fg_color="transparent",corner_radius=0)
-        content.pack(fill="both",expand=True,padx=9,pady=5)
-        content.grid_columnconfigure(0,weight=1)
-        content.grid_columnconfigure(1,weight=1)
+        self.appointment_doc_digest=values.get("document_asset_sha256","")
+        head=ctk.CTkFrame(self.body,fg_color="transparent")
+        head.pack(fill="x",padx=12,pady=(1,4))
+        self._label(head,"Editar marcação" if current else "Nova marcação",
+                    16,True).pack(side="left")
+        self._button(head,"Voltar à Agenda",self._close_appointment,
+                     width=145,height=29).pack(side="right")
+        left,right=self._editor_split(self.body)
+        tabs=ctk.CTkTabview(left,fg_color="transparent",
+                            segmented_button_fg_color=self.p["panel2"],
+                            segmented_button_selected_color=BLUE)
+        tabs.pack(fill="both",expand=True,padx=4,pady=(0,2))
+        primary=tabs.add("Marcação")
+        contacts=tabs.add("Contactos")
+        notes=tabs.add("Notas e avisos")
+        for panel in (primary,contacts,notes):
+            for col in (0,1):panel.grid_columnconfigure(col,weight=1)
         self.appointment_widgets={}
-        self.appointment_extra_widgets={}
+        self.appointment_extra_widgets={}  # Technical imported fields are never shown.
         labels=dict(APPOINTMENT_FIELDS)
-        self._label(content,"Dados do agendamento",15,True,color=TEAL).grid(
-            row=0,column=0,columnspan=2,sticky="w",padx=8,pady=(4,11))
-        primary=[key for key,_ in APPOINTMENT_FIELDS if key not in ("notes","description")]
-        for i,key in enumerate(primary):
-            initial=values.get(key,"")
-            if key=="title" and not initial:
-                initial=values.get("activity") or values.get("name") or ""
-            row,col=1+i//2,i%2
-            box=ctk.CTkFrame(content,fg_color="transparent")
-            box.grid(row=row,column=col,sticky="ew",padx=7,pady=5)
-            self._label(box,labels[key],11,True,color=self.p["muted"]).pack(anchor="w",pady=(0,3))
-            entry=ctk.CTkEntry(box,height=35,corner_radius=8,
-                 border_color=self.p["line"],fg_color=self.p["field"],
-                 text_color=self.p["text"])
-            entry.pack(fill="x")
-            entry.insert(0,str(initial) if initial is not None else "")
-            self.appointment_widgets[key]=entry
-        base_row=1+(len(primary)+1)//2
-        state_box=ctk.CTkFrame(content,fg_color="transparent")
-        state_box.grid(row=base_row,column=0,columnspan=2,sticky="ew",padx=7,pady=(12,9))
-        self._label(state_box,"Estado da marcação",12,True,color=TEAL).pack(anchor="w",pady=(0,5))
+        main_keys=("title","date","time","activity","type",
+                   "specialty","unit","location","department","doctor","resource")
+        secondary=("prescriber","reference","phone","email")
+        for parent,keys in ((primary,main_keys),(contacts,secondary)):
+            for index,key in enumerate(keys):
+                initial=values.get(key,"")
+                if key=="title" and not initial:
+                    initial=values.get("activity") or values.get("name") or ""
+                self.appointment_widgets[key]=self._compact_field(
+                    parent,labels[key],initial,index//2,index%2)
+        state=ctk.CTkFrame(primary,fg_color="transparent")
+        state.grid(row=6,column=0,columnspan=2,sticky="ew",padx=4,pady=(9,2))
+        self._label(state,"Estado da marcação",10,True,
+                    color=self.p["muted"]).pack(side="left",padx=(0,8))
         current_state=appointment_status(values) if current else "pending"
-        selected=next((label for label,key in APPOINTMENT_STATES.items()
-                       if key==current_state),"Pendente")
+        selected=next((label for label,status in APPOINTMENT_STATES.items()
+                       if status==current_state),"Pendente")
         self.appointment_status_var=ctk.StringVar(value=selected)
-        ctk.CTkOptionMenu(state_box,values=list(APPOINTMENT_STATES),
-            variable=self.appointment_status_var,height=36,width=250,
+        ctk.CTkOptionMenu(state,values=list(APPOINTMENT_STATES),
+            variable=self.appointment_status_var,width=175,height=28,
             fg_color=self.p["panel2"],button_color=BLUE,
             dropdown_fg_color=self.p["panel2"],text_color=self.p["text"],
-            dropdown_text_color=self.p["text"]).pack(anchor="w")
-        self._label(state_box,
-            "Cancelar aqui altera apenas a ficha local. Não cancela a consulta no hospital.",
-            11,color=self.p["muted"],wrap=880).pack(anchor="w",pady=(6,0))
-        reminder_box=ctk.CTkFrame(content,fg_color="transparent")
-        reminder_box.grid(row=base_row+1,column=0,columnspan=2,
-                          sticky="ew",padx=7,pady=(12,7))
-        self._label(reminder_box,"Avisos da consulta",14,True,color=TEAL).pack(anchor="w",pady=(0,6))
-        self._label(reminder_box,
-            "Notificações Windows: disponíveis mesmo após fechar a aplicação, "
-            "com o computador ligado e a sessão iniciada. "
-            "O Android mantém os seus próprios avisos.",
-            11,color=self.p["muted"],wrap=900).pack(anchor="w",pady=(0,8))
+            dropdown_text_color=self.p["text"]).pack(side="left")
+        self._label(primary,"Cancelar aqui não cancela a consulta no hospital.",
+                    10,color=self.p["muted"]).grid(
+                        row=7,column=0,columnspan=2,sticky="w",padx=4,pady=(2,0))
         configured=record_offsets(values) if current else list(REMINDER_DEFAULT)
         self.unlisted_reminder_offsets=[
-            m for m in configured if m not in {key for key,_ in REMINDER_CHOICES}
-        ]
+            minute for minute in configured
+            if minute not in {minute for minute,_ in REMINDER_CHOICES}]
         self.reminder_vars={}
-        reminder_line=ctk.CTkFrame(reminder_box,fg_color="transparent")
-        reminder_line.pack(fill="x")
-        for minutes,label in REMINDER_CHOICES:
-            option=ctk.BooleanVar(value=minutes in configured)
-            self.reminder_vars[minutes]=option
-            ctk.CTkCheckBox(reminder_line,text=label,variable=option,
-                checkbox_width=19,checkbox_height=19,
+        self._label(notes,"Avisos Windows",13,True,color=TEAL).grid(
+            row=0,column=0,columnspan=2,sticky="w",pady=(4,8))
+        for i,(minutes,label) in enumerate(REMINDER_CHOICES):
+            var=ctk.BooleanVar(value=minutes in configured)
+            self.reminder_vars[minutes]=var
+            ctk.CTkCheckBox(notes,text=label,variable=var,
+                checkbox_width=17,checkbox_height=17,
                 fg_color=TEAL,hover_color=TEAL_HOVER,
-                text_color=self.p["text"]).pack(side="left",padx=(0,22),pady=5)
-
-        if self.unlisted_reminder_offsets:
-            self._label(reminder_box,
-                "Avisos adicionais importados e preservados: "+
-                ", ".join(str(v)+" min" for v in self.unlisted_reminder_offsets),
-                11,color=self.p["muted"],wrap=800).pack(anchor="w",pady=(6,2))
-
-        for delta,(key,label) in enumerate((("description","Descrição"),("notes","Notas"))):
-            row=base_row+2+delta*2
-            self._label(content,label,11,True,color=self.p["muted"]).grid(
-                row=row,column=0,columnspan=2,sticky="w",padx=9,pady=(11,3))
-            field=ctk.CTkTextbox(content,height=85,fg_color=self.p["field"],
-                 border_width=1,border_color=self.p["line"],text_color=self.p["text"])
-            field.grid(row=row+1,column=0,columnspan=2,sticky="ew",padx=7,pady=(0,6))
-            field.insert("1.0",str(values.get(key,"") or ""))
-            if key=="notes":self.appointment_notes=field
-            else:self.appointment_description=field
-        start_extra=base_row+6
-        extras=appointment_extras(values)
-        if extras:
-            self._label(content,"Outros campos importados ou personalizados",15,
-                True,color=TEAL).grid(row=start_extra,column=0,columnspan=2,
-                                     sticky="w",padx=8,pady=(19,8))
-            for index,(key,value) in enumerate(extras):
-                box=ctk.CTkFrame(content,fg_color="transparent")
-                box.grid(row=start_extra+1+index//2,column=index%2,
-                         sticky="ew",padx=7,pady=4)
-                self._label(box,key,11,True,color=self.p["muted"]).pack(anchor="w",pady=(0,3))
-                entry=ctk.CTkEntry(box,height=35,fg_color=self.p["field"],
-                     border_color=self.p["line"],text_color=self.p["text"])
-                entry.pack(fill="x")
-                entry.insert(0,json.dumps(value,ensure_ascii=False)
-                             if not isinstance(value,str) else value)
-                self.appointment_extra_widgets[key]=(entry,value)
-        if current and current.get("android_original") is not None:
-            hint_row=start_extra+2+(len(extras)+1)//2
-            self._label(content,
-                "Os campos originais de importação Android e os identificadores ficam "
-                "protegidos. Todos os restantes campos visíveis são editáveis.",
-                11,color=self.p["muted"],wrap=900).grid(
-                    row=hint_row,column=0,columnspan=2,sticky="w",padx=8,pady=11)
-        actions=ctk.CTkFrame(self.body,fg_color="transparent")
-        actions.pack(fill="x",padx=20,pady=(5,11))
-        self._button(actions,"Guardar alterações" if current else "Guardar marcação",
-                     self._save_appointment,True,width=179,height=36).pack(side="right")
-        self._button(actions,"Cancelar",self._close_appointment,
-                     width=112,height=36).pack(side="right",padx=8)
+                text_color=self.p["text"]).grid(
+                    row=1+i//2,column=i%2,sticky="w",padx=7,pady=4)
+        self._label(notes,"Descrição",10,True,color=self.p["muted"]).grid(
+            row=4,column=0,columnspan=2,sticky="w",padx=4,pady=(10,2))
+        self.appointment_description=ctk.CTkTextbox(notes,height=75,
+            fg_color=self.p["field"],border_width=1,
+            border_color=self.p["line"],text_color=self.p["text"])
+        self.appointment_description.grid(
+            row=5,column=0,columnspan=2,sticky="ew",padx=4)
+        self.appointment_description.insert("1.0",str(values.get("description","") or ""))
+        self._label(notes,"Notas",10,True,color=self.p["muted"]).grid(
+            row=6,column=0,columnspan=2,sticky="w",padx=4,pady=(8,2))
+        self.appointment_notes=ctk.CTkTextbox(notes,height=75,
+            fg_color=self.p["field"],border_width=1,
+            border_color=self.p["line"],text_color=self.p["text"])
+        self.appointment_notes.grid(
+            row=7,column=0,columnspan=2,sticky="ew",padx=4)
+        self.appointment_notes.insert("1.0",str(values.get("notes","") or ""))
+        self._build_document_panel(right,"appointment",values)
+        footer=ctk.CTkFrame(self.body,fg_color="transparent")
+        footer.pack(fill="x",padx=15,pady=(2,6))
+        self._button(footer,"Guardar alterações" if current else "Guardar marcação",
+                     self._save_appointment,True,width=170,height=31).pack(side="right")
+        self._button(footer,"Cancelar",self._close_appointment,
+                     width=105,height=31).pack(side="right",padx=7)
 
     def _set_agenda_filter(self,key):
         """Re-render the Agenda with one of the four Android-style views."""

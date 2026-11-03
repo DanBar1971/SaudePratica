@@ -636,6 +636,101 @@ class SecureStore:
         return {"added":len(fresh),"photos":len(descriptors),
                 "available":len(rows)}
 
+    def import_android_sos_lares(self, profile_id: str, kind: str):
+        """Idempotent explicit import from the matching encrypted Android ZIP.
+
+        SOS: fill only empty Windows fields. Care: add only missing stable
+        records; never replace independently edited Windows entries.
+        """
+        import copy
+        from windows.android_sos_lares_v0811 import extract_sos_care
+        from windows.android_archive_v063 import AndroidImportError
+        from windows.remaining_models_v0810 import validate_emergency
+        if kind not in ("sos", "care"):
+            raise LocalStoreError("Módulo a importar inválido.")
+        p=self.get_profile(profile_id)
+        if p is None:
+            raise LocalStoreError("Perfil Windows inválido.")
+        source=p.get("android_zip_source_id")
+        if not isinstance(source,str) or not source:
+            raise LocalStoreError("O perfil não tem origem Android associada. "
+                "Importa primeiro o backup familiar Android.")
+        relevant=[x for x in self.android_archives()
+                  if profile_id in x.get("profile_ids",[]) and
+                  source in x.get("source_ids",[])]
+        if not relevant:
+            raise LocalStoreError(
+                "Ainda não existe neste Windows um backup Android para este perfil.")
+        # Inspect only already linked archives; latest backup takes priority.
+        sos={}
+        institutions=[]
+        invoices=[]
+        seen_i=set()
+        seen_m=set()
+        for archive in reversed(relevant):
+            raw=self.read_imported_asset({"sha256":archive["sha256"]})
+            try:
+                data=extract_sos_care(raw,source)
+            except (AndroidImportError,ValueError) as exc:
+                raise LocalStoreError("Falhou a leitura do backup Android: "+str(exc)) from exc
+            for key,value in data["sos"].items():
+                if value and not sos.get(key):sos[key]=value
+            for row in data["residences"]:
+                if row["id"] not in seen_i:
+                    institutions.append(row)
+                    seen_i.add(row["id"])
+            for row in data["residence_invoices"]:
+                if row["id"] not in seen_m:
+                    invoices.append(row)
+                    seen_m.add(row["id"])
+        prior=self.data
+        proposed=copy.deepcopy(prior)
+        target=next(x for x in proposed["profiles"] if x.get("id")==profile_id)
+        summary={"sos_fields":0,"residences":0,"invoices":0,
+                 "available_sos":sum(bool(x) for x in sos.values()),
+                 "available_residences":len(institutions),
+                 "available_invoices":len(invoices)}
+        if kind=="sos":
+            existing=validate_emergency(target.get("emergency_contact_data",{}))
+            for key,value in sos.items():
+                if value and not existing.get(key):
+                    existing[key]=value
+                    summary["sos_fields"]+=1
+            target["emergency_contact_data"]=existing
+            target["emergency_android_source"]=source
+        else:
+            for collection,records,label in (
+                ("residence_records",institutions,"residences"),
+                ("residence_invoices",invoices,"invoices"),
+            ):
+                current=target.setdefault(collection,[])
+                if not isinstance(current,list):
+                    raise LocalStoreError("Registos Windows inválidos.")
+                ids={x.get("id") for x in current if isinstance(x,dict)}
+                # Prevent duplicate monthly bills after earlier manual
+                # entry of the same institution and month.
+                def same_entry(a,b):
+                    if collection=="residence_records":
+                        return str(a.get("title","")).casefold().strip()==str(
+                            b.get("title","")).casefold().strip()
+                    return (str(a.get("date",""))[:7]==str(b.get("date",""))[:7]
+                            and str(a.get("title","")).casefold().strip()==str(
+                                b.get("title","")).casefold().strip())
+                for row in records:
+                    if row["id"] in ids or any(
+                        isinstance(x,dict) and same_entry(x,row) for x in current):
+                        continue
+                    current.append(copy.deepcopy(row))
+                    ids.add(row["id"])
+                    summary[label]+=1
+        try:
+            self.data=proposed
+            self.save()
+        except Exception:
+            self.data=prior
+            raise
+        return summary
+
     def create_profile(self, name: str):
         name = name.strip()
         if not 1 <= len(name) <= 120:

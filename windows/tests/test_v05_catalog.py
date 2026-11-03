@@ -30,7 +30,8 @@ class CatalogTests(unittest.TestCase):
         statuses={row[0]:row[4] for row in MODULE_CARDS}
         self.assertTrue(statuses["agenda"])  # read-only viewer
         self.assertTrue(statuses["documents"]) # secure file import/export
-        self.assertTrue(statuses["doses"])\n        self.assertTrue(statuses["calendar"])
+        self.assertTrue(statuses["doses"])
+        self.assertTrue(statuses["calendar"])
 
     def test_search_matches_portuguese_accents(self):
         self.assertEqual(filter_cards("MEDICACAO")[0][0],"medication")

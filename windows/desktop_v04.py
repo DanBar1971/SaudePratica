@@ -2308,6 +2308,42 @@ def main():
             exp=app.store.health_records(person["id"],"expenses")
             if len(exp)!=1 or exp[0]["amountCents"]!=2795:
                 raise AssertionError("Despesas não gravou cêntimos corretamente.")
+            # Windows 0.8.9: render and save the three new Android-like
+            # wellness modules with synthetic values, then switch profiles.
+            app.navigate("water")
+            app.update()
+            app._water_settings_fields["target_ml"].delete(0,"end")
+            app._water_settings_fields["target_ml"].insert(0,"1500")
+            app._water_save_settings()
+            app._water_add()
+            water=app.store.wellness_data(person["id"],"water")
+            if water["settings"]["target_ml"]!=1500 or len(water["entries"])!=1:
+                raise AssertionError("Hidratação não gravou objetivo e consumo.")
+            app.navigate("activity")
+            app.update()
+            app._activity_fields["steps"].insert(0,"6800")
+            app._activity_fields["sleep_hm"].insert(0,"7:30")
+            app._activity_fields["distance_km"].insert(0,"4,2")
+            app._activity_save()
+            activity=app.store.wellness_data(person["id"],"activity")["entries"]
+            if (len(activity)!=1 or activity[0]["steps"]!=6800
+                    or activity[0]["sleep_minutes"]!=450
+                    or activity[0]["distance_m"]!=4200):
+                raise AssertionError("Atividade manual gravada incorretamente.")
+            app.navigate("cycle")
+            app.update()
+            app._cycle_add_period()
+            if len(app.store.wellness_data(person["id"],"cycle")["periods"])!=1:
+                raise AssertionError("Ciclo não gravou período.")
+            app._cycle_pattern.set("Diariamente")
+            app._cycle_pill_start.delete(0,"end")
+            app._cycle_pill_start.insert(0,datetime.now().strftime("%d/%m/%Y"))
+            app._cycle_save_settings()
+            app.store.set_pill_taken(person["id"],datetime.now().date().isoformat(),True)
+            app.navigate("cycle")
+            app.update()
+            if not app.store.wellness_data(person["id"],"cycle")["pill_taken"]:
+                raise AssertionError("Pílula confirmada não persistiu.")
             other=app.store.save_profile({"name":"Segundo perfil fictício"})
             app._select_profile_by_id(other["id"])
             app.navigate("calendar")
@@ -2325,6 +2361,15 @@ def main():
             if (app.store.health_records(other["id"],"clinical")
                 or app.store.health_records(other["id"],"expenses")):
                 raise AssertionError("Mistura de dados clínicos/despesas entre perfis.")
+            for page,kind,key in (
+                ("water","water","entries"),
+                ("activity","activity","entries"),
+                ("cycle","cycle","periods"),
+            ):
+                app.navigate(page)
+                app.update()
+                if app.store.wellness_data(other["id"],kind)[key]:
+                    raise AssertionError("Mistura de dados de bem-estar entre perfis.")
             app._select_profile_by_id(person["id"])
             # Windows 0.8.7: native split Documents with a real synthetic
             # JPEG and preview, then a larger internal view.

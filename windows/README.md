@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.8**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.8-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.9**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.9-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.8-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.9-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -161,7 +161,7 @@ A Medicação e a Agenda apresentam um formulário à esquerda com separadores c
 
 A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
 
-Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.8-preview/SaudePratica-Setup.exe
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.9-preview/SaudePratica-Setup.exe
 
 ## Windows 0.8.3 — interface gráfica uniforme
 
@@ -190,3 +190,7 @@ Calendário: esquerda com grelha mensal colorida compacta, direita com lista de 
 ## Windows 0.8.8 — Situação Clínica e Despesas de Saúde
 
 A partir da ordem de prioridades numeradas no ecrã principal, os pontos 1 (Situação Clínica) e 2 (Despesas de Saúde) são agora funcionais. Ambos gravam, editam e removem registos individuais por perfil e podem associar documentos já protegidos no mesmo perfil. Situação Clínica inclui acompanhamento e medicina do trabalho, unidade, profissional, estado e próxima avaliação. Despesas inclui faturas, categorias, valores em cêntimos, reembolsos, e-Fatura com estado manual, totais anuais e exportação CSV expressamente não cifrada. Os dados ficam protegidos pelo armazenamento Windows DPAPI e incluídos no backup .spbackup. A aplicação não gera diagnósticos nem garante elegibilidade fiscal. Os módulos clínicos e financeiros da app Android ainda não sincronizam automaticamente com os registos Windows. Próxima prioridade: 3 Hidratação, seguida das restantes da lista numerada.
+
+## Windows 0.8.9 — Hidratação, Atividade e Saúde e Ciclo Menstrual
+
+Seguindo a numeração de desenvolvimento no ecrã de módulos, os pontos 3, 4 e 5 estão agora funcionais. Hidratação permite registos por volume e data, objetivo diário opcional e gráfico semanal; os horários de avisos ficam guardados mas o Windows ainda não dispara alarmes de água. Atividade e Saúde permite introduzir manualmente passos, distância, calorias, sono, frequência cardíaca, peso e tensão arterial com histórico e gráfico semanal; não existe leitura automática do Health Connect do Android. Ciclo Menstrual inclui calendário, períodos, estimativa aproximada do próximo início, esquemas 21+7/24+4/diário e confirmação manual de pílula, mas sem alarmes no Windows e sem interpretação de fertilidade. Tudo fica associado ao perfil ativo no armazenamento DPAPI e integra o backup .spbackup. Continua pendente a sincronização automática dos três módulos com a app Android. Próximas prioridades: 6 Nutrição, 7 Saúde Visual, 8 Sintomas, 9 Vacinas, 10 Emergência, 11 Farmácias, 12 Lares e Apoios.

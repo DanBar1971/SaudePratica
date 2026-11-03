@@ -44,13 +44,14 @@ from windows.medication_flags_v076 import suspended as is_suspended, no_alarm as
 from windows.medication_time_v082 import condition_value, mismatched_legacy_clock, canonical_reminder_fields
 from windows.lan_pair_v084 import PhoneDiscovery
 from windows.lan_ui_v084 import LanUi
+from windows.doses_calendar_ui_v085 import DosesCalendarUi
 from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.4"
+VERSION = "0.8.5"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -84,7 +85,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk, LanUi):
+class Desktop(ctk.CTk, LanUi, DosesCalendarUi):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()
@@ -118,6 +119,9 @@ class Desktop(ctk.CTk, LanUi):
         self.med_gallery_query = ""
         self.catalog_query = ""
         self.med_gallery_state = "all"
+        self.calendar_selected = datetime.now().date()
+        self.dose_selected = datetime.now().date()
+        self.dose_filter = "all"
         self.agenda_filter = "all"
         self.agenda_mode = "catalog"
         self.editing_appointment = None
@@ -382,6 +386,8 @@ class Desktop(ctk.CTk, LanUi):
         elif self.page=="backup": self._backup()
         elif self.page=="import": self._android_import_page()
         elif self.page=="agenda": self._agenda()
+        elif self.page=="calendar": self._calendar()
+        elif self.page=="doses": self._doses()
         elif self.page=="documents": self._documents()
         elif self.page=="sync": self._sync_page()
         elif self.page=="options": self._settings_page()

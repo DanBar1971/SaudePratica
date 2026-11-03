@@ -50,13 +50,16 @@ from windows.calendar_split_v087 import CalendarSplitV087
 from windows.document_split_v087 import DocumentsV087
 from windows.links_options_ui_v087 import LinksOptionsV087
 from windows.health_records_ui_v088 import HealthRecordsUiV088
+from windows.water_ui_v089 import WaterUiV089
+from windows.activity_ui_v089 import ActivityUiV089
+from windows.cycle_ui_v089 import CycleUiV089
 from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.8"
+VERSION = "0.8.9"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -90,7 +93,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088):
+class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088, WaterUiV089, ActivityUiV089, CycleUiV089):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()
@@ -135,6 +138,10 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         self._link_edit_id = None
         self._health_selection = {"clinical":None,"expenses":None}
         self._expense_year = datetime.now().year
+        self.water_day = datetime.now().date()
+        self.activity_day = datetime.now().date()
+        self.cycle_day = datetime.now().date()
+        self.cycle_month = datetime.now().date().replace(day=1)
         self.agenda_mode = "catalog"
         self.editing_appointment = None
         self.appointment_widgets = {}
@@ -403,6 +410,9 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         elif self.page=="documents": self._documents()
         elif self.page=="clinical": self._clinical()
         elif self.page=="expenses": self._expenses()
+        elif self.page=="water": self._water()
+        elif self.page=="activity": self._activity()
+        elif self.page=="cycle": self._cycle()
         elif self.page=="shortcuts": self._shortcuts()
         elif self.page=="info": self._tips()
         elif self.page=="sync": self._sync_page()
@@ -446,6 +456,10 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         new_id=self.profile_choices.get(label)
         if new_id == self.active_id:return
         self.active_id=new_id
+        self.water_day = datetime.now().date()
+        self.activity_day = datetime.now().date()
+        self.cycle_day = datetime.now().date()
+        self.cycle_month = datetime.now().date().replace(day=1)
         self._health_selection = {"clinical":None,"expenses":None}
         self.doc_selected_digest=None
         self.doc_selected_profile=None
@@ -505,6 +519,10 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
             self.profile_menu=None
         if pid==self.active_id:return
         self.active_id=pid
+        self.water_day = datetime.now().date()
+        self.activity_day = datetime.now().date()
+        self.cycle_day = datetime.now().date()
+        self.cycle_month = datetime.now().date().replace(day=1)
         self._health_selection = {"clinical":None,"expenses":None}
         self.doc_selected_digest=None
         self.doc_selected_profile=None

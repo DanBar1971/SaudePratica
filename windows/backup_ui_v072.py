@@ -16,12 +16,14 @@ def render_backup(app):
     inner=ctk.CTkFrame(wrapper,fg_color="transparent")
     inner.pack(fill="x",padx=25,pady=20)
     app._label(inner,"Palavra-passe de proteção e restauro",15,True).pack(anchor="w")
-    password=ctk.CTkEntry(inner,show="●",height=43,width=365,
-        fg_color=app.p["field"],border_color=app.p["line"])
+    password=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=365,
+        fg_color=app.p["field"],border_color=app.p["line"],
+        text_color=app.p["text"])
     password.pack(anchor="w",pady=(5,10))
     app._label(inner,"Confirmar palavra-passe (na exportação)",13,True).pack(anchor="w")
-    repeat=ctk.CTkEntry(inner,show="●",height=43,width=365,
-        fg_color=app.p["field"],border_color=app.p["line"])
+    repeat=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=365,
+        fg_color=app.p["field"],border_color=app.p["line"],
+        text_color=app.p["text"])
     repeat.pack(anchor="w",pady=(5,16))
     app._label(inner,
         "Um único formato para Android, Windows e futuro macOS. "

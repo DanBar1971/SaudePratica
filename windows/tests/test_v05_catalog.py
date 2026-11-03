@@ -24,8 +24,7 @@ class CatalogTests(unittest.TestCase):
                     "emergency","shortcuts","options"):
             self.assertIn(key,keys)
         for key,_,_,_,enabled in MODULE_CARDS:
-            if key == "emergency":
-                self.assertFalse(enabled,key)
+            self.assertTrue(enabled,key)
         for moved in ("info","backup","sync","ipo","sns24"):
             self.assertNotIn(moved,keys)
     def test_viewers_enabled_but_no_android_alarm_claim(self):

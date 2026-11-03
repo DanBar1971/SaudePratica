@@ -2267,6 +2267,23 @@ def main():
             if len(appointments_for_day(app.store.get_profile(person["id"]),
                                         app.calendar_selected))!=1:
                 raise AssertionError("Calendário não apresentou a marcação do perfil.")
+            # The actual Tk cell for the selected day must be the turquoise,
+            # appointment-coloured style and remain bound to this profile.
+            from windows.calendar_ui_v086 import calendar_day_colors
+            actual=app._calendar_day_cells.get(app.calendar_selected)
+            expected=calendar_day_colors(
+                has_appointments=True,selected=True,
+                today=app.calendar_selected==datetime.now().date(),
+                in_month=True,light=app.p["bg"]=="#edf4f7")
+            if actual is None or actual.cget("fg_color")!=expected["background"]:
+                raise AssertionError("O dia com marcação não está colorido.")
+            app._calendar_choose(datetime(2027,2,13).date())
+            app.update()
+            if len(appointments_for_day(app.store.get_profile(person["id"]),
+                                        app.calendar_selected))!=0:
+                raise AssertionError("O dia vazio não foi respeitado.")
+            app._calendar_choose(datetime(2027,2,14).date())
+            app.update()
             confirmed=app.store.confirm_intake(person["id"],med["id"])
             app.dose_selected=datetime.now().date()
             app.navigate("doses")

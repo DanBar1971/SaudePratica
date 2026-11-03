@@ -16,22 +16,25 @@ from windows.secure_store import SecureStore, LocalStoreError
 
 class CatalogTests(unittest.TestCase):
     def test_android_module_catalog_is_comprehensive_not_falsely_implemented(self):
-        self.assertGreaterEqual(len(MODULE_CARDS),24)
+        self.assertGreaterEqual(len(MODULE_CARDS),19)
         keys=[card[0] for card in MODULE_CARDS]
         self.assertEqual(len(keys),len(set(keys)))
         for key in ("medication","profiles","agenda","calendar","doses","documents",
                     "water","nutrition","clinical","expenses","symptoms","vaccines",
-                    "emergency","sns24","ipo","options"):
+                    "emergency","shortcuts","options"):
             self.assertIn(key,keys)
         for key,_,_,_,enabled in MODULE_CARDS:
-            if key in ("sync","emergency"):
+            if key == "emergency":
                 self.assertFalse(enabled,key)
+        for moved in ("info","backup","sync","ipo","sns24"):
+            self.assertNotIn(moved,keys)
     def test_viewers_enabled_but_no_android_alarm_claim(self):
         statuses={row[0]:row[4] for row in MODULE_CARDS}
         self.assertTrue(statuses["agenda"])  # read-only viewer
         self.assertTrue(statuses["documents"]) # secure file import/export
         self.assertTrue(statuses["doses"])
         self.assertTrue(statuses["calendar"])
+        self.assertTrue(statuses["shortcuts"])
 
     def test_search_matches_portuguese_accents(self):
         self.assertEqual(filter_cards("MEDICACAO")[0][0],"medication")

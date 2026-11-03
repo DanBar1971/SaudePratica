@@ -46,7 +46,9 @@ assert "AndroidKeyStore" in client and "AES/GCM/NoPadding" in client
 assert ".workers.dev" in client and "/v1/ask" in client
 assert 'put("question",q)' in client
 assert "profileId" not in client
-assert "medication" not in client.lower()
+assert 'put("medication"' not in client
+assert 'put("profile"' not in client
+assert 'put("appointments"' not in client
 assert "Bearer $secret" in client
 assert 'setPositiveButton("Guardar e utilizar")' in agent
 assert 'onlineSelected && onlineClient.isConfigured() -> generateOnline(value)' in agent

@@ -46,13 +46,16 @@ from windows.lan_pair_v084 import PhoneDiscovery
 from windows.lan_ui_v084 import LanUi
 from windows.doses_calendar_ui_v085 import DosesCalendarUi
 from windows.calendar_ui_v086 import CalendarVisualV086
+from windows.calendar_split_v087 import CalendarSplitV087
+from windows.document_split_v087 import DocumentsV087
+from windows.links_options_ui_v087 import LinksOptionsV087
 from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.6"
+VERSION = "0.8.7"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -86,7 +89,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
+class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()
@@ -124,6 +127,11 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
         self.dose_selected = datetime.now().date()
         self.dose_filter = "all"
         self.agenda_filter = "all"
+        self.doc_selected_digest = None
+        self.doc_selected_profile = None
+        self.doc_page_index = 0
+        self._doc_viewer_window = None
+        self._link_edit_id = None
         self.agenda_mode = "catalog"
         self.editing_appointment = None
         self.appointment_widgets = {}
@@ -390,6 +398,8 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
         elif self.page=="calendar": self._calendar()
         elif self.page=="doses": self._doses()
         elif self.page=="documents": self._documents()
+        elif self.page=="shortcuts": self._shortcuts()
+        elif self.page=="info": self._tips()
         elif self.page=="sync": self._sync_page()
         elif self.page=="options": self._settings_page()
         elif self.page=="more": self._modules(full=True)
@@ -413,7 +423,9 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
         if subtitle:
             self._label(texts,subtitle,11,color=self.p["muted"]).pack(anchor="w",pady=(1,0))
         if self.page not in ("home","profiles","medication","agenda","more"):
-            self._back_button(head,"Voltar ao menu",lambda:self.navigate("more"),170).pack(side="right",padx=12,pady=3)
+            target="options" if self.page in ("backup","sync","info") else "more"
+            label="Voltar às Opções" if target=="options" else "Voltar ao menu"
+            self._back_button(head,label,lambda key=target:self.navigate(key),170).pack(side="right",padx=12,pady=3)
 
     def navigate(self,page):
         if page!="profiles":
@@ -429,6 +441,11 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
         new_id=self.profile_choices.get(label)
         if new_id == self.active_id:return
         self.active_id=new_id
+        self.doc_selected_digest=None
+        self.doc_selected_profile=None
+        self.doc_page_index=0
+        if getattr(self,"_doc_viewer_window",None) is not None:
+            self._doc_close_viewer()
         self._med_image_cache={}
         self.editing_profile=new_id
         self.editing_med=None
@@ -482,6 +499,11 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
             self.profile_menu=None
         if pid==self.active_id:return
         self.active_id=pid
+        self.doc_selected_digest=None
+        self.doc_selected_profile=None
+        self.doc_page_index=0
+        if getattr(self,"_doc_viewer_window",None) is not None:
+            self._doc_close_viewer()
         self._med_image_cache={}
         self.editing_profile=pid
         self.editing_med=None
@@ -1528,29 +1550,10 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
             messagebox.showerror(self.t("med_save_error"),str(exc),parent=self)
 
     def _settings_page(self):
-        self._heading(self.t("preferences"),self.t("preferences_desc"))
-        card=self._card(self.body)
-        card.pack(fill="x",pady=8)
-        inner=ctk.CTkFrame(card,fg_color="transparent")
-        inner.pack(anchor="w",fill="x",padx=27,pady=24)
-        self._label(inner,self.t("theme"),16,True).grid(row=0,column=0,sticky="w",pady=11)
-        self._label(inner,self.t("language"),16,True).grid(row=1,column=0,sticky="w",pady=11)
-        values={self.t(k):v for v,k in THEME_KEYS.items()}
-        self.theme_values=values
-        menu=ctk.CTkOptionMenu(inner,values=list(values),width=230,
-             fg_color=self.p["panel2"],button_color=BLUE,
-             text_color=self.p["text"],dropdown_text_color=self.p["text"],
-             dropdown_fg_color=self.p["panel"],command=self._change_theme)
-        menu.set(next((title for title,v in values.items() if v==self.theme),next(iter(values))))
-        menu.grid(row=0,column=1,padx=30,pady=10)
-        lang_menu=ctk.CTkOptionMenu(inner,values=list(LANG_NAMES.values()),
-            width=230,fg_color=self.p["panel2"],button_color=BLUE,
-            text_color=self.p["text"],dropdown_text_color=self.p["text"],
-            dropdown_fg_color=self.p["panel"],command=self._change_language)
-        lang_menu.set(LANG_NAMES[self.lang])
-        lang_menu.grid(row=1,column=1,padx=30,pady=10)
-        self._label(card,self.t("notice"),12,color=self.p["muted"],wrap=820).pack(
-            anchor="w",padx=28,pady=(0,22))
+        return LinksOptionsV087._settings_page(self)
+
+    def _calendar(self):
+        return CalendarSplitV087._calendar(self)
 
     def _change_theme(self,title):
         theme=self.theme_values[title]
@@ -1822,38 +1825,7 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi):
         section("Compromissos anteriores",past,False)
 
     def _documents(self):
-        self._heading("Documentos","Fotografias, PDFs e anexos importados do Android")
-        profile=self.store.get_profile(self.active_id) if self.active_id else None
-        if not profile:
-            self._label(self.body,"Seleciona um perfil.",14).pack(anchor="w")
-            return
-        actions=ctk.CTkFrame(self.body,fg_color="transparent")
-        actions.pack(fill="x",pady=(0,9))
-        self._button(actions,"+ Importar documento / fotografia",
-                     self._add_manual_document,True,width=265,height=34).pack(side="left")
-        self._button(actions,"Importar ZIP Android",lambda:self.navigate("import"),
-                     width=170,height=34).pack(side="left",padx=10)
-        items=self.store.imported_assets(profile["id"])
-        self._label(self.body,f"{len(items)} documentos e fotografias guardados com proteção Windows",
-                    12,color=self.p["muted"]).pack(anchor="w",pady=(0,12))
-        if not items:
-            self._label(self.body,"Importa o ZIP Android para trazer as fotografias e documentos.",
-                        13).pack(anchor="w")
-            self._button(self.body,"Importar ZIP Android",lambda:self.navigate("import"),
-                         True,width=185).pack(anchor="w",pady=12)
-            return
-        listbox=ctk.CTkScrollableFrame(self.body,fg_color="transparent",corner_radius=0)
-        listbox.pack(fill="both",expand=True)
-        for item in items:
-            row=ctk.CTkFrame(listbox,fg_color=self.p["panel"],corner_radius=9)
-            row.pack(fill="x",padx=4,pady=3)
-            info=ctk.CTkFrame(row,fg_color="transparent")
-            info.pack(side="left",fill="x",expand=True,padx=14,pady=8)
-            self._label(info,item.get("display_name") or item["filename"],13,True).pack(anchor="w")
-            self._label(info,f"{item['category']} · {round(item['bytes']/1024)} KB",
-                        11,color=self.p["muted"]).pack(anchor="w")
-            self._button(row,"Exportar ficheiro",lambda x=item:self._export_document(x),
-                         width=150,height=32).pack(side="right",padx=10)
+        return DocumentsV087._documents(self)
 
     def _add_manual_document(self):
         if not self.active_id:return

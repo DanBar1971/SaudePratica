@@ -71,13 +71,16 @@ def _occurs_on(record, day: date):
     if not active_reminder(record):
         return False
     src = _source(record)
-    start = _date(src.get("repeat_start") or src.get("start_date"))
-    until = _date(src.get("repeat_until") or src.get("end_date"))
+    def field(key):
+        # An explicit Windows edit takes precedence over the imported source.
+        return record.get(key) if key in record else src.get(key)
+    start = _date(field("repeat_start") or field("start_date"))
+    until = _date(field("repeat_until") or field("end_date"))
     if start and day < start:
         return False
     if until and day > until:
         return False
-    specific = src.get("schedule")
+    specific = field("schedule")
     if isinstance(specific, dict):
         selected = specific.get(day.strftime("%Y-%m"))
         if isinstance(selected, list) and day.day in selected:
@@ -85,11 +88,11 @@ def _occurs_on(record, day: date):
         # A concrete calendar selection wins; never infer missing dates.
         if specific:
             return False
-    mode = str(src.get("repeat_mode") or "").strip().lower()
+    mode = str(field("repeat_mode") or "").strip().lower()
     if mode == "daily":
         return True
     if mode == "weekly":
-        days = src.get("repeat_weekdays")
+        days = field("repeat_weekdays")
         if not isinstance(days, list):
             return False
         # Android weekdays: Sunday=0, Monday=1 ... Saturday=6.

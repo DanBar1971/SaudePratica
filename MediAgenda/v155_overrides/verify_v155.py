@@ -5,8 +5,8 @@ main=(src/"MainActivity.kt").read_text(encoding="utf-8")
 portable=(src/"data/PortableWindowsBackup.kt").read_text(encoding="utf-8")
 gradle=(app/"build.gradle.kts").read_text(encoding="utf-8")
 for phrase in ("backupPinInput","TYPE_CLASS_NUMBER","InputFilter.LengthFilter(4)",
-               "usesLegacyPassword(uri)","Backup completo com PIN",
-               "Restaurar ZIP antigo (sem PIN)"):
+               "usesLegacyPassword(uri)","Backup Família · PIN de 4 números",
+               "Restaurar backup com PIN · Família ou Perfil"):
     assert phrase in main,phrase
 for phrase in ("saudepratica-encrypted-pin-v2","saudepratica-encrypted-v1",
                "1200000","600000","AES/GCM/NoPadding",

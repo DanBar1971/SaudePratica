@@ -8,7 +8,7 @@ Website público e repositório multiplataforma **SaúdePrática**, em portuguê
 
 | Plataforma | Estado | Instalação |
 | --- | --- | --- |
-| **Android v1.9.132** | Atualização normal | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
+| **Android v1.9.133** | Atualização normal | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
 | **Windows 10/11 (x64)** | **Experimental 0.8.12** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.12-preview/SaudePratica-Setup.exe) |
 | **iPhone / iOS** | Planeado | Ainda sem aplicação para descarregar |
 
@@ -38,4 +38,10 @@ Todas as APKs Android de atualização devem conservar o **certificado original*
 
 ### Testar a ligação automática Windows ↔ Android (sem dados clínicos)
 
-Instalar o Windows [0.8.12](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.12-preview) e a SaúdePrática Android [1.9.132](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.132). No Android, abrir **Backups e sincronização → Ligação Windows · Wi-Fi (teste)** e tocar em **Tornar visível no Wi-Fi**. No Windows, abrir **Opções → Sincronização** e utilizar **Procurar novamente**; a pesquisa usa mDNS e, se necessário, UDP broadcast. Comparar os seis dígitos e autorizar no Android. O teste não transfere dados médicos nem usa canal cifrado; não abrir portas no router.
+Instalar o Windows [0.8.12](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.12-preview) e a SaúdePrática Android [1.9.133](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.133). No Android, abrir **Backups e sincronização → Ligação Windows · Wi-Fi (teste)** e tocar em **Tornar visível no Wi-Fi**. No Windows, abrir **Opções → Sincronização** e utilizar **Procurar novamente**; a pesquisa usa mDNS e, se necessário, UDP broadcast. Comparar os seis dígitos e autorizar no Android. O teste não transfere dados médicos nem usa canal cifrado; não abrir portas no router.
+
+## Foco após a Android 1.9.133
+
+O Assistente de IA generativa local/online foi removido. A Ajuda tradicional funciona sem esse motor. A primeira abertura apaga automaticamente o Qwen (~383 MB) do armazenamento da app e limpa apenas as preferências do Assistente IA Online, sem apagar ficheiros clínicos. A opção Gemini de **Nutrição** permanece independente.
+
+**Prioridade de desenvolvimento:** consolidar Android↔Android via Nearby por perfil; transformar a deteção Windows↔Android com código num canal autenticado e cifrado; implementar sincronização de dados por perfil nos dois sentidos com pré-visualização de diferenças, identificação estável, prevenção de duplicados, backups de recuperação, fotografias/documentos e testes com dados fictícios. **Ainda não há sincronização clínica Windows automática**.

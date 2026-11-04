@@ -8,7 +8,7 @@ Website público e repositório multiplataforma **SaúdePrática**, em portuguê
 
 | Plataforma | Estado | Instalação |
 | --- | --- | --- |
-| **Android v1.9.133** | Atualização normal | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
+| **Android v1.9.134** | Atualização normal | [SaudePratica.apk — versão Android mais recente](https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk) |
 | **Windows 10/11 (x64)** | **Experimental 0.8.14** | [**SaudePratica-Setup.exe — descarregar o instalador Windows**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.14-preview/SaudePratica-Setup.exe) |
 | **iPhone / iOS** | Planeado | Ainda sem aplicação para descarregar |
 
@@ -38,7 +38,11 @@ Todas as APKs Android de atualização devem conservar o **certificado original*
 
 ### Testar a ligação automática Windows ↔ Android (sem dados clínicos)
 
-Instalar o Windows [0.8.14](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.14-preview) e a SaúdePrática Android [1.9.133](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.133). No Android, abrir **Backups e sincronização → Ligação Windows · Wi-Fi (teste)** e tocar em **Tornar visível no Wi-Fi**. No Windows, abrir **Opções → Sincronização** e utilizar **Procurar novamente**; a pesquisa usa mDNS e, se necessário, UDP broadcast. Comparar os seis dígitos e autorizar no Android. O teste não transfere dados médicos nem usa canal cifrado; não abrir portas no router.
+Instalar o Windows [0.8.14](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.14-preview) e a SaúdePrática Android [1.9.134](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.134). No Android, abrir **Backups e sincronização → Ligação Windows · Wi-Fi (teste)** e tocar em **Tornar visível no Wi-Fi**. No Windows, abrir **Opções → Sincronização** e utilizar **Procurar novamente**; a pesquisa usa mDNS e, se necessário, UDP broadcast. Comparar os seis dígitos e autorizar no Android. O teste não transfere dados médicos nem usa canal cifrado; não abrir portas no router.
+
+## Android 1.9.134 — registos Health Connect guardados no backup
+
+Ao abrir **Atividade e Saúde** ou tocar em **Atualizar dados**, a SaúdePrática passa a guardar localmente no próprio perfil os dados autorizados que o Health Connect devolver: passos, distância, energia ativa/total, sono, batimentos e peso Health Connect dos últimos sete dias disponíveis, além das medições recentes autorizadas de SpO₂ e outros sinais vitais. O peso manual mantém-se independente. **Os dados não são enviados para a Internet.** Depois de atualizar o ecrã, criar um **novo backup familiar** (ZIP ou .spbackup): os backups antigos não contêm as leituras Health Connect porque ainda não eram persistidas. O Windows 0.8.14 continua sem ler esse novo formato e necessitará da respetiva adaptação para o apresentar. [Release e APK Android v1.9.134](https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.134).
 
 ## Foco após a Android 1.9.133
 
@@ -48,4 +52,4 @@ O Assistente de IA generativa local/online foi removido. A Ajuda tradicional fun
 
 ### Recuperação automática dos backups Android existentes (Windows 0.8.14)
 
-Depois de guardar um backup familiar, instala [Windows 0.8.14](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.14-preview) por cima da versão anterior. Na primeira abertura, o programa recupera automaticamente os módulos Android já guardados no Windows, sem clicar em Recuperar/Importar em Nutrição, SOS, Hidratação, Sintomas ou Lares. Refeições e miniaturas aparecem na Nutrição; o cuidador pode consultar o resumo de instituições e mensalidades dos residentes explicitamente associados. Antes da conversão é guardada cópia local dos dados ainda cifrados por DPAPI; a operação não duplica registos ou apaga edições do Windows. O comando de recuperação manual global permanece apenas em Opções → Backup e Restauro para diagnóstico. Os backups de Hidratação mais antigos podem conter apenas o total de um dia; dados Health Connect ausentes não podem ser reconstruídos. A instalação Android 1.9.133 mantém-se inalterada.
+Depois de guardar um backup familiar, instala [Windows 0.8.14](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.14-preview) por cima da versão anterior. Na primeira abertura, o programa recupera automaticamente os módulos Android já guardados no Windows, sem clicar em Recuperar/Importar em Nutrição, SOS, Hidratação, Sintomas ou Lares. Refeições e miniaturas aparecem na Nutrição; o cuidador pode consultar o resumo de instituições e mensalidades dos residentes explicitamente associados. Antes da conversão é guardada cópia local dos dados ainda cifrados por DPAPI; a operação não duplica registos ou apaga edições do Windows. O comando de recuperação manual global permanece apenas em Opções → Backup e Restauro para diagnóstico. Os backups de Hidratação mais antigos podem conter apenas o total de um dia; dados Health Connect ausentes não podem ser reconstruídos. A Android 1.9.134 preserva os dados anteriores e os alarmes.

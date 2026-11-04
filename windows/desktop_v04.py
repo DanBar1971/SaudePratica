@@ -55,13 +55,14 @@ from windows.activity_ui_v089 import ActivityUiV089
 from windows.cycle_ui_v089 import CycleUiV089
 from windows.remaining_ui_v0810 import RemainingUiV0810
 from windows.nutrition_ui_v0810 import NutritionUiV0810
+from windows.login_ui_v0816 import LoginUiV0816
 from windows.editor_controls_v083 import CONDITIONS, EXTRA_COMBO_CHOICES, shift_clock
 from windows.agenda_filter_v069 import FILTERS as AGENDA_FILTERS, appointment_status, appointment_datetime, filtered_appointments
 from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, STATUS_OPTIONS as APPOINTMENT_STATES, extra_fields as appointment_extras, parse_extra as parse_appointment_extra
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.15"
+VERSION = "0.8.16"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -95,7 +96,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088, WaterUiV089, ActivityUiV089, CycleUiV089, RemainingUiV0810, NutritionUiV0810):
+class Desktop(ctk.CTk, LoginUiV0816, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088, WaterUiV089, ActivityUiV089, CycleUiV089, RemainingUiV0810, NutritionUiV0810):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()
@@ -171,10 +172,14 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
         self._lan_pair_code=""
         self.protocol("WM_DELETE_WINDOW",self._lan_close)
         self._assets()
-        self._render()
+        # Do not render any clinical data or begin discovery until unlocked.
+        # GUI smoke runs use an isolated synthetic data directory.
+        self._login_unlocked=bool(os.environ.get("SAUDEPRATICA_SMOKE_REPORT"))
+        if self._login_unlocked:
+            self._render()
+        else:
+            self._display_login()
         self.after(120,self._poll_profile_sources)
-        if not os.environ.get("SAUDEPRATICA_SMOKE_REPORT"):
-            self.after(900,self._lan_begin_discovery)
         self.after(330,self._lan_poll_ui)
 
     def t(self, key):
@@ -345,6 +350,8 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
             self.configure(cursor="")
 
     def _render_content(self):
+        if not self._login_unlocked:
+            return
         self.p=self._palette()
         self.configure(fg_color=self.p["bg"])
         self._clear()
@@ -1596,7 +1603,9 @@ class Desktop(ctk.CTk, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplit
             messagebox.showerror(self.t("med_save_error"),str(exc),parent=self)
 
     def _settings_page(self):
-        return LinksOptionsV087._settings_page(self)
+        LinksOptionsV087._settings_page(self)
+        if self._login_unlocked:
+            self._pin_options()
 
     def _calendar(self):
         return CalendarSplitV087._calendar(self)

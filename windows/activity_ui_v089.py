@@ -156,7 +156,8 @@ class ActivityUiV089(ActivityHealthConnectUiV0815):
                 "«Atualizar dados» e cria um novo backup familiar.",
                 11,color=self.p["muted"],wrap=465).pack(
                     anchor="w",padx=14,pady=(0,13))
-        self._draw_android_body(left,person.get("android_manual_body",{}))
+        self._draw_android_body(left,person.get("android_manual_body",{}),
+                                person.get("android_body_backup_status",{}))
         self._label(left,"Registos manuais no Windows",13,True).pack(
             anchor="w",padx=14,pady=(8,6))
         summary=ctk.CTkFrame(left,fg_color=self.p["panel2"],corner_radius=11)

@@ -26,6 +26,10 @@ class WaterUiV089:
         self.water_day=date.today()
         self._render()
 
+    def _water_select_day(self,day):
+        self.water_day=day
+        self._render()
+
     def _water_add(self, selected_ml=None):
         if not self.active_id:
             return
@@ -124,6 +128,28 @@ class WaterUiV089:
         goal_label=(f"Objetivo escolhido: {goal} ml · {percentage}% registado"
                     if goal else "Sem objetivo diário definido")
         self._label(top,goal_label,12,color=self.p["muted"]).pack(anchor="w")
+        # Android historically stored only a daily total. When its latest
+        # date is before today, show an explicit navigation hint rather than
+        # falsely suggesting there is no history on the device.
+        latest=next((x for x in sorted(
+            state["entries"],key=lambda item:str(item.get("date","")),
+            reverse=True) if isinstance(x,dict) and
+            str(x.get("date",""))<=date.today().isoformat()),None)
+        if latest and latest.get("date")!=day.isoformat():
+            other=ctk.CTkFrame(left,fg_color=self.p["panel2"],
+                               corner_radius=9)
+            other.pack(fill="x",padx=16,pady=(1,10))
+            raw_date=latest.get("date","")
+            summary=(f"Último registo: "
+                     f"{date.fromisoformat(raw_date):%d/%m/%Y} · "
+                     f"{water_total(state['entries'],raw_date)} ml")
+            self._label(other,summary,12,True,
+                        color=self.p["muted"]).pack(
+                            side="left",padx=10,pady=8)
+            self._button(other,"Ver dia",
+                         lambda d=raw_date:self._water_select_day(
+                             date.fromisoformat(d)),
+                         width=74,height=30).pack(side="right",padx=8)
         if goal:
             progress=ctk.CTkProgressBar(
                 left,height=13,fg_color=self.p["panel2"],
@@ -163,7 +189,10 @@ class WaterUiV089:
             cell=ctk.CTkFrame(history,fg_color=self.p["panel2"],
                               corner_radius=9)
             cell.pack(fill="x",padx=5,pady=3)
-            self._label(cell,f"{row.get('time','--:--')}  ·  "
+            label_time=("Total Android (sem hora)"
+                        if row.get("source")=="android_daily_total"
+                        else row.get("time") or "Sem hora")
+            self._label(cell,f"{label_time}  ·  "
                         f"{row.get('ml',0)} ml",13,True).pack(
                             side="left",padx=11,pady=9)
             if row.get("id"):

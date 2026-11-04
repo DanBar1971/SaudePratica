@@ -8,6 +8,7 @@ import json
 import re
 from windows.android_archive_v063 import validated_files
 from windows.profile_fields_v066 import mapped_fields
+from windows.profile_preferences_v073 import unwrap_typed_profile
 
 OMIT = ("password", "pin", "secret", "token", "key", "hash", "fingerprint",
         "base64", "signature", "path", "uri", "photo", "image", "blob", "binary")
@@ -68,6 +69,18 @@ def read_profile_extras(archive:bytes,source_id:str):
                 try:candidates.append(json.loads(data.decode("utf-8-sig")))
                 except (UnicodeDecodeError,ValueError):pass
     fields=mapped_fields(original)
+    # Android's profile editor writes into profile-scoped SharedPreferences.
+    # The .spbackup profile.json only carries name/portrait; the complete
+    # original ZIP still contains these typed records, isolated by source ID.
+    recovered, preference_rows=unwrap_typed_profile(prefs,source_id)
+    fields.update({key:value for key,value in recovered.items()
+                   if not fields.get(key)})
+    if isinstance(original.get("caregiver"),bool):
+        fields["caregiver"]=original["caregiver"]
+    if preference_rows:
+        sections["Ficha Android · preferências do perfil"]={
+            label:value for label,value in preference_rows
+        }
     # Try profile-specific clinical/identity files as a secondary source.
     for candidate in candidates:
         if isinstance(candidate,dict):

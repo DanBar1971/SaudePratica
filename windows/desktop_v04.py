@@ -31,6 +31,7 @@ from windows.visual_v07 import circular_photo, wallpaper_image
 from windows.android_import_v062 import plan_json, apply_plan, AndroidImportError
 from windows.android_archive_v063 import archive_sources,prepare_archive,apply_archive
 from windows.family_ui_v064 import family_controls, export_original_zip
+from windows.backup_ui_v072 import render_backup
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
@@ -39,7 +40,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.1"
+VERSION = "0.7.3"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -506,23 +507,41 @@ class Desktop(ctk.CTk):
         self.profile_widgets={}
         self._label(scroll,self.t("profile_details"),15,True,color=TEAL).grid(
             row=0,column=0,columnspan=2,sticky="w",padx=9,pady=(4,9))
-        layout=[("name",1,0,2,"first_name"),("birth_date",2,0,1,"birth_date"),
-                ("phone",2,1,1,"phone"),("email",3,0,2,"email"),
-                ("niss",5,0,1,"niss"),("health_unit",5,1,1,"health_unit"),
-                ("address",6,0,2,"address"),("city",7,0,1,"city"),
-                ("postal_code",7,1,1,"postal_code"),
-                ("emergency_name",9,0,1,"emergency_name"),
-                ("emergency_phone",9,1,1,"emergency_phone")]
+        # Use every editable identity/health field from the Android profile.
+        # Unknown Android fields remain intact in the original encrypted ZIP.
+        layout=[
+            ("name",1,0,2,"Nome do perfil (curto)"),
+            ("full_name",2,0,2,"Nome completo"),
+            ("birth_date",3,0,1,"birth_date"),
+            ("gender",3,1,1,"Sexo / género"),
+            ("height",4,0,1,"Altura (cm)"),
+            ("nationality",4,1,1,"Nacionalidade"),
+            ("birth_place",5,0,2,"Local de nascimento"),
+            ("father",6,0,1,"Nome do pai"),
+            ("mother",6,1,1,"Nome da mãe"),
+            ("phone",7,0,1,"phone"),
+            ("email",7,1,1,"email"),
+            ("niss",9,0,1,"niss"),
+            ("sns_number",9,1,1,"N.º de utente SNS"),
+            ("nif",10,0,1,"NIF"),
+            ("adse_number",10,1,1,"N.º ADSE"),
+            ("health_unit",11,0,2,"health_unit"),
+            ("address",12,0,2,"address"),
+            ("city",13,0,1,"city"),
+            ("postal_code",13,1,1,"postal_code"),
+            ("emergency_name",15,0,1,"emergency_name"),
+            ("emergency_phone",15,1,1,"emergency_phone"),
+        ]
         self._label(scroll,self.t("health"),15,True,color=TEAL).grid(
-            row=4,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
-        self._label(scroll,self.t("contacts"),15,True,color=TEAL).grid(
             row=8,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
+        self._label(scroll,self.t("contacts"),15,True,color=TEAL).grid(
+            row=14,column=0,columnspan=2,sticky="w",padx=9,pady=(15,7))
         for key,r,col,span,text in layout:
             self.profile_widgets[key]=self._text_field(scroll,text,fields.get(key,""),
                                                          r,col,span)
         self.photo_draft=fields.get("photo_b64","")
         photo_box=ctk.CTkFrame(scroll,fg_color="transparent")
-        photo_box.grid(row=10,column=0,columnspan=2,sticky="ew",padx=8,pady=12)
+        photo_box.grid(row=16,column=0,columnspan=2,sticky="ew",padx=8,pady=12)
         self._label(photo_box,self.t("photo"),12,True).pack(anchor="w")
         self.photo_label=ctk.CTkLabel(photo_box,text=self.t("photo_none"),
                                      text_color=self.p["muted"])
@@ -534,15 +553,15 @@ class Desktop(ctk.CTk):
         ctk.CTkSwitch(scroll,text=self.t("caregiver_field"),
             variable=self.profile_caregiver,progress_color=TEAL,
             button_color=TEAL,fg_color=self.p["panel2"],text_color=self.p["text"]).grid(
-                row=11,column=0,columnspan=2,sticky="w",padx=10,pady=12)
+                row=17,column=0,columnspan=2,sticky="w",padx=10,pady=12)
         self._label(scroll,self.t("notes"),12,True,color=self.p["muted"]).grid(
-            row=12,column=0,columnspan=2,sticky="w",padx=9)
+            row=18,column=0,columnspan=2,sticky="w",padx=9)
         self.profile_notes=ctk.CTkTextbox(scroll,height=82,corner_radius=12,
                fg_color=self.p["field"],border_width=1,
                border_color=self.p["line"],text_color=self.p["text"])
-        self.profile_notes.grid(row=13,column=0,columnspan=2,sticky="ew",padx=8,pady=(4,14))
+        self.profile_notes.grid(row=19,column=0,columnspan=2,sticky="ew",padx=8,pady=(4,14))
         self.profile_notes.insert("1.0",fields.get("notes",""))
-        next_row=14
+        next_row=20
         if current:
             # Identification documents are individually protected under DPAPI.
             # Render authentic images only, never a generic/fabricated CC.
@@ -933,31 +952,8 @@ class Desktop(ctk.CTk):
         self._render()
 
     def _backup(self):
-        self._heading(self.t("backup_title"),self.t("backup_desc"))
-        card=self._card(self.body)
-        card.pack(fill="x",pady=10)
-        wrapper=ctk.CTkFrame(card,fg_color="transparent")
-        wrapper.pack(fill="x",padx=30,pady=25)
-        self._label(wrapper,self.t("password"),13,True).pack(anchor="w")
-        self.backup_pass=ctk.CTkEntry(wrapper,show="●",height=43,width=320,
-            fg_color=self.p["field"],border_color=self.p["line"])
-        self.backup_pass.pack(anchor="w",pady=(6,15))
-        self._label(wrapper,self.t("confirm_password"),13,True).pack(anchor="w")
-        self.backup_confirm=ctk.CTkEntry(wrapper,show="●",height=43,width=320,
-            fg_color=self.p["field"],border_color=self.p["line"])
-        self.backup_confirm.pack(anchor="w",pady=(6,20))
-        actions=ctk.CTkFrame(wrapper,fg_color="transparent")
-        actions.pack(anchor="w")
-        self._button(actions,self.t("export"),self._export_backup,True,200).pack(side="left",padx=(0,10))
-        self._button(actions,self.t("restore"),self._restore_backup,width=200).pack(side="left")
-        self._button(wrapper,"Importar toda a família Android",
-                     lambda:self.navigate("import"),width=302,height=38).pack(anchor="w",pady=(18,0))
-        self._button(wrapper,"Reexportar ZIP Android original",
-                     lambda:export_original_zip(self),width=300,height=34).pack(anchor="w",pady=(8,0))
-        self._label(wrapper,
-            "O backup .spbackup encriptado inclui todos os perfis, fotos, documentos, "
-            "medicação, agenda e os ZIPs Android originais anteriormente importados.",
-            12,color=self.p["muted"],wrap=920).pack(anchor="w",pady=(12,0))
+        """The only public Backup screen: Family / Profile .spbackup."""
+        return render_backup(self)
 
     def _open_appointment(self,appointment_id):
         self.editing_appointment=appointment_id

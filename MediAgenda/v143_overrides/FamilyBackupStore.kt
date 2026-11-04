@@ -51,7 +51,28 @@ class FamilyBackupStore(private val context:Context){
         !name.contains("token",true)&&!name.contains("secret",true)
     private fun digest()=MessageDigest.getInstance("SHA-256")
     private fun hex(a:ByteArray)=a.joinToString(""){"%02x".format(it)}
-    private fun File.safe():Boolean=canonicalPath==absolutePath
+    /**
+     * The Android sandbox may be accessed through /data/user/0 while its
+     * canonical path is /data/data. Comparing the two full strings excluded
+     * every legitimate file on affected devices (including the emulator).
+     *
+     * Resolve the sandbox root first, check the canonical containment boundary
+     * and reject symlinks created *inside* it, even if their target is inside.
+     * The system's own filesDir alias is not an untrusted nested symlink.
+     */
+    private fun File.safe():Boolean{
+        val base=root.absoluteFile
+        val basePath=base.toPath().normalize()
+        val candidate=absoluteFile.toPath().normalize()
+        if(!candidate.startsWith(basePath)||candidate==basePath)return false
+        var current=base.toPath()
+        for(component in basePath.relativize(candidate)){
+            current=current.resolve(component)
+            if(java.nio.file.Files.isSymbolicLink(current))return false
+        }
+        val canonicalRoot=root.canonicalFile.path+File.separator
+        return canonicalFile.path.startsWith(canonicalRoot)
+    }
     private fun paths():List<Pair<String,File>>{
         val result=mutableListOf<Pair<String,File>>()
         fun walk(file:File,path:String){

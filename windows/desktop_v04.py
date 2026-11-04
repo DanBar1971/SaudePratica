@@ -50,6 +50,7 @@ from windows.calendar_split_v087 import CalendarSplitV087
 from windows.document_split_v087 import DocumentsV087
 from windows.links_options_ui_v087 import LinksOptionsV087
 from windows.health_records_ui_v088 import HealthRecordsUiV088
+from windows.hospital_ui_v0818 import HospitalUiV0818
 from windows.water_ui_v089 import WaterUiV089
 from windows.activity_ui_v089 import ActivityUiV089
 from windows.cycle_ui_v089 import CycleUiV089
@@ -62,7 +63,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.8.17"
+VERSION = "0.8.18"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -96,7 +97,7 @@ LANG_NAMES = {"pt":"Português","en":"English","fr":"Français",
 THEME_KEYS = {"system":"theme_system","dark":"theme_dark","light":"theme_light"}
 
 
-class Desktop(ctk.CTk, LoginUiV0816, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088, WaterUiV089, ActivityUiV089, CycleUiV089, RemainingUiV0810, NutritionUiV0810):
+class Desktop(ctk.CTk, LoginUiV0816, LanUi, CalendarVisualV086, DosesCalendarUi, CalendarSplitV087, DocumentsV087, LinksOptionsV087, HealthRecordsUiV088, HospitalUiV0818, WaterUiV089, ActivityUiV089, CycleUiV089, RemainingUiV0810, NutritionUiV0810):
     def __init__(self):
         self.store = SecureStore()
         pref = self.store.settings()

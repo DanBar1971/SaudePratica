@@ -189,6 +189,27 @@ class PortableWindowsBackup(private val context:Context) {
         }finally{source.delete();password.fill('\u0000')}
     }
 
+    /** Detect legacy backups without decrypting; no personal data is exposed. */
+    fun usesLegacyPassword(source:Uri):Boolean{
+        (context.contentResolver.openInputStream(source)
+            ?:error("Ficheiro de backup inacessível.")).use{input->
+            val reader=DataInputStream(input)
+            val prefix=ByteArray(magic.size)
+            reader.readFully(prefix)
+            require(prefix.contentEquals(magic)){"Não é um backup SaúdePrática."}
+            val headLength=reader.readInt()
+            require(headLength in 30..4096){"Cabeçalho de backup inválido."}
+            val head=ByteArray(headLength)
+            reader.readFully(head)
+            val kind=JSONObject(String(head,Charsets.UTF_8)).optString("kind")
+            require(kind=="saudepratica-encrypted-v1" ||
+                kind=="saudepratica-encrypted-pin-v2"){
+                "Formato de backup desconhecido."
+            }
+            return kind=="saudepratica-encrypted-v1"
+        }
+    }
+
     data class Original(val sha256:String,val name:String,val size:Long)
     data class Preview(val decrypted:File,val originals:List<Original>){
         fun discard(){decrypted.delete()}

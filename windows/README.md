@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.12**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.12-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.13**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.13-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.12-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.13-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -161,7 +161,7 @@ A Medicação e a Agenda apresentam um formulário à esquerda com separadores c
 
 A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
 
-Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.12-preview/SaudePratica-Setup.exe
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.13-preview/SaudePratica-Setup.exe
 
 ## Windows 0.8.3 — interface gráfica uniforme
 
@@ -206,3 +206,7 @@ Abre o perfil pretendido e usa **«Recuperar SOS do backup Android»** em Emerg�
 ## Windows 0.8.12 — descobrir o telemóvel automaticamente com mDNS e UDP
 
 Corrigido o botão **Procurar novamente**, que antes não iniciava uma nova pesquisa quando o watcher mDNS já estava ativo. O Windows agora reinicia a pesquisa mDNS e emite pedidos UDP broadcast limitados na rede local a partir das interfaces privadas disponíveis. O telemóvel responde à pesquisa apenas se a nova aplicação auxiliar de teste **Android 0.2** estiver visível, e o Windows verifica o serviço encontrado antes de mostrar o botão Pedir ligação. Existe repetição automática da pesquisa no ecrã de Sincronização enquanto não aparecem equipamentos. Ligação manual por IP preservada. Instalar APK auxiliar [0.2](https://github.com/DanBar1971/SaudePratica/releases/download/android-lan-link-v0.2-preview/SaudePratica-Ligacao-Teste.apk); este teste não envia dados clínicos e não substitui a SaúdePrática Android oficial. Se a antiga APK auxiliar de teste 0.1 tiver assinatura debug diferente, remover apenas essa auxiliar antes de instalar 0.2. Não abrir portas no router nem desativar firewall. Ver notas de versão `windows/RELEASE_NOTES_0812.md` do ramo Windows.
+
+## Windows 0.8.13 — recuperar os dados reais do backup Android
+
+Corrigido restauro de `.spbackup` com fontes Android preservadas mas módulos Windows vazios. O restauro completo preenche automaticamente Nutrição com refeições e fotografias originais, Hidratação com último total diário e objetivos, Sintomas e medições manuais, Tomas confirmadas com associação exata aos medicamentos, Emergência SOS e Lares/Apoios. A relação de cuidador e residente vem do próprio backup Android, sem misturar fichas: o cuidador pode entrar na ficha do residente associado. Novidade: em **Opções → Backup e Restauro**, botão **«Recuperar dados Android dos backups já guardados»** para instalações já restauradas. Faz primeiro cópia de segurança, importa apenas o que falta e mostra contagens. Atualização instalada por cima da versão anterior, sem alterar Android principal. Ver `windows/RELEASE_NOTES_0813.md` no ramo da release.

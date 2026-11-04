@@ -1,15 +1,15 @@
-name: SaúdePrática Android 1.9.135 — guardar Health Connect no backup
+name: SaúdePrática Android 1.9.135 — PIN numérico em backups familiares
 on:
   push:
     branches: [feat/android-19135-four-digit-backup-pin]
     paths:
-      - ".github/workflows/build-android-19135-health-connect.yml"
+      - ".github/workflows/build-android-19135-pin.yml"
       - ".github/workflows/saudepratica-android.yml"
       - "MediAgenda/**"
   pull_request:
     branches: [main]
     paths:
-      - ".github/workflows/build-android-19135-health-connect.yml"
+      - ".github/workflows/build-android-19135-pin.yml"
       - ".github/workflows/saudepratica-android.yml"
       - "MediAgenda/**"
   workflow_dispatch:

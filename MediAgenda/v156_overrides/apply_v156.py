@@ -48,15 +48,12 @@ clinical.write_text(s.replace(old,new,1),encoding="utf-8")
 
 main=src/"MainActivity.kt"
 s=main.read_text(encoding="utf-8")
-anchor="""content.addView(quickActions,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(6)})
-        val allAppointments=repo.loadAppointments().sortedWith("""
-replace="""content.addView(quickActions,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(6)})
-        content.addView(secondaryButton("📅 Adicionar consulta ao calendário do telemóvel"){
+anchor="content.addView(quickActions,"
+assert s.count(anchor)==1,("agenda actions anchor",s.count(anchor))
+s=s.replace(anchor,'''content.addView(secondaryButton("📅 Adicionar consulta ao calendário do telemóvel"){
             chooseAppointmentForSystemCalendar()
         })
-        val allAppointments=repo.loadAppointments().sortedWith("""
-assert s.count(anchor)==1,("calendar agenda button anchor",s.count(anchor))
-s=s.replace(anchor,replace,1)
+        '''+anchor,1)
 helper=r'''
     /**
      * Explicit user-controlled handoff to the Android calendar editor.
@@ -91,7 +88,7 @@ helper=r'''
                 val begin=if(allDay)
                     date.atStartOfDay(java.time.ZoneOffset.UTC)
                         .toInstant().toEpochMilli()
-                    else date.atTime(parsed).atZone(java.time.ZoneId.systemDefault())
+                    else date.atTime(parsed!!).atZone(java.time.ZoneId.systemDefault())
                         .toInstant().toEpochMilli()
                 val end=begin+if(allDay)24L*60*60*1000 else 60L*60*1000
                 val eventIntent=android.content.Intent(

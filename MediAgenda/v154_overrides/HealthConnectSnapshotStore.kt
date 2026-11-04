@@ -46,7 +46,7 @@ class HealthConnectSnapshotStore(context: Context, private val profileId: String
             folder.mkdirs()
             require(folder.isDirectory)
             val root = if (file.exists()) {
-                require(file.length() in 1..2_000_000L)
+                require(file.length() > 0L && file.length() <= 2_000_000L)
                 JSONObject(file.readText(Charsets.UTF_8))
             } else {
                 JSONObject().put("schema_version", 1)

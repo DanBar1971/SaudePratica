@@ -53,6 +53,68 @@ class SecureStore:
                     raise LocalStoreError("Formato de dados local desconhecido.")
             except Exception as e:
                 raise LocalStoreError("Não foi possível abrir os dados protegidos desta conta Windows.") from e
+        # Migrar uma única vez os módulos Android que já estejam guardados,
+        # sem exigir que o utilizador carregue em Importar/Recuperar.
+        self._automatic_android_recovery_error = None
+        try:
+            self._auto_restore_existing_android_modules()
+        except (LocalStoreError, ValueError, OSError, KeyError, TypeError) as exc:
+            # Um arquivo antigo danificado não pode impedir a abertura da app.
+            # Não colocar dados clínicos ou caminhos pessoais num log.
+            self._automatic_android_recovery_error = type(exc).__name__
+
+    def _auto_restore_existing_android_modules(self):
+        """Migração local 0.8.14: idempotente, com cópia prévia já cifrada DPAPI."""
+        from hashlib import sha256
+        archives=self.android_archives()
+        if not archives or not self.profiles():
+            return
+        linked=[]
+        for person in self.profiles():
+            source=person.get("android_zip_source_id")
+            if not isinstance(source,str) or not source:
+                continue
+            for archive in archives:
+                if (person.get("id") in archive.get("profile_ids",[])
+                        and source in archive.get("source_ids",[])):
+                    linked.append((person["id"],source,archive.get("sha256","")))
+        if not linked:
+            return
+        fingerprint=sha256(json.dumps(sorted(linked),separators=(",",":")).encode()).hexdigest()
+        marker="_android_auto_recovery_0814"
+        if self.data.get(marker)==fingerprint:
+            return
+        # A cópia é o ficheiro DPAPI original: não exporta dados em claro
+        # nem necessita de pedir a palavra-passe de um backup .spbackup.
+        if self.path.exists():
+            recovery_dir=self.path.parent/"restores"
+            recovery_dir.mkdir(mode=0o700,parents=True,exist_ok=True)
+            copy_path=recovery_dir/("before-automatic-restore-"+fingerprint[:16]+".dpapi")
+            if not copy_path.exists():
+                fd,temp_name=tempfile.mkstemp(prefix=".auto_restore_",suffix=".tmp",
+                                               dir=recovery_dir)
+                try:
+                    with os.fdopen(fd,"wb") as dst:
+                        dst.write(self.path.read_bytes())
+                        dst.flush()
+                        os.fsync(dst.fileno())
+                    os.replace(temp_name,copy_path)
+                finally:
+                    if os.path.exists(temp_name):
+                        os.unlink(temp_name)
+        # Inclui refeições, fotos, hidratação, sintomas, tomas, SOS e lares,
+        # com associação estrita ao identificador Android de cada pessoa.
+        self._automatic_android_recovery_summary=self.recover_android_modules()
+        old=self.data.get(marker)
+        self.data[marker]=fingerprint
+        try:
+            self.save()
+        except Exception:
+            if old is None:
+                self.data.pop(marker,None)
+            else:
+                self.data[marker]=old
+            raise
 
     def save(self):
         blob = _encrypt(json.dumps(self.data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
@@ -1523,6 +1585,24 @@ class SecureStore:
                 "source_ids":[m.source.identifier for m in plan.members],
             })
         proposed["android_family_archives"]=archives
+        # Importar também os módulos restantes no próprio restauro do ZIP
+        # familiar, em vez de deixar ficheiros armazenados mas fichas vazias.
+        from windows.android_full_restore_v0813 import (
+            extract_profile_android, merge_snapshot,
+        )
+        source_to_target={m.source.identifier:m.profile_id for m in plan.members}
+        imported_modules={}
+        for member in plan.members:
+            target=people[member.profile_id]
+            snapshot=extract_profile_android(
+                plan.original_zip,member.source.identifier)
+            added_metadata,added_photos,counts=merge_snapshot(
+                target,snapshot,source_to_target,descriptors)
+            descriptors.extend(added_metadata)
+            assets.extend(added_photos)
+            for module,number in counts.items():
+                imported_modules[module]=imported_modules.get(module,0)+number
+        proposed["imported_files"]=descriptors
         assets.append((plan.digest,plan.original_zip))
         created=self._write_assets(assets)
         try:
@@ -1535,6 +1615,7 @@ class SecureStore:
                 except OSError:pass
             raise
         summary["new_attachments"]=len(assets)-1
+        summary["android_modules"]=imported_modules
         return summary
 
     def export_backup(self, password: str, profile_id: str | None = None) -> bytes:

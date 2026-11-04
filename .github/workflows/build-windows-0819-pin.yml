@@ -3,7 +3,7 @@
 name: Testar SaúdePrática Windows 0.8.19 — corrigir restauro PIN
 on:
   push:
-    branches: [release/windows-0819-hospital-processes-20261104]
+    branches: [release/windows-0819-pin-restore-hotfix-20261104]
     paths:
       - ".github/workflows/build-windows-0819-hospital.yml"
       - "windows/**"
@@ -21,7 +21,7 @@ jobs:
       - name: Obter código Windows 0.8.19 isolado (preserva main Android)
         uses: actions/checkout@v4
         with:
-          ref: release/windows-0819-hospital-processes-20261104
+          ref: release/windows-0819-pin-restore-hotfix-20261104
       - name: Preparar Python
         uses: actions/setup-python@v5
         with:

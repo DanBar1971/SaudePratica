@@ -1661,7 +1661,7 @@ class SecureStore:
             if scope=="family" and p is selected[0]:
                 state={k:v for k,v in self.data.items()
                        if k not in ("profiles","imported_files",
-                                    "android_family_archives")}
+                                    "android_family_archives","pin_login_v1")}
                 files[prefix+"windows_state.json"]=json.dumps(
                     state,ensure_ascii=False).encode("utf-8")
             files[prefix+"medicacao.json"] = json.dumps(

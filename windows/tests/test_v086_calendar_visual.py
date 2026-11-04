@@ -84,7 +84,7 @@ class CalendarVisualTests(unittest.TestCase):
         source=(root/"desktop_v04.py").read_text("utf-8")
         gui=(root/"calendar_ui_v086.py").read_text("utf-8")
         self.assertIn("CalendarVisualV086, DosesCalendarUi",source)
-        self.assertIn('VERSION = "0.8.14"',source)
+        self.assertIn('VERSION = "0.8.15"',source)
         self.assertIn("self.store.get_profile(self.active_id)",gui)
         self.assertIn("self._calendar_day_cells[day] = card",gui)
         self.assertIn("self._calendar_choose(target)",gui)

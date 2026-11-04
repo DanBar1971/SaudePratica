@@ -1,4 +1,4 @@
-"""Windows 0.8.12: real calendar appearance and exact profile-bound event counts."""
+"""Windows 0.8.13: real calendar appearance and exact profile-bound event counts."""
 from __future__ import annotations
 
 import unittest
@@ -84,7 +84,7 @@ class CalendarVisualTests(unittest.TestCase):
         source=(root/"desktop_v04.py").read_text("utf-8")
         gui=(root/"calendar_ui_v086.py").read_text("utf-8")
         self.assertIn("CalendarVisualV086, DosesCalendarUi",source)
-        self.assertIn('VERSION = "0.8.12"',source)
+        self.assertIn('VERSION = "0.8.13"',source)
         self.assertIn("self.store.get_profile(self.active_id)",gui)
         self.assertIn("self._calendar_day_cells[day] = card",gui)
         self.assertIn("self._calendar_choose(target)",gui)

@@ -1,4 +1,4 @@
-"""Windows 0.8.12 — synthetic Android SOS/Lares recovery and pharmacy portal.
+"""Windows 0.8.13 — synthetic Android SOS/Lares recovery and pharmacy portal.
 
 No patient data, real address, or real medical contact is used in fixtures.
 """
@@ -206,7 +206,7 @@ class GuiContracts(unittest.TestCase):
         self.assertIn("📍 Encontrar perto de mim",src)
         desktop=(Path(__file__).resolve().parents[1]/
                  "desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.12"',desktop)
+        self.assertIn('VERSION = "0.8.13"',desktop)
 
 
 if __name__=="__main__":

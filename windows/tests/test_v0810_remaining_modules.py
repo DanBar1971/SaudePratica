@@ -1,4 +1,4 @@
-"""Windows 0.8.12: confidential seven-module records and Android food photos.
+"""Windows 0.8.13: confidential seven-module records and Android food photos.
 
 Only synthetic profiles and meal images; no personal uploads.
 """
@@ -226,7 +226,7 @@ class GuiContractTests(unittest.TestCase):
                     "pharmacy","residences"):
             self.assertTrue(flags[key],key)
         code=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.12"',code)
+        self.assertIn('VERSION = "0.8.13"',code)
         for key in ("nutrition","vision","symptoms","vaccines",
                     "emergency","pharmacy","residences"):
             self.assertIn(f'self.page=="{key}"',code)

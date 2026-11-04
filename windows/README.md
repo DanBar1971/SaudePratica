@@ -25,10 +25,10 @@
 
 **Descarregar diretamente o instalador Windows:**
 
-[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.17**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.17-preview/SaudePratica-Setup.exe)
+[**SaudePratica-Setup.exe — Windows 10/11 (64 bits), versão experimental 0.8.18**](https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.18-preview/SaudePratica-Setup.exe)
 
 **Consultar a release Windows específica:**
-https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.17-preview
+https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.18-preview
 
 Não utilizar a página genérica de Releases como botão de instalação: ela mistura as versões Android e Windows. A página oficial https://danbar1971.github.io/SaudePratica/ apresenta um botão Windows que procura a release mais recente e conserva uma ligação direta funcional caso a API GitHub não esteja disponível.
 
@@ -161,7 +161,7 @@ A Medicação e a Agenda apresentam um formulário à esquerda com separadores c
 
 A ficha da medicação usa **Hora de aviso (HH:MM)** como única entrada de horas e passa a mostrar **Condição da toma** (jejum, ao almoço, etc.) separadamente. A hora gravada é a mesma mostrada no cartão e na previsão da próxima toma. Quando uma edição antiga deixou horas contraditórias (como aviso 07:00 e hora auxiliar 08:00), a ficha oferece **Usar hora anterior 08:00**, uma escolha explícita. Os campos Android originais permanecem preservados e as alterações Windows **não alteram os alarmes reais Android** sem sincronização.
 
-Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.17-preview/SaudePratica-Setup.exe
+Instalador: https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.18-preview/SaudePratica-Setup.exe
 
 ## Windows 0.8.3 — interface gráfica uniforme
 
@@ -213,11 +213,11 @@ Corrigido restauro de `.spbackup` com fontes Android preservadas mas módulos Wi
 
 ## Windows 0.8.14 — restauro automático e cuidador
 
-Esta versão migra sem cliques os ZIPs Android já existentes em instalações Windows anteriores e incorpora os módulos na importação familiar; apresenta fotografias em miniatura na Nutrição e os valores de Lares/Apoios para residentes ligados ao cuidador. Preserva registos existentes, cria cópia de segurança DPAPI local e evita duplicações. Ver notas completas em [release Windows 0.8.14](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.17-preview).
+Esta versão migra sem cliques os ZIPs Android já existentes em instalações Windows anteriores e incorpora os módulos na importação familiar; apresenta fotografias em miniatura na Nutrição e os valores de Lares/Apoios para residentes ligados ao cuidador. Preserva registos existentes, cria cópia de segurança DPAPI local e evita duplicações. Ver notas completas em [release Windows 0.8.14](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.18-preview).
 
 ## Windows 0.8.15 — dados Health Connect Android 1.9.134
 
-A nova versão importa do ZIP original dentro do .spbackup familiar os registos Health Connect que a SaúdePrática Android 1.9.134 guardou localmente após atualizar Atividade e Saúde: passos, distância, energia, sono, pulso, sinais vitais e peso Health Connect. Também mostra o histórico de peso manual do Android, separado do Health Connect e das medições Windows. Os dados são associados estritamente ao perfil, os gráficos cobrem os últimos sete dias e as importações repetidas não criam duplicados. É necessário criar **novo backup Android depois de atualizar as medições**. O PC não tem ligação direta a sensores nem sincronização clínica automática. Ver [release Windows 0.8.15](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.17-preview).
+A nova versão importa do ZIP original dentro do .spbackup familiar os registos Health Connect que a SaúdePrática Android 1.9.134 guardou localmente após atualizar Atividade e Saúde: passos, distância, energia, sono, pulso, sinais vitais e peso Health Connect. Também mostra o histórico de peso manual do Android, separado do Health Connect e das medições Windows. Os dados são associados estritamente ao perfil, os gráficos cobrem os últimos sete dias e as importações repetidas não criam duplicados. É necessário criar **novo backup Android depois de atualizar as medições**. O PC não tem ligação direta a sensores nem sincronização clínica automática. Ver [release Windows 0.8.15](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.18-preview).
 
 ## Windows 0.8.16
 
@@ -225,4 +225,9 @@ PIN de entrada com quatro números, escolha do perfil predefinido, criação de 
 
 ## Windows 0.8.17 — ecrãs PIN com identidade visual SaúdePrática
 
-A configuração inicial e a entrada com PIN de quatro números usam agora o wallpaper Android original adaptado ao Windows, o logótipo oficial, painéis e botões maiores e uma lista de perfis sem identificadores técnicos. O perfil predefinido continua a ser escolhido na primeira utilização. Em Backups, os campos de PIN de criação e restauro ficam maiores; novos .spbackup usam apenas PIN de quatro dígitos, e os ficheiros antigos são restaurados com a sua palavra-passe original. O teste de interface Windows verifica as duas páginas e o carregamento real da imagem de fundo. [Release 0.8.17](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.17-preview).
+A configuração inicial e a entrada com PIN de quatro números usam agora o wallpaper Android original adaptado ao Windows, o logótipo oficial, painéis e botões maiores e uma lista de perfis sem identificadores técnicos. O perfil predefinido continua a ser escolhido na primeira utilização. Em Backups, os campos de PIN de criação e restauro ficam maiores; novos .spbackup usam apenas PIN de quatro dígitos, e os ficheiros antigos são restaurados com a sua palavra-passe original. O teste de interface Windows verifica as duas páginas e o carregamento real da imagem de fundo. [Release 0.8.17](https://github.com/DanBar1971/SaudePratica/releases/tag/windows-v0.8.18-preview).
+
+## Windows 0.8.18 — processos hospitalares por perfil
+
+O módulo Situação Clínica permite consultar os ficheiros do processo hospitalar guardados no backup familiar Android 1.9.136 ou posterior: profissionais, contactos, taxas moderadoras Consultas/Exames/Análises, estado de pagamento, declarações de transporte e imagem de identificação. Cada ficheiro é lido do ZIP Android original validado e privado, associado ao perfil Windows selecionado. Este ecrã é **só de consulta**, não comunica com a app IPO Lisboa, não efetua pagamentos nem envia pedidos de transporte. A sincronização clínica automática por Wi-Fi continua pendente.
+

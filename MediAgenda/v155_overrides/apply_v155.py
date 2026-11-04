@@ -64,3 +64,22 @@ change('''box.addView(infoCard("🖥", "Inspecionar backup Windows",
        '''box.addView(infoCard("🖥", "Restaurar .spbackup com PIN",
             "Importar backup familiar Android ou Windows")''',
        "promote restore")
+
+start=body.index('        box.addView(infoCard("📦", "Backup completo da família",')
+end=body.index('        box.addView(infoCard("📥", "Restaurar backup completo",',start)
+if start>=end:raise AssertionError("Backup ZIP antigo, menu diferente")
+body=body[:start]+body[end:]
+change('''box.addView(infoCard("📥", "Restaurar backup completo",
+            "Importar ZIP num novo telemóvel; substitui os dados atuais")''',
+       '''box.addView(infoCard("📥", "Restaurar ZIP antigo (sem PIN)",
+            "Compatibilidade com backups anteriores não encriptados")''',
+       "restore legacy ZIP")
+main.write_text(body,encoding="utf-8")
+gradle=app/"build.gradle.kts"
+version=gradle.read_text(encoding="utf-8")
+assert version.count("versionCode = 144")==1
+assert version.count('versionName = "1.9.134"')==1
+version=version.replace("versionCode = 144","versionCode = 145",1)
+version=version.replace('versionName = "1.9.134"','versionName = "1.9.135"',1)
+gradle.write_text(version,encoding="utf-8")
+print("Android 1.9.135: PIN-only .spbackup, legacy restore, no normal raw ZIP export.")

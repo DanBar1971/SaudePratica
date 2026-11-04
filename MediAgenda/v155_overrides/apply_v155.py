@@ -41,3 +41,26 @@ change('''if(pwd.size<10){
                         pwd.fill(0.toChar())
                         pass.error=if(legacy)"Palavra-passe antiga obrigatória"
                                    else "PIN de 4 números"''',"restore input")
+
+change('.setTitle("Exportar backup para Windows")',
+       '.setTitle("Backup da família com PIN")',"backup title")
+change('''"dados e ZIP Android original. Compatível com Windows 0.6.5 "+
+                "para restauro/recuperação. Não é sincronização automática."''',
+       '''"dados e ZIP Android original. PIN de 4 números. É menos "+
+                "seguro que uma palavra-passe longa; guarda em local privado."''',
+       "PIN warning")
+change('val pass=passwordInput("Palavra-passe do .spbackup")',
+       'val pass=backupPinInput("PIN do backup (4 números)")',
+       "invalid second duplicate placeholder") if False else None
+change('''"A validar palavra-passe, assinatura AES-GCM e hashes…"''',
+       '''"A validar PIN, assinatura AES-GCM e hashes…"''',"restore feedback")
+change('''box.addView(infoCard("🔐", "Exportar backup para Windows",
+            "Criar .spbackup encriptado para transferir perfis e documentos")''',
+       '''box.addView(infoCard("🔐", "Backup completo com PIN",
+            "Criar .spbackup de todos os perfis, com 4 números")''',
+       "promote encrypted backup")
+change('''box.addView(infoCard("🖥", "Inspecionar backup Windows",
+            "Recuperar apenas o ZIP Android original do .spbackup")''',
+       '''box.addView(infoCard("🖥", "Restaurar .spbackup com PIN",
+            "Importar backup familiar Android ou Windows")''',
+       "promote restore")

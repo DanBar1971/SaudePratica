@@ -118,6 +118,42 @@ class LoginUiV0816:
             field.focus_set()
 
     def _on_login_unlocked(self):
+        if self.store.profiles() and not pin_access.default_profile(self.store):
+            self._display_choose_default_after_unlock()
+            return
+        self._finish_login()
+
+    def _display_choose_default_after_unlock(self):
+        self.p=self._palette()
+        self._clear()
+        page=ctk.CTkFrame(self,fg_color=self.p["bg"])
+        page.pack(fill="both",expand=True)
+        card=ctk.CTkFrame(
+            page,fg_color=self.p["panel"],border_width=1,
+            border_color=self.p["line"],corner_radius=20)
+        card.pack(expand=True,padx=32,pady=28)
+        self._label(card,"Escolher perfil predefinido",21,True).pack(
+            anchor="w",padx=28,pady=(25,7))
+        self._label(card,
+            "Este perfil abrirá após o PIN. Continuarás a poder trocar de perfil.",
+            12,color=self.p["muted"]).pack(anchor="w",padx=28)
+        choices=self._profile_options(self.store.profiles())
+        selection=ctk.CTkOptionMenu(
+            card,values=list(choices),width=310,height=40,
+            fg_color=self.p["field"],button_color="#087b8c",
+            text_color=self.p["text"],dropdown_fg_color=self.p["panel"])
+        selection.pack(padx=28,pady=20)
+        def apply():
+            try:
+                pin_access.set_default(self.store,choices[selection.get()])
+                self._finish_login()
+            except (OSError,ValueError) as exc:
+                messagebox.showerror("Perfil predefinido",str(exc),parent=self)
+        self._button(card,"Guardar e entrar",apply,True,
+                     width=195,height=39).pack(
+                         anchor="w",padx=28,pady=(0,24))
+
+    def _finish_login(self):
         self._login_unlocked=True
         default=pin_access.default_profile(self.store)
         if default:

@@ -1,0 +1,69 @@
+name: Release de testes — interoperabilidade Android Windows (.spbackup)
+on:
+  push:
+    branches: [fix/portable-backup-unificado-20261102]
+    paths:
+      - "MediAgenda/release-verified/v1.9.127-rc1/**"
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify-rc1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Prepare public signature reconstruction tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zstd
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0"
+      - name: Fetch exactly audited unsigned Android artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 41414179997 --repo DanBar1971/SaudePratica --name SaudePratica-v1.9.127-UNSIGNED --dir unsigned
+          test "$(find unsigned -name '*.apk' -type f | wc -l)" -eq 1
+          cp "$(find unsigned -name '*.apk' -type f | head -1)" original-unsigned.apk
+      - name: Rebuild original-signed Android APK without private key
+        run: python3 MediAgenda/release-verified/v1.9.127-rc1/rebuild.py
+      - name: Check signing certificate and package identity
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee apk-verification.txt
+          grep -F "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a" apk-verification.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" apk-verification.txt
+          grep -F "Verified using v3 scheme (APK Signature Scheme v3): true" apk-verification.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | head -n 1 | tee identity.txt
+          grep -F "name='com.mediagenda.app.stable'" identity.txt
+          grep -F "versionCode='137'" identity.txt
+          grep -F "versionName='1.9.127'" identity.txt
+      - name: Fetch validated Windows 0.7.2 installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 41414179990 --repo DanBar1971/SaudePratica --name SaudePratica-Windows-INSTALADOR-EXPERIMENTAL --dir installer
+          test -s installer/SaudePratica-Setup.exe
+      - name: Publish isolated test release, not latest stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=interop-v1.9.127-rc1
+          REPO=DanBar1971/SaudePratica
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release exists; refusing silent overwrite."
+            gh release view "$TAG" --repo "$REPO" --json assets |
+              jq -e 'any(.assets[]; .name=="SaudePratica.apk") and any(.assets[]; .name=="SaudePratica-Setup.exe")'
+            exit 0
+          fi
+          git archive --format=zip --output=SaudePratica-v1.9.127-RC1-SOURCE.zip HEAD
+          sha256sum SaudePratica.apk installer/SaudePratica-Setup.exe SaudePratica-v1.9.127-RC1-SOURCE.zip > SHA256SUMS.txt
+          gh release create "$TAG" SaudePratica.apk installer/SaudePratica-Setup.exe SHA256SUMS.txt SaudePratica-v1.9.127-RC1-SOURCE.zip --repo "$REPO" --target "$GITHUB_SHA" --title "SaúdePrática RC1 — Android 1.9.127 e Windows 0.7.2 · backups família/perfil" --notes-file MediAgenda/v147_overrides/RELEASE_NOTES.md --prerelease --latest=false
+          gh release view "$TAG" --repo "$REPO" --json assets |
+            jq -e 'any(.assets[]; .name=="SaudePratica.apk") and any(.assets[]; .name=="SaudePratica-Setup.exe")'

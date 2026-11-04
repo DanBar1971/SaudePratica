@@ -648,9 +648,29 @@ class SecureStore:
         summary["new_attachments"]=len(assets)-1
         return summary
 
-    def export_backup(self, password: str) -> bytes:
+    def export_backup(self, password: str, profile_id: str | None = None) -> bytes:
+        """One .spbackup format; family or a single selected profile."""
+        selected=([self.get_profile(profile_id)] if profile_id is not None
+                  else list(self.profiles()))
+        if not selected or any(p is None for p in selected):
+            raise LocalStoreError("Escolhe um perfil válido ou a família inteira.")
+        scope="profile" if profile_id is not None else "family"
+        if profile_id is not None:
+            # An original Android archive can contain all family members.
+            # Never hide unrelated patients in a nominally single-profile
+            # backup. Fail until a verified filtered source snapshot exists.
+            for original in self.android_archives():
+                owners=original.get("profile_ids",[])
+                if profile_id in owners and (
+                    len(owners)!=1 or owners[0]!=profile_id):
+                    raise LocalStoreError(
+                        "Este perfil ainda depende de um backup Android "
+                        "com dados de outras pessoas. Para preservar a "
+                        "privacidade e não perder dados, usa por agora "
+                        "Backup Família. O backup Perfil será ativado "
+                        "após separar todos os anexos por perfil.")
         files = {}
-        for p in self.profiles():
+        for p in selected:
             pid = p["id"]
             uuid.UUID(pid)
             prefix = "profiles/" + pid + "/"
@@ -660,9 +680,12 @@ class SecureStore:
                         if k not in ("medications", "appointments")}
             files[prefix+"profile.json"] = json.dumps(
                 metadata, ensure_ascii=False).encode("utf-8")
+            files[prefix+"backup_scope.json"]=json.dumps({
+                "scope":scope,"format":2,"profile_count":len(selected)
+            },ensure_ascii=False).encode("utf-8")
             # Preserve preferences and future global metadata in the encrypted
             # archive, without overwriting preferences on a populated Windows.
-            if p is self.profiles()[0]:
+            if scope=="family" and p is selected[0]:
                 state={k:v for k,v in self.data.items()
                        if k not in ("profiles","imported_files",
                                     "android_family_archives")}
@@ -694,6 +717,15 @@ class SecureStore:
         if not files:
             raise LocalStoreError("Cria pelo menos um perfil antes de fazer backup.")
         return create_backup(files, password)
+
+    def inspect_portable_backup(self, encrypted: bytes, password: str):
+        from windows.portable_restore_v072 import inspect
+        verified=read_backup(encrypted,password)
+        return inspect(verified,self.profiles())
+
+    def restore_portable_backup(self, plan, password_for_safety_copy: str):
+        from windows.portable_restore_v072 import apply
+        return apply(self,plan,password_for_safety_copy)
 
     def inspect_backup(self, encrypted: bytes, password: str):
         data = read_backup(encrypted, password)

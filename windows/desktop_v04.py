@@ -31,6 +31,7 @@ from windows.visual_v07 import circular_photo, wallpaper_image
 from windows.android_import_v062 import plan_json, apply_plan, AndroidImportError
 from windows.android_archive_v063 import archive_sources,prepare_archive,apply_archive
 from windows.family_ui_v064 import family_controls, export_original_zip
+from windows.backup_ui_v072 import render_backup
 from windows.profile_fields_v066 import missing_profile_fields
 from windows.medication_schedule_v066 import next_medication_label
 from windows.medication_gallery_v068 import medication_filter_matches, medication_status
@@ -39,7 +40,7 @@ from windows.appointment_editor_v070 import MAIN_FIELDS as APPOINTMENT_FIELDS, S
 from windows.appointment_reminders_v071 import CHOICES as REMINDER_CHOICES, DEFAULT as REMINDER_DEFAULT, record_offsets
 
 ctk.set_default_color_theme("blue")
-VERSION = "0.7.1"
+VERSION = "0.7.2"
 TEAL = "#00c9b7"
 TEAL_HOVER = "#00a99b"
 BLUE = "#0e6976"
@@ -933,31 +934,8 @@ class Desktop(ctk.CTk):
         self._render()
 
     def _backup(self):
-        self._heading(self.t("backup_title"),self.t("backup_desc"))
-        card=self._card(self.body)
-        card.pack(fill="x",pady=10)
-        wrapper=ctk.CTkFrame(card,fg_color="transparent")
-        wrapper.pack(fill="x",padx=30,pady=25)
-        self._label(wrapper,self.t("password"),13,True).pack(anchor="w")
-        self.backup_pass=ctk.CTkEntry(wrapper,show="●",height=43,width=320,
-            fg_color=self.p["field"],border_color=self.p["line"])
-        self.backup_pass.pack(anchor="w",pady=(6,15))
-        self._label(wrapper,self.t("confirm_password"),13,True).pack(anchor="w")
-        self.backup_confirm=ctk.CTkEntry(wrapper,show="●",height=43,width=320,
-            fg_color=self.p["field"],border_color=self.p["line"])
-        self.backup_confirm.pack(anchor="w",pady=(6,20))
-        actions=ctk.CTkFrame(wrapper,fg_color="transparent")
-        actions.pack(anchor="w")
-        self._button(actions,self.t("export"),self._export_backup,True,200).pack(side="left",padx=(0,10))
-        self._button(actions,self.t("restore"),self._restore_backup,width=200).pack(side="left")
-        self._button(wrapper,"Importar toda a família Android",
-                     lambda:self.navigate("import"),width=302,height=38).pack(anchor="w",pady=(18,0))
-        self._button(wrapper,"Reexportar ZIP Android original",
-                     lambda:export_original_zip(self),width=300,height=34).pack(anchor="w",pady=(8,0))
-        self._label(wrapper,
-            "O backup .spbackup encriptado inclui todos os perfis, fotos, documentos, "
-            "medicação, agenda e os ZIPs Android originais anteriormente importados.",
-            12,color=self.p["muted"],wrap=920).pack(anchor="w",pady=(12,0))
+        """The only public Backup screen: Family / Profile .spbackup."""
+        return render_backup(self)
 
     def _open_appointment(self,appointment_id):
         self.editing_appointment=appointment_id

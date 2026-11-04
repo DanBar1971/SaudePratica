@@ -1,0 +1,131 @@
+name: Publicar SaúdePrática Android 1.9.135 NORMAL — Backup familiar com PIN
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-android-19135-stable.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-stable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout original
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: SDK Android assinatura
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Confirmar CI, testes e assinatura ORIGINAL aprovados
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          test "$REPO" = "DanBar1971/SaudePratica"
+          test "$(gh api "repos/$REPO/actions/runs/41815569510" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/41815569510" --jq .head_sha)" = 195d9fe804b35a557324c3b8b23b8a771bfbaf80
+          test "$(gh api "repos/$REPO/actions/runs/41815569510" --jq .head_branch)" = feat/android-19135-four-digit-backup-pin
+          test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41816222905 --jq .conclusion)" = success
+          test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41816222905 --jq .head_sha)" = 14d5db09863d1e09de6d33ac1d7224ea12d951d7
+          CURRENT="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
+          test "$CURRENT" = v1.9.134 || test "$CURRENT" = v1.9.135
+      - name: Descarregar artefacto assinado — sem ler a chave privada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download 41816222905 --repo DanBar1971/AndroidAppDev \
+            --name SaudePratica-v1.9.135-ORIGINAL-SIGNED --dir signed
+          test -s signed/SaudePratica.apk
+          test -s signed/SHA256SUMS.txt
+          test "$(tr -d '[:space:]' < signed/source-run.txt)" = 41815569510
+          (cd signed && sha256sum -c SHA256SUMS.txt)
+          cp signed/SaudePratica.apk ./
+      - name: Validar identidade, assinatura original e ausência do motor IA antigo
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee signature.txt
+          grep -Fi "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a" signature.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" signature.txt
+          grep -F "Verified using v3 scheme (APK Signature Scheme v3): true" signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | sed -n '1p' | tee identity.txt
+          grep -F "name='com.mediagenda.app.stable'" identity.txt
+          grep -F "versionCode='145'" identity.txt
+          grep -F "versionName='1.9.135'" identity.txt
+          if unzip -Z1 SaudePratica.apk | grep -Fq "libsaude_llm.so"; then
+            echo "::error::A APK contém o motor IA que deveria ter sido removido"
+            exit 1
+          fi
+          unzip -tqq SaudePratica.apk
+      - name: Arquivar exatamente o código-fonte aprovado e SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 195d9fe804b35a557324c3b8b23b8a771bfbaf80
+          test "$(git rev-parse FETCH_HEAD)" = 195d9fe804b35a557324c3b8b23b8a771bfbaf80
+          git archive --format=zip --output=SaudePratica-v1.9.135-CODIGO-FONTE.zip FETCH_HEAD
+          test -s SaudePratica-v1.9.135-CODIGO-FONTE.zip
+          sha256sum SaudePratica.apk SaudePratica-v1.9.135-CODIGO-FONTE.zip > SaudePratica-v1.9.135-SHA256SUMS.txt
+      - name: Publicar Android Release NORMAL v1.9.135 (nunca preview)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TAG=v1.9.135
+          cat > notes.md <<'EOF'
+          # SaúdePrática Android 1.9.135 — Backups com PIN de quatro dígitos
+
+          APK normal assinada com o certificado ORIGINAL da SaúdePrática, para atualizar por cima da v1.9.134 sem desinstalar a aplicação nem apagar dados.
+
+          ## Novidades
+          - O novo backup encriptado .spbackup (Família ou Perfil) usa apenas um PIN de quatro números, pedido num teclado numérico Android; inclui confirmação ao criar.
+          - Os backups antigos continuam a poder ser restaurados com a respetiva palavra-passe original. O ficheiro é identificado automaticamente pelo formato.
+          - O novo formato é compatível com SaúdePrática Windows 0.8.16, também atualizada para usar PIN de quatro dígitos.
+          - Continua a guardar as leituras autorizadas do Health Connect no perfil correto sempre que os dados forem atualizados, sem modificar o histórico de peso manual.
+          - Mantém a distinção entre backup Família e backup Perfil: um perfil não deve incluir dados de outros familiares.
+          - Alarmes, tomas, sincronização Wi-Fi, módulo de Ajuda e gráficos oficiais mantidos.
+
+          ## Segurança
+          - Dados cifrados com AES-256-GCM e PBKDF2-HMAC-SHA256; PIN v2 utiliza 1 200 000 iterações e sal aleatório.
+          - Atenção: um PIN de quatro números tem só 10 000 combinações e protege menos do que uma palavra-passe longa. Guarda sempre o ficheiro em local privado e protegido.
+          - O PIN de desbloqueio Android não é exportado nos backups.
+          - O formato ZIP Android não encriptado permanece apenas para compatibilidade de importação, não como opção normal de exportação.
+
+          Compilação e testes automáticos concluídos; recomenda-se validação no telemóvel antes de utilizar para dados críticos. Código-fonte e somas SHA-256 incluídos na release.
+          EOF
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$REPO" --json isDraft,isPrerelease,assets \
+              --jq '(.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          else
+            gh release create "$TAG" SaudePratica.apk \
+              SaudePratica-v1.9.135-CODIGO-FONTE.zip \
+              SaudePratica-v1.9.135-SHA256SUMS.txt \
+              --repo "$REPO" --target 195d9fe804b35a557324c3b8b23b8a771bfbaf80 \
+              --title "SaúdePrática Android v1.9.135 — Backup familiar com PIN numérico" \
+              --notes-file notes.md --latest
+          fi
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = "$TAG"
+          gh release view "$TAG" --repo "$REPO" --json tagName,isPrerelease,assets \
+            --jq '.tagName=="v1.9.135" and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          echo "::notice title=Atualização Android publicada::https://github.com/$REPO/releases/tag/$TAG"

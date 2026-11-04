@@ -11,47 +11,58 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from windows import login_pin_v0816 as pin_access
+from windows.wallpaper_shell_v06 import WallpaperShell
 
 
 class LoginUiV0816:
     def _pin_entry(self,parent,label):
         self._label(parent,label,12,True).pack(anchor="w",pady=(7,4))
         field=ctk.CTkEntry(
-            parent,width=230,height=44,show="●",placeholder_text="4 números",
+            parent,width=345,height=48,show="●",placeholder_text="PIN · 4 números",
             fg_color=self.p["field"],text_color=self.p["text"],
-            border_color=self.p["line"],
-            font=ctk.CTkFont(size=19,weight="bold"))
+            border_color=self.p["line"],corner_radius=12,
+            font=ctk.CTkFont(family="Segoe UI",size=20,weight="bold"))
         field.pack(anchor="w",pady=(0,4))
         return field
 
     def _profile_options(self,people):
         labels={}
         for p in people:
-            key=(str(p.get("name","Perfil"))[:60]+" · "+p["id"][:8])
-            labels[key]=p["id"]
+            title=str(p.get("name") or "Perfil")[:60]
+            label=title
+            suffix=2
+            while label in labels:
+                label=f"{title} ({suffix})"
+                suffix+=1
+            labels[label]=p["id"]
         return labels
 
     def _display_login(self):
         self.p=self._palette()
         self.configure(fg_color=self.p["bg"])
         self._clear()
-        page=ctk.CTkFrame(self,fg_color=self.p["bg"])
-        page.pack(fill="both",expand=True)
+        page=WallpaperShell(self,light=ctk.get_appearance_mode().lower()=="light")
         outer=ctk.CTkFrame(
-            page,fg_color=self.p["panel"],border_width=1,
-            border_color=self.p["line"],corner_radius=22,width=520)
-        outer.pack(expand=True,padx=25,pady=30)
-        content=ctk.CTkFrame(outer,fg_color="transparent",width=420)
-        content.pack(padx=45,pady=30)
-        self._label(content,"🔐  SaúdePrática",28,True,
-                    color="#00c9b7").pack(anchor="w",pady=(0,10))
+            page.content,fg_color=self.p["panel"],border_width=2,
+            border_color="#197781",corner_radius=23,width=575)
+        outer.pack(expand=True,padx=28,pady=25)
+        content=ctk.CTkFrame(outer,fg_color="transparent",width=450)
+        content.pack(padx=47,pady=31)
+        brand=ctk.CTkFrame(content,fg_color="transparent")
+        brand.pack(fill="x",pady=(0,13))
+        ctk.CTkLabel(brand,image=self.logo,text="",width=47,
+                     height=47).pack(side="left",padx=(0,12))
+        self._label(brand,"SaúdePrática",29,True,color="#00c9b7").pack(
+            side="left")
+        self._label(content,"ACESSO PROTEGIDO",11,True,
+                    color="#55c5bb").pack(anchor="w",pady=(0,13))
         existing=pin_access.configured(self.store)
         if existing:
-            self._label(content,"Introduz o teu PIN para entrar",17,True).pack(
+            self._label(content,"Introduz o PIN para entrar",21,True).pack(
                 anchor="w",pady=(0,4))
             self._label(content,
-                "O PIN é exclusivo desta instalação Windows.",
-                12,color=self.p["muted"],wrap=390).pack(anchor="w",pady=(0,12))
+                "Os dados de saúde só aparecem depois de confirmares o PIN.",
+                13,color=self.p["muted"],wrap=410).pack(anchor="w",pady=(0,12))
             field=self._pin_entry(content,"PIN de entrada")
             field.bind("<Return>",lambda _evt:self._check_login_pin(field))
             self._login_message=self._label(
@@ -59,20 +70,20 @@ class LoginUiV0816:
             self._login_message.pack(anchor="w",pady=(6,10))
             self._button(content,"Entrar",
                          lambda:self._check_login_pin(field),
-                         True,width=230,height=44).pack(anchor="w",pady=(8,4))
+                         True,width=345,height=46).pack(anchor="w",pady=(8,4))
             field.focus_set()
             return
-        self._label(content,"Primeira utilização no Windows",17,True).pack(
+        self._label(content,"Primeira utilização no Windows",21,True).pack(
             anchor="w",pady=(0,7))
         self._label(content,
             "Escolhe o perfil que abre sempre após introduzires o PIN. "
             "Poderás mudar para os restantes perfis normalmente.",
-            12,color=self.p["muted"],wrap=390).pack(anchor="w",pady=(0,12))
+            13,color=self.p["muted"],wrap=410).pack(anchor="w",pady=(0,12))
         self._login_profile_map=self._profile_options(self.store.profiles())
         self._label(content,"Perfil predefinido",12,True).pack(anchor="w")
         choices=list(self._login_profile_map) or ["Ainda não há perfis"]
         self._login_profile_choice=ctk.CTkOptionMenu(
-            content,values=choices,width=330,height=38,
+            content,values=choices,width=345,height=43,
             fg_color=self.p["field"],button_color="#087b8c",
             dropdown_fg_color=self.p["panel"],
             text_color=self.p["text"])
@@ -83,7 +94,7 @@ class LoginUiV0816:
             content,"",11,color="#f7aeae",wrap=400)
         self._login_message.pack(anchor="w",pady=(5,8))
         self._button(content,"Guardar PIN e entrar",
-            self._configure_login_pin,True,width=230,height=44).pack(
+            self._configure_login_pin,True,width=345,height=46).pack(
                 anchor="w",pady=(8,4))
         self._login_first_pin.focus_set()
 
@@ -126,17 +137,16 @@ class LoginUiV0816:
     def _display_choose_default_after_unlock(self):
         self.p=self._palette()
         self._clear()
-        page=ctk.CTkFrame(self,fg_color=self.p["bg"])
-        page.pack(fill="both",expand=True)
+        page=WallpaperShell(self,light=ctk.get_appearance_mode().lower()=="light")
         card=ctk.CTkFrame(
-            page,fg_color=self.p["panel"],border_width=1,
-            border_color=self.p["line"],corner_radius=20)
+            page.content,fg_color=self.p["panel"],border_width=2,
+            border_color="#197781",corner_radius=22)
         card.pack(expand=True,padx=32,pady=28)
-        self._label(card,"Escolher perfil predefinido",21,True).pack(
+        self._label(card,"Escolher perfil predefinido",24,True).pack(
             anchor="w",padx=28,pady=(25,7))
         self._label(card,
             "Este perfil abrirá após o PIN. Continuarás a poder trocar de perfil.",
-            12,color=self.p["muted"]).pack(anchor="w",padx=28)
+            13,color=self.p["muted"],wrap=440).pack(anchor="w",padx=28)
         choices=self._profile_options(self.store.profiles())
         selection=ctk.CTkOptionMenu(
             card,values=list(choices),width=310,height=40,

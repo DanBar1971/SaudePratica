@@ -1,0 +1,131 @@
+name: Publicar SaúdePrática Android 1.9.137 NORMAL — Equipa compacta e calendário
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-android-19137-stable.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-stable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout original
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: SDK Android assinatura
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Confirmar CI, testes e assinatura ORIGINAL aprovados
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          test "$REPO" = "DanBar1971/SaudePratica"
+          test "$(gh api "repos/$REPO/actions/runs/41838537841" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/41838537841" --jq .head_sha)" = 799c820fb843bdbe624f80c157ad88c8a0eaf6a0
+          test "$(gh api "repos/$REPO/actions/runs/41838537841" --jq .head_branch)" = feat/android-19137-compact-clinical-calendar
+          test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41839256895 --jq .conclusion)" = success
+          test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41839256895 --jq .head_sha)" = d5b56c4573b02ff921c15097d6259a3dd8b37234
+          CURRENT="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
+          test "$CURRENT" = v1.9.136 || test "$CURRENT" = v1.9.137
+      - name: Descarregar artefacto assinado — sem ler a chave privada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download 41839256895 --repo DanBar1971/AndroidAppDev \
+            --name SaudePratica-v1.9.137-ORIGINAL-SIGNED --dir signed
+          test -s signed/SaudePratica.apk
+          test -s signed/SHA256SUMS.txt
+          test "$(sed -n '1p' signed/source-run.txt | tr -d '[:space:]')" = 41838537841
+          test "$(sed -n '2p' signed/source-run.txt | tr -d '[:space:]')" = 799c820fb843bdbe624f80c157ad88c8a0eaf6a0
+          (cd signed && sha256sum -c SHA256SUMS.txt)
+          cp signed/SaudePratica.apk ./
+      - name: Validar identidade, assinatura original e ausência do motor IA antigo
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs SaudePratica.apk | tee signature.txt
+          grep -Fi "7f67082f5e0de76986a0078d5f998e65467c8468f4d09b0caf8e4b332cc60e6a" signature.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" signature.txt
+          grep -F "Verified using v3 scheme (APK Signature Scheme v3): true" signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging SaudePratica.apk | sed -n '1p' | tee identity.txt
+          grep -F "name='com.mediagenda.app.stable'" identity.txt
+          grep -F "versionCode='147'" identity.txt
+          grep -F "versionName='1.9.137'" identity.txt
+          if unzip -Z1 SaudePratica.apk | grep -Fq "libsaude_llm.so"; then
+            echo "::error::A APK contém o motor IA que deveria ter sido removido"
+            exit 1
+          fi
+          unzip -tqq SaudePratica.apk
+      - name: Arquivar exatamente o código-fonte aprovado e SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 799c820fb843bdbe624f80c157ad88c8a0eaf6a0
+          test "$(git rev-parse FETCH_HEAD)" = 799c820fb843bdbe624f80c157ad88c8a0eaf6a0
+          git archive --format=zip --output=SaudePratica-v1.9.137-CODIGO-FONTE.zip FETCH_HEAD
+          test -s SaudePratica-v1.9.137-CODIGO-FONTE.zip
+          sha256sum SaudePratica.apk SaudePratica-v1.9.137-CODIGO-FONTE.zip > SaudePratica-v1.9.137-SHA256SUMS.txt
+      - name: Publicar Android Release NORMAL v1.9.137 (nunca preview)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TAG=v1.9.137
+          cat > notes.md <<'EOF'
+          # SaúdePrática Android 1.9.137 — Equipa compacta, processos hospitalares e Google Calendário
+
+          APK normal com a assinatura ORIGINAL da SaúdePrática para instalar por cima da 1.9.136, sem desinstalação e sem eliminar os dados.
+
+          ## Novidades
+          - **Situação Clínica:** cada unidade/número de processo é agora um cartão clicável, sem botões duplicados no exterior. Na ficha interior é possível editar/eliminar o processo e consultar a equipa, taxas moderadoras, imagem e transportes.
+          - **A minha equipa:** contactos em lista compacta com nome e especialidade, email e telefone clicáveis e ícones pequenos de edição/eliminação. Campo de pesquisa útil para listas com muitos profissionais.
+          - **Ecrã hospitalar:** corrigido o espaço de segurança superior e inferior para Android/Xiaomi.
+          - **Agenda → Google Calendário:** corrigido o seletor invisível; lista de Próximas e Histórico; uma marcação de cada vez abre o editor nativo para o utilizador escolher o calendário e confirmar. **Não é sincronização automática** e não pede permissões de calendário.
+          - Mantém os contactos, taxas, transporte e imagem já guardados na Android 1.9.136, incluindo a informação do processo no backup Família e na transferência Nearby por perfil.
+
+          ## Compatibilidade e segurança
+          - Não consulta a aplicação IPO Lisboa, nem qualquer serviço hospitalar, nem envia pedidos reais.
+          - Os dados continuam privados e separados por perfil/unidade/número de processo; nenhum dado real foi colocado no repositório.
+          - Mantém PIN de quatro dígitos nos backups, alarmes de medicação TOMEI/ADIAR, identidade Android e certificado original.
+          - Windows 0.8.17 preserva os ficheiros do backup mas não apresenta este dossier em ecrã; o suporte de consulta está a ser preparado para Windows 0.8.18.
+
+          CI e assinatura original validadas; testar num telemóvel real antes de depender das funções para dados clínicos.
+          EOF
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$REPO" --json isDraft,isPrerelease,assets \
+              --jq '(.isDraft|not) and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          else
+            gh release create "$TAG" SaudePratica.apk \
+              SaudePratica-v1.9.137-CODIGO-FONTE.zip \
+              SaudePratica-v1.9.137-SHA256SUMS.txt \
+              --repo "$REPO" --target 799c820fb843bdbe624f80c157ad88c8a0eaf6a0 \
+              --title "SaúdePrática Android v1.9.137 — Equipa compacta e Google Calendário" \
+              --notes-file notes.md --latest
+          fi
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = "$TAG"
+          gh release view "$TAG" --repo "$REPO" --json tagName,isPrerelease,assets \
+            --jq '.tagName=="v1.9.137" and (.isPrerelease|not) and any(.assets[]; .name=="SaudePratica.apk")' | grep -Fx true
+          echo "::notice title=Atualização Android publicada::https://github.com/$REPO/releases/tag/$TAG"

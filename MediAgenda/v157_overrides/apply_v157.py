@@ -3,7 +3,7 @@
 from pathlib import Path
 from hashlib import sha256
 src=Path("build-src/MediAgenda_Android_v1/app/src/main/java/com/mediagenda/app")
-gradle=src.parents[3]/"build.gradle.kts"
+gradle=src.parents[5]/"build.gradle.kts"
 protected=["notifications/MedicationAlarmService.kt","notifications/NotificationScheduler.kt",
  "notifications/NotificationReceiver.kt","notifications/MedicationAlarmCoordinator.kt",
  "notifications/MedicationAlarmPreferences.kt","notifications/IntakeActionReceiver.kt",

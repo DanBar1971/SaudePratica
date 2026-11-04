@@ -210,7 +210,7 @@ class HospitalProcessActivity : AppCompatActivity() {
             darkBackdrop,ColorDrawable(Color.argb(190,1,13,25))))
             else ColorDrawable(Color.rgb(5,24,35))
         val scroll=ScrollView(this).apply{
-            fillViewport=true
+            isFillViewport=true
             background=wallpaper
         }
         body=LinearLayout(this).apply{

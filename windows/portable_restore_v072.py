@@ -14,7 +14,7 @@ import json
 import re
 import uuid
 
-from shared.python.saude_backup import BackupError
+from shared.python.saude_backup import BackupError, PIN_RE
 
 HEX = re.compile(r"^[a-f0-9]{64}$")
 VALID_SCOPE = {"family", "profile"}
@@ -150,8 +150,18 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
     """
     if not isinstance(plan,RestorePlan):
         raise BackupError("Pré-visualização de restauro inválida.")
-    if len(password_for_safety_copy)<10:
-        raise BackupError("Indica uma palavra-passe segura para a cópia de segurança.")
+    # A safety snapshot must accept exactly the same secret types that the
+    # shared backup writer accepts: four ASCII PIN digits (new format), or
+    # legacy passwords of at least ten characters. The Android and Windows
+    # archives use this same verified encryption implementation.
+    if not isinstance(password_for_safety_copy,str) or not (
+        bool(PIN_RE.fullmatch(password_for_safety_copy)) or
+        len(password_for_safety_copy)>=10
+    ):
+        raise BackupError(
+            "Para proteger a cópia de segurança, indica o PIN numérico de "
+            "4 dígitos do backup. Backups antigos aceitam a palavra-passe original."
+        )
     import datetime
     previous=store.data
     # Verify again because another operation could have modified the plan.

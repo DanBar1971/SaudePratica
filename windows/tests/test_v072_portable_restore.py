@@ -78,6 +78,49 @@ class BackupRestoreV072Tests(unittest.TestCase):
         dest.restore_portable_backup(again,PASSWORD)
         self.assertEqual(len(dest.profiles()),2)
 
+    def test_family_pin_restoration_creates_automatic_pin_safety_backup(self):
+        """Regression: Windows must not demand 10 characters after accepting a PIN."""
+        from shared.python.saude_backup import backup_access_kind
+        pin="2048"  # synthetic PIN, never a real patient's secret
+        android=self.store(self.a)
+        android.create_profile("Paciente Fictício")
+        android.data["profiles"][0]["appointments"]=[
+            {"id":"a-new","title":"Consulta de teste"}]
+        android.save()
+        encrypted=android.export_backup(pin)
+        self.assertEqual(backup_access_kind(encrypted),"pin")
+        windows=self.store(self.b)
+        old=windows.create_profile("Paciente Fictício")
+        windows.data["profiles"][0]["appointments"]=[
+            {"id":"a-old","title":"Consulta antiga"}]
+        windows.save()
+        plan=windows.inspect_portable_backup(encrypted,pin)
+        self.assertEqual(plan.people[0].operation,"replace")
+        result=windows.restore_portable_backup(plan,pin)
+        self.assertEqual(result["replaced"],1)
+        safety=Path(result["recovery"]).read_bytes()
+        self.assertEqual(backup_access_kind(safety),"pin")
+        safety_files=read_backup(safety,pin)
+        self.assertTrue(any(
+            b"Consulta antiga" in b for path,b in safety_files.items()
+            if path.endswith("/agenda.json")))
+        self.assertEqual(windows.get_profile(old["id"])["appointments"],
+                         [{"id":"a-new","title":"Consulta de teste"}])
+
+    def test_invalid_short_safety_secrets_are_rejected_without_changes(self):
+        source=self.store(self.a)
+        source.create_profile("Pessoa fictícia")
+        payload=source.export_backup("2048")
+        dest=self.store(self.b)
+        dest.create_profile("Pessoa fictícia")
+        plan=dest.inspect_portable_backup(payload,"2048")
+        snapshot=copy.deepcopy(dest.data)
+        for invalid in ("","123","ABCDE","12A4"):
+            with self.subTest(value_length=len(invalid)):
+                with self.assertRaisesRegex(BackupError,"PIN numérico"):
+                    dest.restore_portable_backup(plan,invalid)
+                self.assertEqual(snapshot,dest.data)
+
     def test_single_profile_export_does_not_include_other_patient(self):
         src=self.store(self.a)
         p=src.create_profile("Pessoa A")

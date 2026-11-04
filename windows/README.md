@@ -143,3 +143,7 @@ A ficha permite selecionar avisos **1 dia, 2 horas, 1 hora, 30 minutos antes e n
 ## Windows 0.8.14 — Restauro automático sem botões por módulo
 
 A primeira abertura da versão 0.8.14 após uma instalação antiga faz a migração automática dos backups Android originais já guardados no Windows, incluindo Nutrição, fotografias, Hidratação, Sintomas, Tomas, SOS e Lares/Apoios. A importação de um ZIP familiar também converte os módulos no mesmo passo. Miniaturas reais das refeições à esquerda da lista; no perfil do cuidador, resumo da instituição e mensalidades dos residentes explicitamente associados. Cópia de segurança DPAPI local antes da migração e controlo de repetição sem duplicados. A importação manual de reparação permanece em Backup e Restauro. Ver `windows/RELEASE_NOTES_0814.md`.
+
+## Windows 0.8.19 — corrigido restauro com PIN de 4 números
+
+O Windows aceita o PIN numérico de quatro dígitos para desencriptar o backup Android e para criar a cópia de segurança automática antes de qualquer restauro. Foi retirada a validação obsoleta que exigia uma palavra-passe de dez caracteres na segunda fase. A aplicação mantém compatibilidade com os backups antigos protegidos por palavra-passe, preserva os dados em caso de erro e conserva os processos hospitalares da versão 0.8.18.

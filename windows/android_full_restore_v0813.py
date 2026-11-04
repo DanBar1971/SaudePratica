@@ -18,6 +18,10 @@ from windows.android_sos_lares_v0811 import _typed_text, _sos, _care
 from windows.meal_android_import_v0810 import extract_meal_diary
 from windows.remaining_models_v0810 import validate_record
 from windows.wellness_models_v089 import water_settings
+from windows.health_connect_import_v0815 import (
+    decode_health_connect,merge_health_connect,
+    decode_manual_body,merge_manual_body,
+)
 
 SOURCE_ID=re.compile(r"^(?:legacy|[0-9a-fA-F-]{36})$")
 MAX_HEALTH=6000
@@ -202,6 +206,8 @@ def extract_profile_android(original_zip:bytes,source_id:str) -> dict:
     institutions,invoices=_care(raw_care,source_id)
     meals,photos=extract_meal_diary(original_zip,source_id)
     symptoms,intakes,measurements=_read_health(files,source_id)
+    health_connect=decode_health_connect(files,source_id)
+    manual_body=decode_manual_body(prefs,source_id)
     caretaker=_typed(prefs.get("saudepratica_caregiver_v1",{}),
                      "caregiver_id","s")
     return {
@@ -212,6 +218,8 @@ def extract_profile_android(original_zip:bytes,source_id:str) -> dict:
         "symptoms":symptoms,
         "intakes":intakes,
         "measurements":measurements,
+        "health_connect":health_connect,
+        "manual_body":manual_body,
         "sos":sos,
         "residences":institutions,
         "invoices":invoices,
@@ -232,6 +240,7 @@ def merge_snapshot(profile:dict,snapshot:dict,source_to_target:dict,
         raise ValueError("Origem Android não corresponde ao perfil de destino.")
     counts={"meals":0,"meal_photos":0,"water":0,"symptoms":0,
             "intakes":0,"measurements":0,
+            "health_connect":0,"manual_body":0,
             "sos":0,"residences":0,"invoices":0}
     photo_meta=[]
     photo_blobs=[]
@@ -259,6 +268,12 @@ def merge_snapshot(profile:dict,snapshot:dict,source_to_target:dict,
                 current.append(copy.deepcopy(row))
                 ids.add(row["id"])
                 counts[label]+=1
+    # Auto-import all authorised Health Connect readings from the Android
+    # 1.9.134 profile-scoped snapshot. Never merge these into manually edited
+    # Windows activity rows or raw Android body measurements.
+    counts["health_connect"]=merge_health_connect(
+        profile,snapshot["health_connect"])
+    counts["manual_body"]=merge_manual_body(profile,snapshot["manual_body"])
     # Only the actual stored Android daily aggregate, never individual cups.
     water=snapshot.get("water")
     if water:

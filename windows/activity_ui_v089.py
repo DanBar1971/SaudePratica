@@ -12,6 +12,7 @@ import customtkinter as ctk
 
 from windows.secure_store import LocalStoreError
 from windows.wellness_models_v089 import ACTIVITY_LABELS, weekly_series
+from windows.activity_health_connect_v0815 import ActivityHealthConnectUiV0815
 
 
 METRICS = (
@@ -77,7 +78,7 @@ def activity_display(item: dict, name: str) -> str:
     return str(value)
 
 
-class ActivityUiV089:
+class ActivityUiV089(ActivityHealthConnectUiV0815):
     def _activity_select(self,day: date):
         if day<=date.today():
             self.activity_day=day
@@ -118,7 +119,7 @@ class ActivityUiV089:
         self.wallpaper_shell.glass_enabled=False
         person=self.store.get_profile(self.active_id) if self.active_id else None
         self._heading("Atividade e Saúde",
-                      "Medições manuais do perfil: "+str(person.get("name",""))
+                      "Health Connect guardado no backup e registos manuais · "+str(person.get("name",""))
                       if person else "Seleciona um perfil.")
         if not person:
             return
@@ -133,7 +134,7 @@ class ActivityUiV089:
         main.grid_rowconfigure(0,weight=1)
         main.grid_columnconfigure(0,weight=9,uniform="activity")
         main.grid_columnconfigure(1,weight=11,uniform="activity")
-        left=ctk.CTkFrame(main,fg_color=self.p["panel"],
+        left=ctk.CTkScrollableFrame(main,fg_color=self.p["panel"],
                           border_color=self.p["line"],border_width=1,
                           corner_radius=14)
         right=ctk.CTkFrame(main,fg_color=self.p["panel"],
@@ -145,11 +146,19 @@ class ActivityUiV089:
         self._activity_right=right
         self._label(left,"Resumo de atividade",17,True).pack(
             anchor="w",padx=14,pady=(12,4))
-        self._label(left,
-            "Os dados são introduzidos manualmente. Ainda não existe "
-            "ligação do Windows ao Health Connect do Android.",
-            11,color=self.p["muted"],wrap=465).pack(
-                anchor="w",padx=14,pady=(0,13))
+        health=person.get("android_health_connect",{})
+        if isinstance(health,dict) and health.get("days"):
+            self._draw_health_connect(left,health,day)
+        else:
+            self._label(left,
+                "Ainda não há dados Health Connect neste backup. "
+                "No Android 1.9.134, abre Atividade e Saúde, toca "
+                "«Atualizar dados» e cria um novo backup familiar.",
+                11,color=self.p["muted"],wrap=465).pack(
+                    anchor="w",padx=14,pady=(0,13))
+        self._draw_android_body(left,person.get("android_manual_body",{}))
+        self._label(left,"Registos manuais no Windows",13,True).pack(
+            anchor="w",padx=14,pady=(8,6))
         summary=ctk.CTkFrame(left,fg_color=self.p["panel2"],corner_radius=11)
         summary.pack(fill="x",padx=11,pady=(0,10))
         self._label(summary,f"{day:%d/%m/%Y}",16,True,
@@ -168,7 +177,7 @@ class ActivityUiV089:
                 12,color=self.p["text"]).pack(anchor="w",padx=14,pady=2)
         self._label(summary,"",8).pack(pady=2)
 
-        self._label(left,"Passos · últimos 7 dias",14,True).pack(
+        self._label(left,"Passos manuais · últimos 7 dias",14,True).pack(
             anchor="w",padx=15,pady=(3,7))
         series=weekly_series(entries,"steps",day.isoformat())
         max_steps=max([v for _,v in series if v is not None]+[1])
@@ -211,8 +220,8 @@ class ActivityUiV089:
                     anchor="w",padx=10,pady=(5,9))
         self._label(left,"Histórico registado",14,True).pack(
             anchor="w",padx=15,pady=(0,5))
-        listbox=ctk.CTkScrollableFrame(left,fg_color="transparent")
-        listbox.pack(fill="both",expand=True,padx=6,pady=(0,9))
+        listbox=ctk.CTkFrame(left,fg_color="transparent")
+        listbox.pack(fill="x",padx=6,pady=(0,9))
         if not recent:
             self._label(listbox,"Ainda não existem medições manuais.",
                         12,color=self.p["muted"]).pack(
@@ -282,8 +291,9 @@ class ActivityUiV089:
             self._button(bottom,"Apagar dia",self._activity_delete,
                          width=120,height=36).pack(side="left")
         self._label(scroller,
-            "Valores manuais, sem acesso automático a passos, sono ou "
-            "sensores. Esta app não interpreta medições nem substitui "
+            "Valores introduzidos no Windows. As leituras Health Connect "
+            "apresentadas à esquerda provêm apenas do último backup Android. "
+            "Esta app não interpreta medições nem substitui "
             "acompanhamento médico.",
             11,color=self.p["muted"],wrap=490).pack(
                 anchor="w",padx=14,pady=(0,13))

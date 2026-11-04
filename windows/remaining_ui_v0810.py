@@ -246,6 +246,47 @@ class RemainingUiV0810:
                       "Registos do perfil: "+str(profile.get("name",""))
                       if profile else "Seleciona um perfil.")
         if profile is None:return
+        if title=="Lares e Apoios":
+            # A caregiver may see a dependent's care-home overview only when
+            # the Android backup explicitly lists them as resident and
+            # identifies this profile as caregiver. The resident's records
+            # always remain in the resident's own profile.
+            if profile.get("caregiver") is True:
+                residents=profile.get("care_home_residents",[])
+                if isinstance(residents,list) and residents:
+                    strip=ctk.CTkFrame(self.body,fg_color=self.p["panel"],
+                                       border_width=1,
+                                       border_color=self.p["line"],
+                                       corner_radius=11)
+                    strip.pack(fill="x",padx=10,pady=(0,9))
+                    self._label(strip,"Residentes associados ao cuidador",
+                                13,True).pack(side="left",padx=12,pady=10)
+                    for resident_id in residents[:8]:
+                        other=self.store.get_profile(resident_id)
+                        if other is None or not other.get("care_home_resident"):
+                            continue
+                        self._button(
+                            strip,"Consultar "+str(other.get("name","Residente"))[:50],
+                            lambda target=resident_id:self._select_profile_by_id(target),
+                            True,width=180,height=33).pack(side="left",padx=(0,8))
+            else:
+                caregiver=next(
+                    (p for p in self.store.profiles()
+                     if p.get("caregiver") is True and
+                     profile["id"] in p.get("care_home_residents",[])),
+                    None)
+                if caregiver is not None:
+                    strip=ctk.CTkFrame(self.body,fg_color=self.p["panel2"],
+                                       corner_radius=9)
+                    strip.pack(fill="x",padx=10,pady=(0,7))
+                    self._label(strip,"Ficha do residente: "+
+                                str(profile.get("name","")),12,True).pack(
+                                    side="left",padx=10,pady=8)
+                    self._button(
+                        strip,"Voltar ao cuidador "+
+                        str(caregiver.get("name",""))[:40],
+                        lambda uid=caregiver["id"]:self._select_profile_by_id(uid),
+                        width=210,height=32).pack(side="right",padx=8)
         if not isinstance(getattr(self,"_remaining_selection",None),dict):
             self._remaining_selection={}
         if title=="Lares e Apoios":

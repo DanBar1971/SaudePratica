@@ -57,7 +57,7 @@ class UnifiedEditorControls083(unittest.TestCase):
             self.assertIn(label,source)
         self.assertEqual(source.count('tabs=self._editor_tabs(left)'),2)
         backup=(Path(__file__).resolve().parents[1]/"backup_ui_v072.py").read_text(encoding="utf-8")
-        self.assertIn('height=35,corner_radius=10',backup)
+        self.assertIn('height=44,corner_radius=12',backup)
 
 if __name__=="__main__":
     unittest.main()

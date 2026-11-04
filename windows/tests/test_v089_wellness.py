@@ -204,7 +204,7 @@ class ProfileIsolationTests(unittest.TestCase):
             self.assertTrue(statuses[key])
         desktop=(Path(__file__).resolve().parents[1]/
                  "desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.18"',desktop)
+        self.assertIn('VERSION = "0.8.19"',desktop)
         for needle in ('self.page=="water"','self.page=="activity"',
                        'self.page=="cycle"'):
             self.assertIn(needle,desktop)

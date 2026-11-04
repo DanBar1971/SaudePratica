@@ -81,7 +81,7 @@ class SecureStore:
         if not linked:
             return
         fingerprint=sha256(json.dumps(sorted(linked),separators=(",",":")).encode()).hexdigest()
-        marker="_android_auto_recovery_0815"
+        marker="_android_auto_recovery_0816"
         if self.data.get(marker)==fingerprint:
             return
         # A cópia é o ficheiro DPAPI original: não exporta dados em claro

@@ -139,3 +139,7 @@ A Agenda apresenta os quatro filtros funcionais no topo: **Todas | Pendentes | R
 ## Windows 0.7.1 — Avisos de Agenda
 
 A ficha permite selecionar avisos **1 dia, 2 horas, 1 hora, 30 minutos antes e na hora da consulta**, usando os mesmos valores numéricos `reminders_minutes` do Android. Um processo auxiliar do Windows, iniciado automaticamente com a sessão, apresenta avisos locais mesmo com a janela principal fechada. É necessário que a conta esteja iniciada, o PC ligado/acordado e as notificações permitidas. Intervalos adicionais antigos continuam preservados. O Android continua com os avisos que já tinha configurados; **não existe sincronização automática** e modificar a configuração no Windows não a altera no telemóvel. Os alarmes da medicação continuam apenas no Android.
+
+## Windows 0.8.14 — Restauro automático sem botões por módulo
+
+A primeira abertura da versão 0.8.14 após uma instalação antiga faz a migração automática dos backups Android originais já guardados no Windows, incluindo Nutrição, fotografias, Hidratação, Sintomas, Tomas, SOS e Lares/Apoios. A importação de um ZIP familiar também converte os módulos no mesmo passo. Miniaturas reais das refeições à esquerda da lista; no perfil do cuidador, resumo da instituição e mensalidades dos residentes explicitamente associados. Cópia de segurança DPAPI local antes da migração e controlo de repetição sem duplicados. A importação manual de reparação permanece em Backup e Restauro. Ver `windows/RELEASE_NOTES_0814.md`.

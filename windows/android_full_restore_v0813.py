@@ -96,7 +96,7 @@ def _read_health(files,source):
     path=f"saudepratica_health/{source}/records.json"
     raw=files.get(path)
     if raw is None:
-        return [],[]
+        return [],[],[]
     if len(raw)>8*1024*1024:
         raise ValueError("Histórico Android acima do limite.")
     try:

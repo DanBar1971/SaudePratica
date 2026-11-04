@@ -136,11 +136,24 @@ def render_backup(app):
                 progress(100,"Etapa 3/3 · Registos gravados e verificados")
                 return result
             def finished(result):
+                modules=result.get("android_modules",{})
+                totals=(
+                    f"\nMódulos Android recuperados:\n"
+                    f"Refeições: {modules.get('meals',0)} · "
+                    f"Fotografias: {modules.get('meal_photos',0)}\n"
+                    f"Água: {modules.get('water',0)} · "
+                    f"Sintomas: {modules.get('symptoms',0)} · "
+                    f"Tomas confirmadas: {modules.get('intakes',0)}\n"
+                    f"Fichas SOS: {modules.get('sos',0)} campos · "
+                    f"Lares: {modules.get('residences',0)} · "
+                    f"Mensalidades: {modules.get('invoices',0)}\n"
+                    f"Outras medições: {modules.get('measurements',0)}\n")
                 messagebox.showinfo("Restauro concluído",
                     f"Restaurados {result['profiles']} perfis; "
                     f"{result['replaced']} substituídos; "
                     f"{result['created']} criados.\n"+
-                    (f"Cópia anterior: {result['recovery']}"
+                    totals+
+                    (f"\nCópia anterior: {result['recovery']}"
                      if result["recovery"] else ""),parent=app)
                 app._render()
             run_progress(app,"A restaurar perfis e registos",apply_work,finished,
@@ -159,6 +172,68 @@ def render_backup(app):
     if selected is None: profile_button.configure(state="disabled")
     app._button(inner,"Restaurar .spbackup · Família ou Perfil",
         restore,width=360,height=44).pack(anchor="w",pady=(15,5))
+
+    def recover_from_stored_android():
+        pwd=password.get()
+        if len(pwd)<10:
+            messagebox.showerror("Recuperar dados Android",
+                "Indica uma palavra-passe com pelo menos 10 caracteres "
+                "para proteger a cópia de segurança.",parent=app)
+            return
+        if not messagebox.askyesno("Recuperar os módulos Android",
+            "Ler os backups Android originais já guardados neste computador "
+            "e preencher automaticamente as fichas dos perfis correspondentes?\n\n"
+            "Recupera Nutrição e fotografias, Hidratação, Sintomas, Tomas "
+            "confirmadas, SOS, Lares e medições antigas.\n\n"
+            "Não substitui registos Windows nem mistura dados de perfis. "
+            "Será criada primeiro uma cópia de segurança encriptada.",
+            parent=app):
+            return
+        def work(progress):
+            import datetime
+            progress(5,"Criar uma cópia de segurança antes da importação...")
+            blob=app.store.export_backup(pwd)
+            recovery=app.store.path.parent/"restores"
+            recovery.mkdir(mode=0o700,parents=True,exist_ok=True)
+            stamp=datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+            target=recovery/("pre-android-recovery-"+stamp+".spbackup")
+            import os,tempfile
+            fd,tmp=tempfile.mkstemp(prefix=".spbackup_",dir=recovery)
+            try:
+                with os.fdopen(fd,"wb") as out:
+                    out.write(blob)
+                    out.flush()
+                    os.fsync(out.fileno())
+                os.replace(tmp,target)
+            finally:
+                if os.path.exists(tmp):os.unlink(tmp)
+            progress(45,"Importar apenas os módulos Android em falta...")
+            result=app.store.recover_android_modules()
+            progress(100,"Recuperação protegida concluída")
+            return result,target
+        def done(out):
+            result,target=out
+            mods=result["android_modules"]
+            app._render()
+            messagebox.showinfo(
+                "Módulos Android recuperados",
+                f"Perfis com backup Android: {result['profiles']}\n"
+                f"Refeições: {mods['meals']} · Fotografias: {mods['meal_photos']}\n"
+                f"Água: {mods['water']} · Sintomas: {mods['symptoms']}\n"
+                f"Tomas confirmadas: {mods['intakes']}\n"
+                f"Emergência: {mods['sos']} campos · Lares: {mods['residences']}\n"
+                f"Mensalidades: {mods['invoices']} · "
+                f"Medições: {mods['measurements']}\n\n"
+                f"Cópia de segurança anterior: {target}",
+                parent=app)
+        run_progress(app,"A recuperar módulos Android",work,done,
+            lambda exc:messagebox.showerror(
+                "Recuperação interrompida",
+                str(exc)+"\nA cópia original foi preservada.",parent=app))
+
+    app._button(inner,"Recuperar dados Android dos backups já guardados",
+        recover_from_stored_android,width=360,height=44).pack(
+            anchor="w",pady=(10,5))
     app._label(inner,
         "Para backup de perfil escolhe primeiro o perfil no topo. "
         "A aplicação não mistura automaticamente perfis com nomes repetidos. "

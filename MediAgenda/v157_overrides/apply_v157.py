@@ -40,6 +40,7 @@ s=replace(s,"    private fun redraw(){",'''    override fun onResume(){
 w.write_text(s)
 
 h=src/"HospitalProcessActivity.kt"
+main=src/"MainActivity.kt"
 s=h.read_text()
 s=replace(s,"import androidx.appcompat.app.AppCompatActivity",
 '''import androidx.appcompat.app.AppCompatActivity

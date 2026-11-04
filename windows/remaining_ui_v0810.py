@@ -254,21 +254,54 @@ class RemainingUiV0810:
             if profile.get("caregiver") is True:
                 residents=profile.get("care_home_residents",[])
                 if isinstance(residents,list) and residents:
-                    strip=ctk.CTkFrame(self.body,fg_color=self.p["panel"],
-                                       border_width=1,
-                                       border_color=self.p["line"],
-                                       corner_radius=11)
+                    strip=ctk.CTkFrame(
+                        self.body,fg_color=self.p["panel"],border_width=1,
+                        border_color=self.p["line"],corner_radius=11)
                     strip.pack(fill="x",padx=10,pady=(0,9))
-                    self._label(strip,"Residentes associados ao cuidador",
-                                13,True).pack(side="left",padx=12,pady=10)
+                    self._label(
+                        strip,"Lares e Apoios dos residentes sob os teus cuidados",
+                        13,True).pack(anchor="w",padx=12,pady=(9,4))
                     for resident_id in residents[:8]:
                         other=self.store.get_profile(resident_id)
                         if other is None or not other.get("care_home_resident"):
                             continue
+                        # Consulta estritamente os registos do residente
+                        # autorizado, sem copiar para o perfil do cuidador.
+                        institutions=self.store.remaining_records(
+                            resident_id,"residences")
+                        invoices=self.store.remaining_records(
+                            resident_id,"residence_invoices")
+                        card=ctk.CTkFrame(
+                            strip,fg_color=self.p["panel2"],corner_radius=8)
+                        card.pack(fill="x",padx=10,pady=(2,7))
+                        header=ctk.CTkFrame(card,fg_color="transparent")
+                        header.pack(fill="x",padx=9,pady=(7,4))
+                        self._label(header,str(other.get("name","Residente"))[:80],
+                                    13,True).pack(side="left")
                         self._button(
-                            strip,"Consultar "+str(other.get("name","Residente"))[:50],
+                            header,"Abrir ficha",
                             lambda target=resident_id:self._select_profile_by_id(target),
-                            True,width=180,height=33).pack(side="left",padx=(0,8))
+                            True,width=110,height=30).pack(side="right")
+                        if institutions:
+                            self._label(
+                                card,"Instituição: "+
+                                str(institutions[0].get("title",""))[:140],
+                                12).pack(anchor="w",padx=11,pady=(0,3))
+                        if invoices:
+                            latest=sorted(invoices,key=lambda x:str(
+                                x.get("date","")),reverse=True)[0]
+                            detail=("Faturas: "+str(len(invoices))+
+                                    " · Última: "+str(latest.get("date",""))[:7]+
+                                    " · Valor: "+str(latest.get("amount",""))+
+                                    " € · "+str(latest.get("status","")))
+                            self._label(card,detail[:220],11,
+                                        color=self.p["muted"]).pack(
+                                            anchor="w",padx=11,pady=(0,7))
+                        elif not institutions:
+                            self._label(
+                                card,"Sem dados de instituição/faturas neste backup.",
+                                11,color=self.p["muted"]).pack(
+                                    anchor="w",padx=11,pady=(0,7))
             else:
                 caregiver=next(
                     (p for p in self.store.profiles()
@@ -290,16 +323,6 @@ class RemainingUiV0810:
         if not isinstance(getattr(self,"_remaining_selection",None),dict):
             self._remaining_selection={}
         if title=="Lares e Apoios":
-            source=profile.get("android_zip_source_id")
-            if source:
-                imports=ctk.CTkFrame(self.body,fg_color="transparent")
-                imports.pack(fill="x",padx=13,pady=(0,5))
-                self._button(imports,"Recuperar instituição e faturas do Android",
-                             lambda:self._import_android_personal("care"),
-                             width=335,height=32).pack(side="left")
-                self._label(imports,
-                    "Apenas dados ainda não importados deste perfil.",
-                    11,color=self.p["muted"]).pack(side="left",padx=12)
             tabs=ctk.CTkFrame(self.body,fg_color="transparent")
             tabs.pack(fill="x",padx=13,pady=(0,7))
             for key,label in (
@@ -422,14 +445,6 @@ class RemainingUiV0810:
                       "Informação essencial do perfil: "+str(profile.get("name",""))
                       if profile else "Seleciona um perfil.")
         if profile is None:return
-        if profile.get("android_zip_source_id"):
-            bar=ctk.CTkFrame(self.body,fg_color="transparent")
-            bar.pack(fill="x",padx=13,pady=(0,8))
-            self._button(bar,"Recuperar SOS do backup Android",
-                         lambda:self._import_android_personal("sos"),
-                         width=279,height=34).pack(side="left")
-            self._label(bar,"Preserva os dados já editados no Windows.",
-                        11,color=self.p["muted"]).pack(side="left",padx=12)
         data=self.store.emergency_data(profile["id"])
         split=ctk.CTkFrame(self.body,fg_color="transparent")
         split.pack(fill="both",expand=True,padx=7,pady=(0,7))

@@ -17,9 +17,7 @@ class BrandedEntryTests(unittest.TestCase):
         self.assertIn('"Primeira utilização no Windows",21,True',source)
         self.assertIn('"Introduz o PIN para entrar",21,True',source)
         self.assertNotIn('p["id"][:8]',source)
-        self.assertIn("self._login_unlocked=False",desktop.replace(
-            'self._login_unlocked=bool(', 'self._login_unlocked=False #').replace(
-            "False #os", "False"))
+        self.assertIn("self._login_unlocked=bool(",desktop)
         self.assertIn('if not self._login_unlocked:',desktop)
 
     def test_new_portable_backups_use_pin_not_password(self):

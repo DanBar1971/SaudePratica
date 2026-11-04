@@ -11,7 +11,7 @@ family=(src/"data/FamilyBackupStore.kt").read_text(encoding="utf-8")
 gradle=(app/"build.gradle.kts").read_text(encoding="utf-8")
 
 for snippet in (
-    "saveHealthReading(day,snapshotMetricKeys[index],amount)",
+    "day,snapshotMetricKeys[index],amount",
     'saveHealthReading(date, "total_kcal"',
     '"oxygen_percent"', '"weight_kg"', '"temperature_c"',
     '"resting_heart_bpm"', '"systolic_mmhg"', '"diastolic_mmhg"',

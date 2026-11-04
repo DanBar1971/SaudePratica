@@ -1,7 +1,7 @@
 name: SaudePratica Android Build + AutoRelease
 on:
   push:
-    branches: [feat/android-19132-ai-ui-windows-lan]
+    branches: [feat/android-19133-remove-ai-keep-sync]
     paths:
       - ".github/workflows/saudepratica-android.yml"
       - "MediAgenda/**"
@@ -241,31 +241,15 @@ jobs:
         run: python3 MediAgenda/v152_overrides/apply_v152.py
       - name: Verify 1.9.132 UI and LAN feature cannot read clinical records
         run: python3 MediAgenda/v152_overrides/verify_v152.py
+      - name: Apply Android 1.9.133 remove generative assistant, retain Help and LAN
+        run: python3 MediAgenda/v153_overrides/apply_v153.py
+      - name: Verify 1.9.133 old AI model cleanup and clinical safety
+        run: python3 MediAgenda/v153_overrides/verify_v153.py
       - name: Test Cloudflare Workers AI private backend (no credentials)
         run: node --test SaudePratica-OnlineAI/cloudflare-worker/test/worker.test.mjs
-      - name: Install Android NDK and CMake for optional CPU model
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n1)"; fi
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "ndk;27.2.12479018" "cmake;3.22.1"
-      - name: Fetch PINNED official llama.cpp for Android CPU (no weights)
-        shell: bash
-        run: |
-          set -euo pipefail
-          DEST="build-src/MediAgenda_Android_v1/app/src/main/cpp/llama.cpp"
-          test ! -e "$DEST"
-          git init -q "$DEST"
-          git -C "$DEST" remote add origin https://github.com/ggml-org/llama.cpp.git
-          git -C "$DEST" fetch --depth=1 origin 28b812d6cb9cfe569d368c2774c3886ad4fe10e8
-          git -C "$DEST" checkout --detach FETCH_HEAD
-          test "$(git -C "$DEST" rev-parse HEAD)" = "28b812d6cb9cfe569d368c2774c3886ad4fe10e8"
-          test -s "$DEST/include/llama.h"
       - name: Require original app artwork (background, icon and splash)
         run: python3 MediAgenda/tools/verify_graphics.py
-      - name: Compile Android 1.9.132 with AI thinking indicator and Windows LAN link
+      - name: Compile Android 1.9.133 without generative assistant
         working-directory: build-src/MediAgenda_Android_v1
         run: gradle --no-daemon assembleRelease
       - name: Enable KVM for Android emulator tests on PR
@@ -320,7 +304,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: SaudePratica-v1.9.132-FULL-SOURCE
+          name: SaudePratica-v1.9.133-FULL-SOURCE
           path: build-src/MediAgenda_Android_v1/
           retention-days: 7
       - name: Export Android signing tools (no certificates or passwords)
@@ -338,7 +322,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
-          name: SaudePratica-v1.9.132-UNSIGNED
+          name: SaudePratica-v1.9.133-UNSIGNED
           path: build-src/MediAgenda_Android_v1/app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 7
       - name: Confirmar se a chave de assinatura original está configurada

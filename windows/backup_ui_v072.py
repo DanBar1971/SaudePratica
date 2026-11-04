@@ -17,14 +17,16 @@ def render_backup(app):
     inner=ctk.CTkFrame(wrapper,fg_color="transparent")
     inner.pack(fill="x",padx=25,pady=20)
     app._label(inner,"PIN para criar ou restaurar backup (4 números)",15,True).pack(anchor="w")
-    password=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=190,
+    password=ctk.CTkEntry(inner,show="●",height=44,corner_radius=12,width=240,
+        placeholder_text="PIN · 4 números",
         fg_color=app.p["field"],border_color=app.p["line"],
-        text_color=app.p["text"])
+        text_color=app.p["text"],font=ctk.CTkFont(size=17,weight="bold"))
     password.pack(anchor="w",pady=(5,10))
-    app._label(inner,"Confirmar PIN (na exportação)",13,True).pack(anchor="w")
-    repeat=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=190,
+    app._label(inner,"Repetir PIN (apenas ao criar o backup)",13,True).pack(anchor="w")
+    repeat=ctk.CTkEntry(inner,show="●",height=44,corner_radius=12,width=240,
+        placeholder_text="Repetir PIN · 4 números",
         fg_color=app.p["field"],border_color=app.p["line"],
-        text_color=app.p["text"])
+        text_color=app.p["text"],font=ctk.CTkFont(size=17,weight="bold"))
     repeat.pack(anchor="w",pady=(5,16))
     app._label(inner,
         "Um único formato para Android, Windows e futuro macOS. "

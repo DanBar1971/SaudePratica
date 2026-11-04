@@ -36,7 +36,7 @@ class UnifiedEditorControls083(unittest.TestCase):
             "    def _med_document_line(",1)[0]
         preview=source.split("    def _update_med_preview(self):",1)[1].split(
             "    def _remove_med_photo",1)[0]
-        self.assertIn('VERSION = "0.8.17"',source)
+        self.assertIn('VERSION = "0.8.18"',source)
         self.assertIn('self._time_stepper(',med)
         self.assertIn('self._editable_choice(',med)
         self.assertIn('EXTRA_COMBO_CHOICES[key]',med)

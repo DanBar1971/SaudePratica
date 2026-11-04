@@ -97,7 +97,7 @@ class PairProtocolTests(unittest.TestCase):
     def test_ui_discovery_and_manual_ip_are_real_not_mock_buttons(self):
         src=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text("utf-8")
         ui=(Path(__file__).resolve().parents[1]/"lan_ui_v084.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.17"',src)
+        self.assertIn('VERSION = "0.8.18"',src)
         self.assertIn('elif self.page=="sync": self._sync_page()',src)
         login=(Path(__file__).resolve().parents[1]/"login_ui_v0816.py").read_text("utf-8")
         # LAN discovery must start only after the PIN has been accepted.

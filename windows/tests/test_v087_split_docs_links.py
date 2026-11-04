@@ -112,7 +112,7 @@ class LayoutTests(unittest.TestCase):
         base=Path(__file__).resolve().parents[1]
         code=(base/"calendar_split_v087.py").read_text("utf-8")
         desktop=(base/"desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.17"',desktop)
+        self.assertIn('VERSION = "0.8.18"',desktop)
         self.assertIn("self._calendar_left = left",code)
         self.assertIn("self._calendar_right = right",code)
         self.assertIn('grid.pack(fill="x"',code)

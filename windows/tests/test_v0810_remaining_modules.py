@@ -226,7 +226,7 @@ class GuiContractTests(unittest.TestCase):
                     "pharmacy","residences"):
             self.assertTrue(flags[key],key)
         code=(Path(__file__).resolve().parents[1]/"desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.14"',code)
+        self.assertIn('VERSION = "0.8.15"',code)
         for key in ("nutrition","vision","symptoms","vaccines",
                     "emergency","pharmacy","residences"):
             self.assertIn(f'self.page=="{key}"',code)

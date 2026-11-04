@@ -41,7 +41,7 @@ jobs:
           test "$REPO" = "DanBar1971/SaudePratica"
           test "$(gh api "repos/$REPO/actions/runs/41803866079" --jq .conclusion)" = success
           test "$(gh api "repos/$REPO/actions/runs/41803866079" --jq .head_sha)" = 399b32d920fc1008ddde2d36e89df99af55e969c
-          test "$(gh api "repos/$REPO/actions/runs/41803866079" --jq .head_branch)" = feat/android-19134-remove-ai-keep-sync
+          test "$(gh api "repos/$REPO/actions/runs/41803866079" --jq .head_branch)" = feat/android-19134-health-connect-persistence
           test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41804547982 --jq .conclusion)" = success
           test "$(gh api repos/DanBar1971/AndroidAppDev/actions/runs/41804547982 --jq .head_sha)" = 1b012c323a4ef03142eccf1d6bc769c6f276ba25
           CURRENT="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"

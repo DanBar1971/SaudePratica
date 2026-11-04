@@ -187,7 +187,8 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
             archives.append(kept)
     assets=[]
     module_totals={"meals":0,"meal_photos":0,"water":0,"symptoms":0,
-                   "intakes":0,"sos":0,"residences":0,"invoices":0}
+                   "intakes":0,"measurements":0,"sos":0,
+                   "residences":0,"invoices":0}
     from windows.android_full_restore_v0813 import (
         extract_profile_android,merge_snapshot,
     )

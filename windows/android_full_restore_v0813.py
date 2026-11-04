@@ -111,6 +111,7 @@ def _read_health(files,source):
              isinstance(r.get("fields"),dict)}
     symptoms=[]
     intakes=[]
+    measurements=[]
     for record in data:
         if not isinstance(record,dict) or not isinstance(record.get("fields"),dict):
             continue
@@ -145,6 +146,23 @@ def _read_health(files,source):
                                    f"saudepratica/android/symptom/{source}/{rid}")),
                 **clean,"android_source":source,"android_id":rid,
                 "source":"android_health_records"})
+        elif record.get("kind")=="measurements":
+            value=fields.get("value")
+            unit=fields.get("unidade")
+            if value is None or not isinstance(unit,str):
+                continue
+            measurements.append({
+                "id":str(uuid.uuid5(uuid.NAMESPACE_URL,
+                    f"saudepratica/android/measurement/{source}/{rid}")),
+                "title":str(record.get("title") or "Medição")[:160],
+                "date":timestamp.date().isoformat(),
+                "time":timestamp.strftime("%H:%M"),
+                "value":str(value)[:100],
+                "unit":unit[:80],
+                "notes":str(fields.get("notes",""))[:1000],
+                "source":"android_health_records",
+                "android_source":source,
+            })
         elif record.get("kind")=="intakes" and rid not in deleted:
             mid=fields.get("medication_id")
             if not isinstance(mid,str) or not mid:
@@ -155,7 +173,7 @@ def _read_health(files,source):
                 "confirmed_at":timestamp.isoformat(timespec="seconds"),
                 "scheduled_at":scheduled.isoformat(timespec="minutes") if scheduled else "",
                 "status":"confirmed","source":"android_health_records"})
-    return symptoms,intakes
+    return symptoms,intakes,measurements
 
 
 def extract_profile_android(original_zip:bytes,source_id:str) -> dict:
@@ -183,7 +201,7 @@ def extract_profile_android(original_zip:bytes,source_id:str) -> dict:
                 raw_care[field]=central[field]
     institutions,invoices=_care(raw_care,source_id)
     meals,photos=extract_meal_diary(original_zip,source_id)
-    symptoms,intakes=_read_health(files,source_id)
+    symptoms,intakes,measurements=_read_health(files,source_id)
     caretaker=_typed(prefs.get("saudepratica_caregiver_v1",{}),
                      "caregiver_id","s")
     return {
@@ -193,6 +211,7 @@ def extract_profile_android(original_zip:bytes,source_id:str) -> dict:
         "meal_photos":photos,
         "symptoms":symptoms,
         "intakes":intakes,
+        "measurements":measurements,
         "sos":sos,
         "residences":institutions,
         "invoices":invoices,
@@ -212,12 +231,14 @@ def merge_snapshot(profile:dict,snapshot:dict,source_to_target:dict,
     if source!=snapshot["source_id"]:
         raise ValueError("Origem Android não corresponde ao perfil de destino.")
     counts={"meals":0,"meal_photos":0,"water":0,"symptoms":0,
-            "intakes":0,"sos":0,"residences":0,"invoices":0}
+            "intakes":0,"measurements":0,
+            "sos":0,"residences":0,"invoices":0}
     photo_meta=[]
     photo_blobs=[]
     for key,rows,label in (
         ("meal_records",snapshot["meals"],"meals"),
         ("symptom_records",snapshot["symptoms"],"symptoms"),
+        ("android_health_measurements",snapshot["measurements"],"measurements"),
         ("residence_records",snapshot["residences"],"residences"),
         ("residence_invoices",snapshot["invoices"],"invoices"),
     ):

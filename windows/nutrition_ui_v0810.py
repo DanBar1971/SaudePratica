@@ -176,12 +176,9 @@ class NutritionUiV0810:
         self._label(top,f"Diário · {len(records)} refeições",16,True).pack(side="left")
         self._button(top,"+ Nova",self._nutrition_new,
                      True,width=91,height=33).pack(side="right")
-        self._button(left,"Importar refeições e fotos do Android",
-                     self._nutrition_import_android,width=322,
-                     height=35).pack(anchor="w",padx=13,pady=(0,10))
         self._label(left,
-            "Importa do backup Android original que já esteja guardado "
-            "neste Windows. Não mistura os perfis da família.",
+            "As refeições e fotografias do backup Android são restauradas "
+            "automaticamente e mantidas no perfil correto.",
             11,color=self.p["muted"],wrap=450).pack(
                 anchor="w",padx=13,pady=(0,10))
         scroll=ctk.CTkScrollableFrame(left,fg_color="transparent")
@@ -198,20 +195,42 @@ class NutritionUiV0810:
                 border_width=2 if selected else 1,
                 border_color="#00c9b7" if selected else self.p["line"])
             tile.pack(fill="x",padx=3,pady=4)
+            item=ctk.CTkFrame(tile,fg_color="transparent")
+            item.pack(fill="x",padx=9,pady=8)
+            # Miniatura verdadeira à esquerda, sempre do perfil em consulta.
+            if row.get("photo_sha256"):
+                try:
+                    raw=self.store.meal_photo(person["id"],row["id"])
+                    if raw:
+                        with Image.open(BytesIO(raw)) as source:
+                            source.thumbnail((320,320))
+                            thumb=ImageOps.fit(
+                                source.convert("RGB"),(76,76),
+                                method=Image.Resampling.LANCZOS)
+                        preview_image=ctk.CTkImage(
+                            light_image=thumb,dark_image=thumb,size=(76,76))
+                        preview=ctk.CTkLabel(
+                            item,text="",image=preview_image,width=80,height=80)
+                        preview.image=preview_image
+                        preview.pack(side="left",padx=(0,10))
+                except (OSError,ValueError,LocalStoreError):
+                    pass
+            details=ctk.CTkFrame(item,fg_color="transparent")
+            details.pack(side="left",fill="both",expand=True)
             stamp=str(row.get("date",""))+" · "+str(row.get("clock",""))
-            self._label(tile,
+            self._label(details,
                 f"{stamp}  ·  {row.get('meal') or 'Refeição'}",
-                12,True).pack(anchor="w",padx=10,pady=(8,3))
+                12,True).pack(anchor="w",pady=(0,3))
             foods=str(row.get("foods",""))
             if foods:
-                self._label(tile,foods[:150],11,color=self.p["muted"],
-                            wrap=380).pack(anchor="w",padx=10,pady=(0,5))
-            foot=ctk.CTkFrame(tile,fg_color="transparent")
-            foot.pack(fill="x",padx=9,pady=(0,8))
+                self._label(details,foods[:150],11,color=self.p["muted"],
+                            wrap=320).pack(anchor="w",pady=(0,5))
+            foot=ctk.CTkFrame(details,fg_color="transparent")
+            foot.pack(fill="x")
             energy=row.get("kcal",0)
             hint=(f"{energy:g} kcal" if isinstance(energy,(int,float)) and energy>0
                   else "Energia não informada")
-            if row.get("photo_sha256"):hint+=" · Foto original"
+            if row.get("photo_sha256"):hint+=" · Foto"
             if row.get("source")=="android":hint+=" · Android"
             self._label(foot,hint,10,color=self.p["muted"]).pack(side="left")
             self._button(foot,"Abrir",

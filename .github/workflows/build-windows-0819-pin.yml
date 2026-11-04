@@ -5,7 +5,7 @@ on:
   push:
     branches: [release/windows-0819-pin-restore-hotfix-20261104]
     paths:
-      - ".github/workflows/build-windows-0819-hospital.yml"
+      - ".github/workflows/build-windows-0819-pin.yml"
       - "windows/**"
   workflow_dispatch:
 permissions:

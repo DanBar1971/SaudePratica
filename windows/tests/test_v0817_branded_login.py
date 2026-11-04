@@ -23,7 +23,7 @@ class BrandedEntryTests(unittest.TestCase):
     def test_new_portable_backups_use_pin_not_password(self):
         source=(ROOT/"backup_ui_v072.py").read_text("utf-8")
         self.assertIn("PIN para criar ou restaurar backup (4 números)",source)
-        self.assertIn("Confirmar PIN (na exportação)",source)
+        self.assertIn("Repetir PIN (apenas ao criar o backup)",source)
         self.assertIn("len(pwd)!=4",source)
         self.assertIn('if kind=="password":',source)
         self.assertIn("Este é um backup antigo.",source)

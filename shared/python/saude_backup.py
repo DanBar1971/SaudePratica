@@ -100,6 +100,28 @@ def create_backup(files: Mapping[str, bytes], password: str) -> bytes:
     return prefix + AESGCM(_derive(password, salt, rounds, pin=is_pin)).encrypt(nonce, zipped, prefix)
 
 
+def backup_access_kind(encrypted: bytes) -> str:
+    """Header-only hint to select the correct numeric or legacy input UI."""
+    if not isinstance(encrypted, bytes) or not encrypted.startswith(MAGIC):
+        raise BackupError("Não é um backup SaúdePrática compatível.")
+    offset=len(MAGIC)
+    if len(encrypted)<offset+4:
+        raise BackupError("Cabeçalho incompleto.")
+    size=struct.unpack(">I",encrypted[offset:offset+4])[0]
+    if size<30 or size>4096 or len(encrypted)<offset+4+size:
+        raise BackupError("Cabeçalho inválido.")
+    try:
+        header=json.loads(encrypted[offset+4:offset+4+size])
+    except (ValueError,UnicodeError,TypeError) as exc:
+        raise BackupError("Cabeçalho inválido.") from exc
+    kind=header.get("kind") if isinstance(header,dict) else None
+    if kind==PIN_HEADER_KIND:
+        return "pin"
+    if kind=="saudepratica-encrypted-v1":
+        return "password"
+    raise BackupError("Formato de backup desconhecido.")
+
+
 def read_backup(encrypted: bytes, password: str) -> dict[str, bytes]:
     """Return verified bytes by path, no filesystem writes or silent merges."""
     if not isinstance(encrypted, bytes) or not encrypted.startswith(MAGIC):

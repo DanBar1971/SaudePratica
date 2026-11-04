@@ -1,4 +1,4 @@
-"""Windows 0.8.13 — synthetic Android SOS/Lares recovery and pharmacy portal.
+"""Windows 0.8.14 — synthetic Android SOS/Lares recovery and pharmacy portal.
 
 No patient data, real address, or real medical contact is used in fixtures.
 """
@@ -199,14 +199,15 @@ class GuiContracts(unittest.TestCase):
     def test_both_backup_import_controls_and_pharmacy_portal(self):
         src=(Path(__file__).resolve().parents[1]/
              "remaining_ui_v0810.py").read_text("utf-8")
-        self.assertIn('self._import_android_personal("care")',src)
-        self.assertIn('self._import_android_personal("sos")',src)
+        self.assertIn("care_home_residents",src)
+        self.assertNotIn("Recuperar instituição e faturas do Android",src)
+        self.assertNotIn("Recuperar SOS do backup Android",src)
         self.assertIn("https://www.farmaciasdeservico.info/",src)
         self.assertIn("https://www.farmaciasdeservico.net/",src)
         self.assertIn("📍 Encontrar perto de mim",src)
         desktop=(Path(__file__).resolve().parents[1]/
                  "desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.13"',desktop)
+        self.assertIn('VERSION = "0.8.14"',desktop)
 
 
 if __name__=="__main__":

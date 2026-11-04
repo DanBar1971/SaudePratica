@@ -1,0 +1,74 @@
+name: Publicar SaúdePrática Windows 0.8.18 — Processos hospitalares
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-windows-0818-approved.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Verificar código e testes Windows 0.8.18
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO=DanBar1971/SaudePratica
+          RUN=41839773449
+          SOURCE=5dbea43e628f23319ba40bc4933f296e368c79cf
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq .head_sha)" = "$SOURCE"
+          test "$(gh api "repos/$REPO/actions/runs/$RUN" --jq .head_branch)" = release/windows-0818-hospital-processes-20261104
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = v1.9.137
+      - name: Descarregar EXE exatamente da CI aprovada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 41839773449 --repo DanBar1971/SaudePratica \
+            --name SaudePratica-Windows-0818-TEST --dir installer
+          test -s installer/SaudePratica-Setup.exe
+          file installer/SaudePratica-Setup.exe | grep -Ei "PE32|MS Windows"
+          test "$(stat -c%s installer/SaudePratica-Setup.exe)" -gt 5000000
+          cp installer/SaudePratica-Setup.exe ./SaudePratica-Setup.exe
+          sha256sum SaudePratica-Setup.exe > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - name: Publicar EXE de Windows 0.8.18 como pré-visualização
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO=DanBar1971/SaudePratica
+          TAG=windows-v0.8.18-preview
+          cat > notes.md <<'EOF'
+          # SaúdePrática Windows 0.8.18 — Processos hospitalares
+
+          Windows experimental, com consulta dos processos hospitalares provenientes do backup completo Android 1.9.136 ou posterior.
+          - Em Situação Clínica, a nova opção «Processos hospitalares do Android» mostra por perfil: equipa, contactos, taxas de Consultas/Exames/Análises, estados de pagamento, transportes e imagem da identificação.
+          - O acesso é apenas leitura, sempre a partir do arquivo Android original com hashes verificados, preservado no backup Windows e cifrado no armazenamento privado.
+          - Mantém o PIN de 4 dígitos, os dados Windows e a importação/restauro de backups Android. Não altera os alarmes Android.
+          - Não comunica com a app IPO Lisboa, nem obtém valores oficiais ou envia pedidos hospitalares.
+          - Sem sincronização Wi-Fi de registos clínicos; usa um backup completo recente do Android para atualizar os dados.
+          - Instalador sem assinatura digital Windows; o SmartScreen pode apresentar um aviso. Confirma a origem no GitHub oficial.
+
+          O executável foi obtido da compilação CI de código imutável, com testes Python, interface, aplicação empacotada, OCR e instalador aprovados.
+          EOF
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release view "$TAG" --repo "$REPO" --json isPrerelease,assets --jq '.isPrerelease and any(.assets[]; .name=="SaudePratica-Setup.exe")' | grep -Fx true
+          else
+            gh release create "$TAG" SaudePratica-Setup.exe SHA256SUMS.txt \
+              --repo "$REPO" --target 5dbea43e628f23319ba40bc4933f296e368c79cf \
+              --title "SaúdePrática Windows 0.8.18 — Processos hospitalares" \
+              --notes-file notes.md --prerelease --latest=false
+          fi
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = v1.9.137
+          gh release view "$TAG" --repo "$REPO" --json isPrerelease,assets \
+            --jq '.isPrerelease and any(.assets[]; .name=="SaudePratica-Setup.exe")' | grep -Fx true
+          echo "::notice title=Windows 0.8.18 publicado::https://github.com/$REPO/releases/tag/$TAG"

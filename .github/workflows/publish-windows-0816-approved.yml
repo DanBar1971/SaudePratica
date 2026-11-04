@@ -1,3 +1,4 @@
+# test LAN PIN gate: discovery only after successful four-digit unlock
 # Compilação 0.8.16: testes atualizados para interface sem recuperação manual
 name: SaúdePrática Windows 0.8.16 — construir, ensaiar e publicar EXE
 on:

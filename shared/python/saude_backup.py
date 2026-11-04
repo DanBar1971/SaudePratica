@@ -26,6 +26,9 @@ from cryptography.hazmat.primitives import hashes
 
 MAGIC = b"SAUDEPRATICA-BACKUP-V1\n"
 ITERATIONS = 600_000
+PIN_ITERATIONS = 1_200_000
+PIN_HEADER_KIND = "saudepratica-encrypted-pin-v2"
+PIN_RE = re.compile(r"^[0-9]{4}$")
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
 MAX_FILE_BYTES = 100 * 1024 * 1024
 MAX_ARCHIVED_ANDROID_BYTES = 240 * 1024 * 1024
@@ -50,9 +53,12 @@ def _file_limit(path: str) -> int:
     return MAX_FILE_BYTES
 
 
-def _derive(password: str, salt: bytes, iterations: int) -> bytes:
-    if not isinstance(password, str) or len(password) < 10:
-        raise BackupError("A palavra-passe deve ter pelo menos 10 caracteres.")
+def _derive(password: str, salt: bytes, iterations: int, *, pin: bool = False) -> bytes:
+    if not isinstance(password, str) or (
+        not bool(PIN_RE.fullmatch(password)) if pin else len(password) < 10
+    ):
+        raise BackupError("PIN inválido (4 dígitos)." if pin else
+                          "A palavra-passe antiga tem de ter pelo menos 10 caracteres.")
     return PBKDF2HMAC(algorithm=hashes.SHA256(), length=32,
                      salt=salt, iterations=iterations).derive(password.encode("utf-8"))
 
@@ -81,13 +87,17 @@ def create_backup(files: Mapping[str, bytes], password: str) -> bytes:
             z.writestr("data/" + path, data)
     zipped = output.getvalue()
     salt, nonce = os.urandom(16), os.urandom(12)
-    header = {"kind": "saudepratica-encrypted-v1",
-              "kdf": "PBKDF2-HMAC-SHA256", "iterations": ITERATIONS,
+    is_pin = isinstance(password, str) and bool(PIN_RE.fullmatch(password))
+    if not is_pin and (not isinstance(password, str) or len(password) < 10):
+        raise BackupError("O PIN deve ter 4 dígitos. Para backups antigos usam-se palavras-passe de 10 ou mais caracteres.")
+    rounds = PIN_ITERATIONS if is_pin else ITERATIONS
+    header = {"kind": PIN_HEADER_KIND if is_pin else "saudepratica-encrypted-v1",
+              "kdf": "PBKDF2-HMAC-SHA256", "iterations": rounds,
               "salt_b64": base64.b64encode(salt).decode("ascii"),
               "cipher": "AES-256-GCM", "nonce_b64": base64.b64encode(nonce).decode("ascii")}
     header_bytes = json.dumps(header, sort_keys=True, separators=(",", ":")).encode("utf-8")
     prefix = MAGIC + struct.pack(">I", len(header_bytes)) + header_bytes
-    return prefix + AESGCM(_derive(password, salt, ITERATIONS)).encrypt(nonce, zipped, prefix)
+    return prefix + AESGCM(_derive(password, salt, rounds, pin=is_pin)).encrypt(nonce, zipped, prefix)
 
 
 def read_backup(encrypted: bytes, password: str) -> dict[str, bytes]:
@@ -105,18 +115,21 @@ def read_backup(encrypted: bytes, password: str) -> dict[str, bytes]:
     end = offset + 4 + size
     try:
         header = json.loads(encrypted[offset+4:end])
-        if header.get("kind") != "saudepratica-encrypted-v1" or header.get("cipher") != "AES-256-GCM":
+        kind = header.get("kind")
+        is_pin = kind == PIN_HEADER_KIND
+        if kind not in ("saudepratica-encrypted-v1", PIN_HEADER_KIND) or header.get("cipher") != "AES-256-GCM":
             raise BackupError("Versão de encriptação desconhecida.")
-        if header.get("kdf") != "PBKDF2-HMAC-SHA256" or header.get("iterations") != ITERATIONS:
+        expected = PIN_ITERATIONS if is_pin else ITERATIONS
+        if header.get("kdf") != "PBKDF2-HMAC-SHA256" or header.get("iterations") != expected:
             raise BackupError("Derivação de chave não suportada.")
         salt, nonce = base64.b64decode(header["salt_b64"], validate=True), base64.b64decode(header["nonce_b64"], validate=True)
         if len(salt) != 16 or len(nonce) != 12:
             raise BackupError("Parâmetros de encriptação inválidos.")
-        zipped = AESGCM(_derive(password, salt, ITERATIONS)).decrypt(nonce, encrypted[end:], encrypted[:end])
+        zipped = AESGCM(_derive(password, salt, expected, pin=is_pin)).decrypt(nonce, encrypted[end:], encrypted[:end])
     except BackupError:
         raise
     except Exception as exc:
-        raise BackupError("Palavra-passe errada ou backup danificado.") from exc
+        raise BackupError("PIN/palavra-passe incorreto ou backup danificado.") from exc
     if len(zipped) > MAX_ARCHIVE_BYTES:
         raise BackupError("Conteúdo demasiado grande.")
     with ZipFile(BytesIO(zipped), "r") as z:

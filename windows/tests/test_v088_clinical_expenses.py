@@ -199,7 +199,7 @@ class GuiContractTests(unittest.TestCase):
                 "health_records_ui_v088.py").read_text("utf-8")
         desktop=(Path(__file__).resolve().parents[1]/
                  "desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.15"',desktop)
+        self.assertIn('VERSION = "0.8.16"',desktop)
         self.assertIn('self.page=="clinical"',desktop)
         self.assertIn('self.page=="expenses"',desktop)
         self.assertIn("self.store.health_records(person[\"id\"],kind)",source)

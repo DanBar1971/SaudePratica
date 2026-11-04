@@ -1,4 +1,5 @@
 name: Publicar website SaúdePrática
+# Nova tentativa de publicação com ID de execução independente após erro 500 do GitHub Pages.
 on:
   push:
     branches: [main]

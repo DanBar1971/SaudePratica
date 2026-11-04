@@ -207,7 +207,7 @@ class GuiContracts(unittest.TestCase):
         self.assertIn("📍 Encontrar perto de mim",src)
         desktop=(Path(__file__).resolve().parents[1]/
                  "desktop_v04.py").read_text("utf-8")
-        self.assertIn('VERSION = "0.8.15"',desktop)
+        self.assertIn('VERSION = "0.8.16"',desktop)
 
 
 if __name__=="__main__":

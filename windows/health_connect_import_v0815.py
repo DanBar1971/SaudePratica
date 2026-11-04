@@ -162,6 +162,18 @@ def decode_manual_body(prefs:dict,source:str)->dict:
     return {"height_cm":height,"weights":weights} if height or weights else {}
 
 
+def manual_body_diagnostic(prefs:dict,source:str)->dict:
+    """Import status without exposing another profile's measurements."""
+    node=prefs.get("saudepratica_body_"+source)
+    if node is None:
+        return {"status":"not_in_backup","record_count":0}
+    if not isinstance(node,dict):
+        return {"status":"invalid_format","record_count":0}
+    count=len(decode_manual_body(prefs,source).get("weights",[]))
+    return {"status":"importable" if count else "no_valid_weights",
+            "record_count":count}
+
+
 def merge_manual_body(profile:dict,body:dict)->int:
     if not body:
         return 0

@@ -20,7 +20,7 @@ from windows.remaining_models_v0810 import validate_record
 from windows.wellness_models_v089 import water_settings
 from windows.health_connect_import_v0815 import (
     decode_health_connect,merge_health_connect,
-    decode_manual_body,merge_manual_body,
+    decode_manual_body,merge_manual_body,manual_body_diagnostic,
 )
 
 SOURCE_ID=re.compile(r"^(?:legacy|[0-9a-fA-F-]{36})$")
@@ -208,6 +208,7 @@ def extract_profile_android(original_zip:bytes,source_id:str) -> dict:
     symptoms,intakes,measurements=_read_health(files,source_id)
     health_connect=decode_health_connect(files,source_id)
     manual_body=decode_manual_body(prefs,source_id)
+    body_diagnostic=manual_body_diagnostic(prefs,source_id)
     caretaker=_typed(prefs.get("saudepratica_caregiver_v1",{}),
                      "caregiver_id","s")
     return {
@@ -220,6 +221,7 @@ def extract_profile_android(original_zip:bytes,source_id:str) -> dict:
         "measurements":measurements,
         "health_connect":health_connect,
         "manual_body":manual_body,
+        "manual_body_diagnostic":body_diagnostic,
         "sos":sos,
         "residences":institutions,
         "invoices":invoices,
@@ -274,6 +276,13 @@ def merge_snapshot(profile:dict,snapshot:dict,source_to_target:dict,
     counts["health_connect"]=merge_health_connect(
         profile,snapshot["health_connect"])
     counts["manual_body"]=merge_manual_body(profile,snapshot["manual_body"])
+    incoming_status=snapshot.get("manual_body_diagnostic",{})
+    stored_status=profile.get("android_body_backup_status",{})
+    # A subsequent older ZIP must not hide proof of imported manual weights.
+    if (incoming_status.get("status")=="importable" or
+        not isinstance(stored_status,dict) or
+        stored_status.get("status")!="importable"):
+        profile["android_body_backup_status"]=copy.deepcopy(incoming_status)
     # Only the actual stored Android daily aggregate, never individual cups.
     water=snapshot.get("water")
     if water:

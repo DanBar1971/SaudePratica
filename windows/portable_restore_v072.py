@@ -186,14 +186,28 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
         if kept["profile_ids"]:
             archives.append(kept)
     assets=[]
+    module_totals={"meals":0,"meal_photos":0,"water":0,"symptoms":0,
+                   "intakes":0,"sos":0,"residences":0,"invoices":0}
+    from windows.android_full_restore_v0813 import (
+        extract_profile_android,merge_snapshot,
+    )
     for member in plan.people:
-        person,meds,appointments,attachments,originals=persons[member.source_id]
+        person,meds,appointments,originals_attachments,originals=persons[member.source_id]
+        attachments=originals_attachments
         pid=member.target_id
         source_id=person.get("android_zip_source_id")
         restored=copy.deepcopy(person)
         restored["id"]=pid
         restored["medications"]=copy.deepcopy(meds)
         restored["appointments"]=copy.deepcopy(appointments)
+        if member.operation=="replace":
+            # Older portable backups store only identity, medication and
+            # agenda. Do not erase newer Windows modules just because their
+            # keys did not yet exist when that backup was exported.
+            earlier=index[pid]
+            for key,value in earlier.items():
+                if key not in restored and key not in ("medications","appointments"):
+                    restored[key]=copy.deepcopy(value)
         if source_id:
             restored["android_zip_source_id"]=source_id
         # Android keeps the identity/health profile fields inside typed
@@ -228,6 +242,17 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
             digest=entry["sha256"]
             docs.append(entry)
             assets.append((digest,plan.files[f"attachments/{digest[:2]}/{digest}.bin"]))
+        if source_id and originals:
+            for original_archive in originals:
+                digest=original_archive["sha256"]
+                raw=plan.files[f"attachments/{digest[:2]}/{digest}.bin"]
+                snapshot=extract_profile_android(raw,source_id)
+                new_docs,new_photos,counts=merge_snapshot(
+                    restored,snapshot,source_to_target,docs)
+                docs.extend(new_docs)
+                assets.extend(new_photos)
+                for module,amount in counts.items():
+                    module_totals[module]+=amount
         for raw in originals:
             copyrow=copy.deepcopy(raw)
             # In a profile restore retain only the selected owner; never
@@ -256,4 +281,5 @@ def apply(store, plan:RestorePlan, password_for_safety_copy:str):
         "replaced":sum(x.operation=="replace" for x in plan.people),
         "profiles":len(plan.people),
         "recovery":str(recovery_file) if recovery_file else None,
+        "android_modules":module_totals,
     }

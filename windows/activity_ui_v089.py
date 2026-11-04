@@ -188,6 +188,27 @@ class ActivityUiV089:
             self._label(part,str(value) if value is not None else "—",
                         10,anchor="center").pack()
 
+        original_measurements=person.get("android_health_measurements",[])
+        if isinstance(original_measurements,list) and original_measurements:
+            self._label(left,"Medições originais do Android",14,True).pack(
+                anchor="w",padx=15,pady=(0,5))
+            original_box=ctk.CTkFrame(left,fg_color=self.p["panel2"],
+                                      corner_radius=10)
+            original_box.pack(fill="x",padx=12,pady=(0,10))
+            for event in sorted(
+                [x for x in original_measurements if isinstance(x,dict)],
+                key=lambda x:x.get("date",""),reverse=True)[:5]:
+                self._label(original_box,
+                    str(event.get("date",""))+" · "+
+                    str(event.get("title","Medição"))[:60]+" · "+
+                    str(event.get("value",""))[:30]+" "+
+                    str(event.get("unit",""))[:25],
+                    11,True,wrap=440).pack(anchor="w",padx=10,pady=(6,2))
+            self._label(original_box,
+                "Registos manuais de saúde importados, separados das "
+                "medições automáticas Health Connect.",
+                10,color=self.p["muted"],wrap=440).pack(
+                    anchor="w",padx=10,pady=(5,9))
         self._label(left,"Histórico registado",14,True).pack(
             anchor="w",padx=15,pady=(0,5))
         listbox=ctk.CTkScrollableFrame(left,fg_color="transparent")

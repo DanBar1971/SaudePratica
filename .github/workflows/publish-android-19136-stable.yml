@@ -56,7 +56,8 @@ jobs:
             --name SaudePratica-v1.9.136-ORIGINAL-SIGNED --dir signed
           test -s signed/SaudePratica.apk
           test -s signed/SHA256SUMS.txt
-          test "$(tr -d '[:space:]' < signed/source-run.txt)" = 41822099755
+          test "$(sed -n '1p' signed/source-run.txt | tr -d '[:space:]')" = 41822099755
+          test "$(sed -n '2p' signed/source-run.txt | tr -d '[:space:]')" = 360dcd58724fcac95f72fb521825a0e4c76b2e94
           (cd signed && sha256sum -c SHA256SUMS.txt)
           cp signed/SaudePratica.apk ./
       - name: Validar identidade, assinatura original e ausência do motor IA antigo

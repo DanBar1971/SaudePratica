@@ -1,4 +1,4 @@
-"""Windows 0.8.12: discover an Android without manually entering IP/port.
+"""Windows 0.8.13: discover an Android without manually entering IP/port.
 
 Only synthetic UDP/HTTP responders are exercised; no medical data is sent.
 """

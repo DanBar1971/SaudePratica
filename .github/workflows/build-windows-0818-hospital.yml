@@ -21,7 +21,7 @@ jobs:
       - name: Obter código Windows 0.8.18 isolado (preserva main Android)
         uses: actions/checkout@v4
         with:
-          ref: release/windows-0818-branded-pin-screens-20261104
+          ref: release/windows-0818-hospital-processes-20261104
       - name: Preparar Python
         uses: actions/setup-python@v5
         with:
@@ -40,7 +40,7 @@ jobs:
       - name: Ensaiar aplicação Windows via Python
         run: python windows/tools/smoke_windows.py --script
       - name: Ensaiar ambos os ecrãs PIN com wallpaper oficial
-        run: python windows/tools/smoke_login_v0818.py
+        run: python windows/tools/smoke_login_v0817.py
       - name: Construir ícone e splash oficiais
         shell: pwsh
         run: |

@@ -6,7 +6,7 @@ import unittest
 import uuid
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
-from saude_backup import create_backup, read_backup, BackupError
+from saude_backup import create_backup, read_backup, backup_access_kind, BackupError
 
 class PortableBackupTests(unittest.TestCase):
     def setUp(self):
@@ -36,6 +36,27 @@ class PortableBackupTests(unittest.TestCase):
     def test_zip_traversal_path_is_rejected(self):
         with self.assertRaises(BackupError):
             create_backup({"profiles/../secret.json": b"not allowed"}, self.password)
+
+    def test_pin_v2_roundtrip_and_format_detection(self):
+        pin="0123"
+        blob=create_backup(self.files,pin)
+        self.assertEqual(backup_access_kind(blob),"pin")
+        self.assertEqual(read_backup(blob,pin),self.files)
+        self.assertNotIn(b"Medicamento fict",blob)
+        self.assertNotIn(b"test-001",blob)
+        with self.assertRaises(BackupError):
+            read_backup(blob,"4321")
+
+    def test_legacy_backup_keeps_old_password(self):
+        blob=create_backup(self.files,self.password)
+        self.assertEqual(backup_access_kind(blob),"password")
+        self.assertEqual(read_backup(blob,self.password),self.files)
+
+    def test_reject_non_four_digit_short_pins(self):
+        for candidate in ("12","12a4","12345","１２３４",""):
+            with self.subTest(candidate=candidate):
+                with self.assertRaises(BackupError):
+                    create_backup(self.files,candidate)
 
     def test_no_plain_data_in_backup_bytes(self):
         packed = create_backup(self.files, self.password)

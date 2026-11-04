@@ -70,7 +70,7 @@ jobs:
           test -n "$WIN_TAG"
           WIN_URL="releases/download/${WIN_TAG}/SaudePratica-Setup.exe"
           grep -F 'releases/latest/download/SaudePratica.apk' index.html
-          grep -F 'data-release>v1.9.136' index.html
+          grep -F 'data-release>v1.9.137' index.html
           grep -F "$WIN_URL" index.html
           grep -F "$WIN_URL" windows/README.md
           grep -F "$WIN_URL" README.md

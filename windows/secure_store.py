@@ -64,7 +64,7 @@ class SecureStore:
             self._automatic_android_recovery_error = type(exc).__name__
 
     def _auto_restore_existing_android_modules(self):
-        """Migração local 0.8.14: idempotente, com cópia prévia já cifrada DPAPI."""
+        """Migração local 0.8.15: inclui dados Health Connect já arquivados."""
         from hashlib import sha256
         archives=self.android_archives()
         if not archives or not self.profiles():
@@ -81,7 +81,7 @@ class SecureStore:
         if not linked:
             return
         fingerprint=sha256(json.dumps(sorted(linked),separators=(",",":")).encode()).hexdigest()
-        marker="_android_auto_recovery_0814"
+        marker="_android_auto_recovery_0815"
         if self.data.get(marker)==fingerprint:
             return
         # A cópia é o ficheiro DPAPI original: não exporta dados em claro
@@ -818,8 +818,8 @@ class SecureStore:
         metadata=list(proposed.get("imported_files",[]))
         assets=[]
         counts={"meals":0,"meal_photos":0,"water":0,"symptoms":0,
-                "intakes":0,"measurements":0,"sos":0,
-                "residences":0,"invoices":0}
+                "intakes":0,"measurements":0,"health_connect":0,
+                "manual_body":0,"sos":0,"residences":0,"invoices":0}
         linked=0
         for current in targets:
             pid=current["id"]

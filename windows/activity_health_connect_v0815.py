@@ -171,14 +171,35 @@ class ActivityHealthConnectUiV0815:
                             11).pack(anchor="w",padx=12,pady=(6,2))
             self._label(vital_box,"",5).pack()
 
-    def _draw_android_body(self,left,body):
+    def _draw_android_body(self,left,body,status=None):
         if not isinstance(body,dict):
-            return
+            body={}
+        if not isinstance(status,dict):
+            status={}
         weights=body.get("weights",[])
         if not isinstance(weights,list):
             weights=[]
         height=body.get("height_cm")
         if not weights and not height:
+            code=status.get("status")
+            diagnostic={
+                "not_in_backup":
+                    "O backup Android guardado NÃO inclui os registos de peso manual "
+                    "deste perfil. Faz uma nova cópia no telemóvel depois de confirmar "
+                    "o histórico das pesagens.",
+                "no_valid_weights":
+                    "O backup contém a secção de peso, mas não foram encontradas "
+                    "pesagens válidas. Mantive os registos existentes do Windows.",
+                "invalid_format":
+                    "O histórico de peso do backup tem um formato inesperado. "
+                    "Não foi importado nem substituído nenhum registo.",
+            }
+            if code in diagnostic:
+                self._label(left,"Peso manual Android · verificação do backup",
+                            13,True).pack(anchor="w",padx=14,pady=(6,5))
+                self._label(left,diagnostic[code],11,
+                            color=self.p["muted"],wrap=465).pack(
+                                anchor="w",padx=14,pady=(0,9))
             return
         self._label(left,"Peso manual guardado no Android",13,True).pack(
             anchor="w",padx=14,pady=(6,5))

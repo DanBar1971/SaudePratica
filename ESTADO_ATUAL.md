@@ -29,7 +29,7 @@ Este ficheiro é a fonte de continuidade técnica do projeto: consultar antes de
 | --- | --- | --- | --- |
 | Android | **1.9.137** | **Última versão oficial normal**, equipa compacta pesquisável, botão por hospital/processo, seletor Google Calendário manual, PIN de 4 dígitos, certificado original | https://github.com/DanBar1971/SaudePratica/releases/latest/download/SaudePratica.apk |
 | Android | **1.9.125** | Versão anterior | https://github.com/DanBar1971/SaudePratica/releases/download/v1.9.125/SaudePratica.apk |
-| Windows | **0.8.18** | Restauro Android completo para Nutrição, Água, Tomas, Sintomas, SOS, Lares e cuidadores | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.18-preview/SaudePratica-Setup.exe |
+| Windows | **0.8.18** | Mantém restauro familiar Android e agora consulta processos hospitalares por perfil (equipa, taxas, transportes, imagem), apenas leitura, com PIN de 4 números | https://github.com/DanBar1971/SaudePratica/releases/download/windows-v0.8.18-preview/SaudePratica-Setup.exe |
 
 - Android release normal: https://github.com/DanBar1971/SaudePratica/releases/tag/v1.9.137
 - A antiga `v1.9.127-preview` existe apenas como artefacto histórico; **não é o download oficial atual**.

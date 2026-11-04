@@ -731,6 +731,75 @@ class SecureStore:
             raise
         return summary
 
+    def recover_android_modules(self, profile_id: str | None = None):
+        """Convert original Android family ZIP already stored under DPAPI.
+
+        Atomic, additive, repeatable. Existing Windows edits, family
+        medication/agenda, linked patients and protected originals stay intact.
+        """
+        import copy
+        from windows.android_full_restore_v0813 import (
+            extract_profile_android,merge_snapshot,
+        )
+        targets=([self.get_profile(profile_id)] if profile_id is not None
+                 else list(self.profiles()))
+        if not targets or any(p is None for p in targets):
+            raise LocalStoreError("Seleciona um perfil existente.")
+        source_to_target={
+            p.get("android_zip_source_id"):p["id"]
+            for p in self.profiles()
+            if isinstance(p.get("android_zip_source_id"),str)
+            and p.get("android_zip_source_id")
+        }
+        previous=self.data
+        proposed=copy.deepcopy(previous)
+        metadata=list(proposed.get("imported_files",[]))
+        assets=[]
+        counts={"meals":0,"meal_photos":0,"water":0,"symptoms":0,
+                "intakes":0,"measurements":0,"sos":0,
+                "residences":0,"invoices":0}
+        linked=0
+        for current in targets:
+            pid=current["id"]
+            source=current.get("android_zip_source_id")
+            if not source:
+                continue
+            archives=[a for a in self.android_archives()
+                      if pid in a.get("profile_ids",[]) and
+                      source in a.get("source_ids",[])]
+            if not archives:
+                continue
+            profile=next(p for p in proposed["profiles"] if p.get("id")==pid)
+            linked+=1
+            for archive in archives:
+                original=self.read_imported_asset({"sha256":archive["sha256"]})
+                try:
+                    snapshot=extract_profile_android(original,source)
+                    new_meta,new_assets,summary=merge_snapshot(
+                        profile,snapshot,source_to_target,metadata)
+                except ValueError as exc:
+                    raise LocalStoreError("Origem Android inválida: "+str(exc)) from exc
+                metadata.extend(new_meta)
+                assets.extend(new_assets)
+                for key,value in summary.items():
+                    counts[key]+=value
+        if not linked:
+            raise LocalStoreError(
+                "Não há nenhum backup Android original associado a estes perfis. "
+                "Importa primeiro o backup completo do Android.")
+        proposed["imported_files"]=metadata
+        created=self._write_assets(assets)
+        try:
+            self.data=proposed
+            self.save()
+        except Exception:
+            self.data=previous
+            for path in created:
+                try:path.unlink()
+                except OSError:pass
+            raise
+        return {"profiles":linked,"android_modules":counts}
+
     def create_profile(self, name: str):
         name = name.strip()
         if not 1 <= len(name) <= 120:

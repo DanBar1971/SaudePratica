@@ -4,24 +4,25 @@ UI never treats the source archive as a cloud sync. Restore is previewed,
 explicit, non-duplicating, and creates an encrypted safety copy first.
 """
 from pathlib import Path
-from tkinter import filedialog,messagebox
+from tkinter import filedialog,messagebox,simpledialog
+from shared.python.saude_backup import backup_access_kind
 import customtkinter as ctk
 from windows.progress_dialog_v073 import run_progress
 
 def render_backup(app):
     app._heading("Backup e Restauro",
-        "Um formato encriptado .spbackup · Família inteira ou um perfil")
+        "PIN numérico de 4 dígitos · .spbackup para toda a família ou um perfil")
     wrapper=app._card(app.body)
     wrapper.pack(fill="x",pady=8)
     inner=ctk.CTkFrame(wrapper,fg_color="transparent")
     inner.pack(fill="x",padx=25,pady=20)
-    app._label(inner,"Palavra-passe de proteção e restauro",15,True).pack(anchor="w")
-    password=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=365,
+    app._label(inner,"PIN para criar ou restaurar backup (4 números)",15,True).pack(anchor="w")
+    password=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=190,
         fg_color=app.p["field"],border_color=app.p["line"],
         text_color=app.p["text"])
     password.pack(anchor="w",pady=(5,10))
-    app._label(inner,"Confirmar palavra-passe (na exportação)",13,True).pack(anchor="w")
-    repeat=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=365,
+    app._label(inner,"Confirmar PIN (na exportação)",13,True).pack(anchor="w")
+    repeat=ctk.CTkEntry(inner,show="●",height=35,corner_radius=10,width=190,
         fg_color=app.p["field"],border_color=app.p["line"],
         text_color=app.p["text"])
     repeat.pack(anchor="w",pady=(5,16))
@@ -29,13 +30,15 @@ def render_backup(app):
         "Um único formato para Android, Windows e futuro macOS. "
         "Restaurar um perfil que já existe SUBSTITUI os seus dados apenas "
         "depois de mostrar a comparação e obter confirmação. "
-        "Cria sempre um backup de segurança antes de substituir.",
+        "Cria sempre um backup de segurança antes de substituir. "
+        "Um PIN curto é mais cómodo, mas protege menos contra ataques "
+        "fora da aplicação: guarda os ficheiros em local seguro.",
         13,color=app.p["muted"],wrap=930).pack(anchor="w",pady=(0,16))
     def export(selected=None):
         pwd=password.get()
-        if len(pwd)<10 or pwd!=repeat.get():
+        if len(pwd)!=4 or not pwd.isascii() or not pwd.isdigit() or pwd!=repeat.get():
             messagebox.showerror("Backup",
-                "Palavra-passe com pelo menos 10 caracteres e confirmação igual.",
+                "Indica o mesmo PIN de 4 números nos dois campos.",
                 parent=app);return
         profiles=app.store.profiles()
         if selected is not None and not app.store.get_profile(selected):
@@ -92,13 +95,29 @@ def render_backup(app):
         run_progress(app,"A criar backup encriptado",work,success,failure)
 
     def restore():
-        pwd=password.get()
-        if not pwd:
-            messagebox.showerror("Restauro",
-                "Indica a palavra-passe do ficheiro .spbackup.",parent=app);return
         src=filedialog.askopenfilename(parent=app,
             filetypes=[("Backup SaúdePrática encriptado","*.spbackup")])
         if not src:return
+        try:
+            with Path(src).open("rb") as source:
+                header=source.read(8192)
+            kind=backup_access_kind(header)
+        except (OSError,ValueError) as exc:
+            messagebox.showerror("Restauro",str(exc),parent=app)
+            return
+        if kind=="password":
+            pwd=simpledialog.askstring(
+                "Backup antigo","Este é um backup antigo. Introduz a "
+                "palavra-passe original para o restaurar.",
+                parent=app,show="●")
+            if pwd is None:return
+        else:
+            pwd=password.get()
+            if len(pwd)!=4 or not pwd.isascii() or not pwd.isdigit():
+                messagebox.showerror(
+                    "Restauro","Introduz o PIN de 4 números deste backup.",
+                    parent=app)
+                return
 
         def inspect_work(progress):
             progress(5,"Etapa 1/3 · Ler backup cifrado...")
@@ -175,10 +194,10 @@ def render_backup(app):
 
     def recover_from_stored_android():
         pwd=password.get()
-        if len(pwd)<10:
+        if len(pwd)!=4 or not pwd.isascii() or not pwd.isdigit():
             messagebox.showerror("Recuperar dados Android",
-                "Indica uma palavra-passe com pelo menos 10 caracteres "
-                "para proteger a cópia de segurança.",parent=app)
+                "Introduz um PIN de 4 números para proteger a cópia de segurança.",
+                parent=app)
             return
         if not messagebox.askyesno("Recuperar os módulos Android",
             "Ler os backups Android originais já guardados neste computador "

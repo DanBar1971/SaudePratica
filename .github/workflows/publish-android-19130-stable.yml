@@ -1,8 +1,6 @@
 name: Publicar SaúdePrática Android 1.9.130 NORMAL com IA leve opcional
+# 1.9.130 já foi publicada; evitar republicação automática ao ativar a 1.9.131.
 on:
-  push:
-    branches: [main]
-    paths: [".github/workflows/publish-android-19130-stable.yml"]
   workflow_dispatch:
 
 permissions:

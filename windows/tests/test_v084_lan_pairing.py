@@ -99,7 +99,11 @@ class PairProtocolTests(unittest.TestCase):
         ui=(Path(__file__).resolve().parents[1]/"lan_ui_v084.py").read_text("utf-8")
         self.assertIn('VERSION = "0.8.16"',src)
         self.assertIn('elif self.page=="sync": self._sync_page()',src)
-        self.assertIn('self.after(900,self._lan_begin_discovery)',src)
+        login=(Path(__file__).resolve().parents[1]/"login_ui_v0816.py").read_text("utf-8")
+        # LAN discovery must start only after the PIN has been accepted.
+        self.assertIn('self.after(900,self._lan_begin_discovery)',login)
+        self.assertIn('self._login_unlocked=True',login)
+        self.assertNotIn('self.after(900,self._lan_begin_discovery)',src)
         self.assertIn('def _lan_poll_ui(self):',ui)
         self.assertIn('def _lan_manual_request(self):',ui)
         self.assertIn('messagebox.askyesno("Confirmar pedido de ligação"',ui)

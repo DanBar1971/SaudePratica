@@ -225,6 +225,8 @@ class HealthRecordsUiV088:
                       if person else "Seleciona um perfil primeiro.")
         if not person:
             return
+        if clinical:
+            self._hospital_banner(self.body,person["id"])
         if not isinstance(getattr(self,"_health_selection",None),dict):
             self._health_selection={"clinical":None,"expenses":None}
         if not isinstance(getattr(self,"_expense_year",None),int):

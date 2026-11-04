@@ -1,3 +1,4 @@
+# Compilação 0.8.14: testes atualizados para interface sem recuperação manual
 name: SaúdePrática Windows 0.8.14 — construir, ensaiar e publicar EXE
 on:
   push:

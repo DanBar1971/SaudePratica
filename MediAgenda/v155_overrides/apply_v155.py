@@ -128,8 +128,8 @@ s=patch(s,'"Backup .spbackup · Família"', '"Backup Família · PIN de 4 númer
         "family backup label")
 s=patch(s,'"Backup .spbackup · Perfil"', '"Backup Perfil · PIN de 4 números"',
         "profile backup label")
-s=patch(s,'"Restaurar .spbackup · Família ou Perfil"',
-        '"Restaurar backup com PIN · Família ou Perfil"',
+s=patch(s,'infoCard("📥", "Restaurar .spbackup · Família ou Perfil"',
+        'infoCard("📥", "Restaurar backup com PIN · Família ou Perfil"',
         "restore menu label")
 s=patch(s,'val pass=backupPinInput("PIN do backup · 4 números")',
     'val pass=backupPinInput("PIN do backup · 4 números")',

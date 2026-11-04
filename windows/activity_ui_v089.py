@@ -245,6 +245,34 @@ class ActivityUiV089(ActivityHealthConnectUiV0815):
         scroller.pack(fill="both",expand=True,padx=9,pady=(10,8))
         top=ctk.CTkFrame(scroller,fg_color="transparent")
         top.pack(fill="x",padx=7,pady=(0,9))
+        weight_history=person.get("android_manual_body",{})
+        if isinstance(weight_history,dict):
+            weight_rows=weight_history.get("weights",[])
+            if isinstance(weight_rows,list):
+                weight_rows=[r for r in weight_rows if isinstance(r,dict) and
+                             isinstance(r.get("at"),(int,float)) and
+                             isinstance(r.get("kg"),(int,float))]
+            else:weight_rows=[]
+            if weight_rows:
+                latest=max(weight_rows,key=lambda r:r["at"])
+                panel=ctk.CTkFrame(right,fg_color=self.p["panel2"],
+                                   corner_radius=11)
+                panel.pack(fill="x",padx=15,pady=(10,2),before=scroller)
+                value=f"{latest['kg']:.1f}".replace(".",",")
+                self._label(panel,
+                    f"⚖  Peso manual Android: {value} kg",15,True,
+                    color="#00c9b7").pack(anchor="w",padx=13,pady=(9,2))
+                self._label(panel,
+                    f"Última pesagem: {latest.get('date','')}  ·  "
+                    f"{len(weight_rows)} registos importados  ·  "
+                    f"Altura: {weight_history.get('height_cm','—')} cm",
+                    11,color=self.p["muted"],wrap=680).pack(
+                    anchor="w",padx=13,pady=(0,9))
+                self._label(right,
+                    "Os campos abaixo são para novas medições manuais NO WINDOWS. "
+                    "Não substituem o histórico Android importado.",
+                    11,color=self.p["muted"],wrap=700).pack(
+                    anchor="w",padx=22,pady=(1,6),before=scroller)
         self._label(top,"Registo do dia",17,True).pack(side="left")
         ctrl=ctk.CTkFrame(top,fg_color="transparent")
         ctrl.pack(side="right")

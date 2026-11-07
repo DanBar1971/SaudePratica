@@ -1,0 +1,10 @@
+name = "saudepratica-online-ai"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+# No API key in this file or inside APK.
+# Configure the shared secret via: npx wrangler secret put SAUDE_AGENT_SHARED_TOKEN
